@@ -31,12 +31,20 @@ const extras = [
   "Garage",
 ];
 
+const whatsappNumber = "41762581948";
+
 export default function QuickOffer() {
   const [service, setService] = useState("Wohnung");
   const [size, setSize] = useState(80);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [time, setTime] = useState("Diese Woche");
   const [analyzing, setAnalyzing] = useState(false);
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentStatus, setSentStatus] = useState<"idle" | "success" | "error">(
+    "idle"
+  );
 
   const price = useMemo(() => {
     let base = 120;
@@ -69,6 +77,71 @@ export default function QuickOffer() {
     );
   }
 
+  function buildMessage() {
+    return `Hallo HEXA CLEAN.
+
+Ich interessiere mich für eine Offerte.
+
+Leistung: ${service}
+Grösse: ${size} m²
+Zusatzleistungen: ${
+      selectedExtras.length > 0 ? selectedExtras.join(", ") : "Keine"
+    }
+Termin: ${time}
+Orientierende Preisspanne: ${price}
+
+Name: ${name || "-"}
+Kontakt: ${contact || "-"}`;
+  }
+
+  function sendWhatsApp() {
+    window.open(
+      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
+        buildMessage()
+      )}`,
+      "_blank"
+    );
+  }
+
+  async function sendEmail() {
+    setSending(true);
+    setSentStatus("idle");
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          contact,
+          service,
+          size,
+          selectedExtras,
+          time,
+          price,
+        }),
+      });
+
+      if (!response.ok) {
+        setSentStatus("error");
+        return;
+      }
+
+      setSentStatus("success");
+    } catch {
+      setSentStatus("error");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleSubmit() {
+    await sendEmail();
+    sendWhatsApp();
+  }
+
   const optionClass =
     "rounded-2xl border px-4 py-4 text-left font-semibold transition hover:scale-[1.02]";
 
@@ -79,17 +152,6 @@ export default function QuickOffer() {
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(34,211,238,0.18),transparent_38%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_75%,rgba(34,211,238,0.12),transparent_32%)]" />
-
-      <motion.div
-        className="absolute left-0 top-0 h-full w-[28%] rotate-12 bg-gradient-to-r from-transparent via-cyan-200/10 to-transparent blur-2xl"
-        animate={{ x: ["-120%", "520%"] }}
-        transition={{
-          duration: 7,
-          repeat: Infinity,
-          repeatDelay: 4,
-          ease: "easeInOut",
-        }}
-      />
 
       <div className="relative z-10 mx-auto max-w-7xl">
         <motion.div
@@ -120,8 +182,6 @@ export default function QuickOffer() {
             transition={{ duration: 0.85 }}
             className="relative overflow-hidden rounded-[36px] border border-cyan-300/20 bg-white/[0.05] p-7 shadow-[0_0_70px_rgba(0,220,255,0.14)] backdrop-blur-2xl"
           >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent" />
-
             <div className="mb-9">
               <h3 className="mb-4 flex items-center gap-3 text-xl font-black">
                 <Calculator size={22} className="text-cyan-300" />
@@ -136,7 +196,7 @@ export default function QuickOffer() {
                     onClick={() => setService(item)}
                     className={`${optionClass} ${
                       service === item
-                        ? "border-cyan-300 bg-cyan-300 text-[#02101b] shadow-[0_0_28px_rgba(34,211,238,0.35)]"
+                        ? "border-cyan-300 bg-cyan-300 text-[#02101b]"
                         : "border-white/10 bg-black/25 text-slate-300 hover:border-cyan-300/50 hover:text-white"
                     }`}
                   >
@@ -179,7 +239,7 @@ export default function QuickOffer() {
                       onClick={() => toggleExtra(extra)}
                       className={`${optionClass} flex items-center justify-between ${
                         active
-                          ? "border-cyan-300 bg-cyan-300/15 text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,0.2)]"
+                          ? "border-cyan-300 bg-cyan-300/15 text-cyan-200"
                           : "border-white/10 bg-black/25 text-slate-300 hover:border-cyan-300/50 hover:text-white"
                       }`}
                     >
@@ -203,9 +263,9 @@ export default function QuickOffer() {
                     key={item}
                     type="button"
                     onClick={() => setTime(item)}
-                    className={`rounded-2xl border px-4 py-4 font-semibold transition hover:scale-[1.02] ${
+                    className={`rounded-2xl border px-4 py-4 font-semibold transition ${
                       time === item
-                        ? "border-cyan-300 bg-cyan-300 text-[#02101b] shadow-[0_0_28px_rgba(34,211,238,0.35)]"
+                        ? "border-cyan-300 bg-cyan-300 text-[#02101b]"
                         : "border-white/10 bg-black/25 text-slate-300 hover:border-cyan-300/50"
                     }`}
                   >
@@ -223,9 +283,6 @@ export default function QuickOffer() {
             transition={{ duration: 0.85, delay: 0.1 }}
             className="relative overflow-hidden rounded-[36px] border border-cyan-300/25 bg-[#06111d]/90 p-7 shadow-[0_0_90px_rgba(0,220,255,0.22)] backdrop-blur-2xl"
           >
-            <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(34,211,238,0.08),transparent)]" />
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent" />
-
             <div className="relative z-10">
               <p className="mb-4 flex items-center gap-3 text-sm uppercase tracking-[0.35em] text-cyan-300">
                 <Zap size={17} />
@@ -266,7 +323,7 @@ export default function QuickOffer() {
                         Orientierende Preisspanne
                       </p>
 
-                      <h3 className="mt-2 text-4xl font-black text-cyan-200 drop-shadow-[0_0_22px_rgba(34,211,238,0.45)] md:text-5xl">
+                      <h3 className="mt-2 text-4xl font-black text-cyan-200 md:text-5xl">
                         {price}
                       </h3>
                     </motion.div>
@@ -306,27 +363,43 @@ export default function QuickOffer() {
               </div>
 
               <div className="mt-8 grid gap-3">
-                <div className="relative">
-                  <input
-                    placeholder="Name"
-                    className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-4 outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
-                  />
-                </div>
+                <input
+                  placeholder="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-4 outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
+                />
 
-                <div className="relative">
-                  <input
-                    placeholder="Telefon oder E-Mail"
-                    className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-4 outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
-                  />
-                </div>
+                <input
+                  placeholder="Telefon oder E-Mail"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-4 outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
+                />
 
                 <button
                   type="button"
-                  className="group relative mt-2 overflow-hidden rounded-xl bg-cyan-300 px-6 py-4 font-black text-[#02101b] shadow-[0_0_40px_rgba(0,220,255,0.5)] transition hover:scale-[1.03] hover:bg-white"
+                  onClick={handleSubmit}
+                  disabled={sending}
+                  className="group relative mt-2 overflow-hidden rounded-xl bg-cyan-300 px-6 py-4 font-black text-[#02101b] shadow-[0_0_40px_rgba(0,220,255,0.5)] transition hover:scale-[1.03] hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent transition duration-700 group-hover:translate-x-full" />
-                  <span className="relative">Anfrage senden →</span>
+                  <span className="relative">
+                    {sending ? "Wird gesendet..." : "Anfrage senden →"}
+                  </span>
                 </button>
+
+                {sentStatus === "success" && (
+                  <p className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-200">
+                    Anfrage wurde per E-Mail gesendet. WhatsApp wurde geöffnet.
+                  </p>
+                )}
+
+                {sentStatus === "error" && (
+                  <p className="rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-200">
+                    E-Mail konnte nicht gesendet werden. WhatsApp wurde trotzdem
+                    geöffnet.
+                  </p>
+                )}
 
                 <div className="mt-3 grid gap-2 text-sm text-slate-400">
                   <div className="flex items-center gap-2">
