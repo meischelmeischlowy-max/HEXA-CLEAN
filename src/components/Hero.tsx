@@ -41,7 +41,7 @@ export default function Hero() {
       <div className="absolute inset-0 z-0 bg-gradient-to-r from-black via-black/82 to-black/35" />
       <div className="absolute inset-0 z-0 bg-gradient-to-t from-black via-black/15 to-black/60" />
 
-      <CinematicEffects />
+      {/* <CinematicEffects /> */}
 
       {/* INTRO ONLY DESKTOP */}
       <motion.div
