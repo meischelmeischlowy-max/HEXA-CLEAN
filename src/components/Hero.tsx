@@ -9,6 +9,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import Navbar from "@/components/Navbar";
 import CinematicEffects from "./CinematicEffects";
 
 const titleWords = ["HEXA", "CLEAN"];
@@ -24,6 +25,7 @@ export default function Hero() {
       id="startseite"
       className="relative min-h-screen overflow-hidden bg-black text-white"
     >
+      <Navbar />
       {/* STATIC MOBILE BACKGROUND */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center md:hidden"

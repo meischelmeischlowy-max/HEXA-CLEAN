@@ -51,7 +51,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="fixed left-0 top-0 z-[100] w-full px-4 py-3">
+      <header className="absolute inset-x-0 top-0 z-[100] px-4 py-3">
         <motion.div
           animate={{
             backgroundColor: scrolled
