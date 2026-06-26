@@ -1,7 +1,14 @@
 "use client";
 
 import { motion } from "motion/react";
-import { ArrowRight, Check, Hexagon, ScanLine, Sparkles, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Hexagon,
+  ScanLine,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import CinematicEffects from "./CinematicEffects";
 
 const titleWords = ["HEXA", "CLEAN"];
@@ -17,8 +24,15 @@ export default function Hero() {
       id="startseite"
       className="relative min-h-screen overflow-hidden bg-black text-white"
     >
+      {/* STATIC MOBILE BACKGROUND */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center md:hidden"
+        style={{ backgroundImage: "url('/images/hero.png')" }}
+      />
+
+      {/* ANIMATED DESKTOP BACKGROUND */}
       <motion.div
-        className="absolute inset-0 z-0 scale-110 bg-cover bg-center"
+        className="absolute inset-0 z-0 hidden scale-110 bg-cover bg-center md:block"
         style={{ backgroundImage: "url('/images/hero.png')" }}
         animate={{ scale: [1.1, 1.145, 1.1] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
@@ -29,20 +43,21 @@ export default function Hero() {
 
       <CinematicEffects />
 
+      {/* INTRO ONLY DESKTOP */}
       <motion.div
-        className="pointer-events-none absolute inset-0 z-10 bg-black"
+        className="pointer-events-none absolute inset-0 z-10 hidden bg-black md:block"
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}
         transition={{ duration: 1.6, delay: 0.2, ease: "easeOut" }}
       />
 
-      <div className="relative z-30 grid min-h-screen items-center gap-10 px-6 pb-16 pt-44 md:px-14 md:pt-48 lg:grid-cols-[1.05fr_0.95fr] lg:px-24 lg:pt-40">
+      <div className="relative z-30 grid min-h-screen items-center gap-10 px-6 pb-16 pt-40 md:px-14 md:pt-48 lg:grid-cols-[1.05fr_0.95fr] lg:px-24 lg:pt-40">
         <div className="max-w-4xl">
           <motion.div
             className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs text-cyan-100 shadow-[0_0_30px_rgba(34,211,238,0.2)] backdrop-blur-md md:text-sm"
-            initial={{ opacity: 0, y: -24, scale: 0.92, filter: "blur(12px)" }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.85, delay: 0.8 }}
+            initial={{ opacity: 0, y: -18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
           >
             <Sparkles size={16} />
             Premium Reinigung · Hauswartung · Kleine Reparaturen
@@ -59,15 +74,13 @@ export default function Hero() {
                   key={word}
                   className="mr-5 inline-block text-white drop-shadow-[0_0_28px_rgba(255,255,255,0.22)]"
                   variants={{
-                    hidden: { y: 110, opacity: 0, rotateX: -90, filter: "blur(18px)" },
+                    hidden: { y: 70, opacity: 0 },
                     visible: {
                       y: 0,
                       opacity: 1,
-                      rotateX: 0,
-                      filter: "blur(0px)",
                       transition: {
-                        duration: 1,
-                        delay: 1 + index * 0.2,
+                        duration: 0.75,
+                        delay: 0.35 + index * 0.16,
                         ease: [0.22, 1, 0.36, 1],
                       },
                     },
@@ -81,9 +94,13 @@ export default function Hero() {
             <span className="block overflow-hidden pb-2">
               <motion.span
                 className="relative block bg-gradient-to-r from-cyan-200 via-white to-cyan-400 bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(34,211,238,0.45)]"
-                initial={{ y: 120, opacity: 0, filter: "blur(20px)" }}
-                animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-                transition={{ duration: 1, delay: 1.45, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ y: 70, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{
+                  duration: 0.75,
+                  delay: 0.7,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
               >
                 Sauberkeit mit System.
               </motion.span>
@@ -92,15 +109,15 @@ export default function Hero() {
 
           <motion.div
             className="mt-5 h-[2px] w-0 bg-gradient-to-r from-cyan-300 via-white to-transparent shadow-[0_0_22px_rgba(34,211,238,1)]"
-            animate={{ width: ["0%", "78%", "48%"] }}
-            transition={{ duration: 1.5, delay: 1.85, ease: "easeOut" }}
+            animate={{ width: ["0%", "70%", "48%"] }}
+            transition={{ duration: 1.1, delay: 0.9, ease: "easeOut" }}
           />
 
           <motion.p
             className="mt-6 max-w-2xl text-base leading-7 text-white/75 md:text-lg lg:text-xl lg:leading-8"
-            initial={{ opacity: 0, y: 30, filter: "blur(14px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.9, delay: 2.05 }}
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 1 }}
           >
             Moderne Reinigung, Hauswartung, Fensterreinigung, Gartenpflege und
             kleine Reparaturen – schnell, sauber und professionell.
@@ -108,9 +125,9 @@ export default function Hero() {
 
           <motion.div
             className="mt-9 flex flex-col gap-4 sm:flex-row"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 22 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 2.25 }}
+            transition={{ duration: 0.7, delay: 1.15 }}
           >
             <motion.button
               type="button"
@@ -136,20 +153,15 @@ export default function Hero() {
           </motion.div>
         </div>
 
+        {/* DESKTOP AI PANEL ONLY */}
         <motion.div
           className="relative hidden lg:block"
-          initial={{ opacity: 0, x: 50, scale: 0.94, filter: "blur(18px)" }}
-          animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
-          transition={{ duration: 1.1, delay: 1.55, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, x: 50, scale: 0.94 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          transition={{ duration: 1, delay: 1.1, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="relative overflow-hidden rounded-[38px] border border-cyan-300/25 bg-black/35 p-6 shadow-[0_0_90px_rgba(34,211,238,0.22)] backdrop-blur-2xl">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent" />
-
-            <motion.div
-              className="absolute -left-1/2 top-0 h-full w-1/2 rotate-12 bg-gradient-to-r from-transparent via-cyan-200/18 to-transparent blur-xl"
-              animate={{ x: ["0%", "280%"] }}
-              transition={{ duration: 4, repeat: Infinity, repeatDelay: 3 }}
-            />
 
             <div className="mb-6 flex items-center justify-between">
               <div>
@@ -163,7 +175,11 @@ export default function Hero() {
                 <motion.div
                   className="absolute inset-0 text-cyan-300"
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 14, repeat: Infinity, ease: "linear" }}
+                  transition={{
+                    duration: 14,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
                 >
                   <Hexagon size={64} strokeWidth={1.4} />
                 </motion.div>
@@ -182,7 +198,11 @@ export default function Hero() {
                 <motion.div
                   className="h-full rounded-full bg-cyan-300 shadow-[0_0_25px_rgba(34,211,238,1)]"
                   animate={{ width: ["15%", "82%", "45%", "100%"] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 />
               </div>
 
