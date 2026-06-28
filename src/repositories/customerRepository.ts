@@ -20,6 +20,12 @@ export const customerRepository = {
     });
   },
 
+  findByPhone(phone: string) {
+    return prisma.customer.findFirst({
+      where: { phone },
+    });
+  },
+
   findAll() {
     return prisma.customer.findMany({
       orderBy: {
