@@ -105,4 +105,13 @@ export const dashboardRepository = {
       },
     });
   },
+
+  async getOrders() {
+    return prisma.order.findMany({
+      take: 50,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };
