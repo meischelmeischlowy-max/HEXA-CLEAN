@@ -15,6 +15,32 @@ type DashboardCounts = {
   auditLogs: number;
 };
 
+type ActivityRecord = {
+  id?: string;
+  createdAt?: string;
+  status?: string;
+  orderNumber?: string;
+  quoteNumber?: string;
+  invoiceNumber?: string;
+  fileName?: string;
+  action?: string;
+  entityType?: string;
+  amount?: string | number;
+  total?: string | number;
+  recipient?: string;
+  channel?: string;
+};
+
+type RecentActivity = {
+  recentOrders: ActivityRecord[];
+  recentQuotes: ActivityRecord[];
+  recentInvoices: ActivityRecord[];
+  recentPayments: ActivityRecord[];
+  recentNotifications: ActivityRecord[];
+  recentAttachments: ActivityRecord[];
+  recentAuditLogs: ActivityRecord[];
+};
+
 type DashboardOverviewResponse = {
   layer: string;
   message: string;
@@ -25,26 +51,149 @@ type DashboardOverviewResponse = {
   };
 };
 
+type DashboardRecentActivityResponse = {
+  layer: string;
+  message: string;
+  data: {
+    status: string;
+    message: string;
+    activity: RecentActivity;
+  };
+};
+
+function formatDate(value?: string) {
+  if (!value) return "brak daty";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("de-CH", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function getRecordTitle(record: ActivityRecord, fallback: string) {
+  return (
+    record.orderNumber ??
+    record.quoteNumber ??
+    record.invoiceNumber ??
+    record.fileName ??
+    record.action ??
+    record.entityType ??
+    record.recipient ??
+    record.id ??
+    fallback
+  );
+}
+
+function ActivityList({
+  title,
+  items,
+  fallback,
+}: {
+  title: string;
+  items: ActivityRecord[];
+  fallback: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <span className="rounded-full bg-neutral-800 px-3 py-1 text-xs text-neutral-300">
+          {items.length}
+        </span>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-sm text-neutral-500">Brak danych.</p>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item, index) => (
+            <div
+              key={item.id ?? `${title}-${index}`}
+              className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
+            >
+              <p className="truncate text-sm font-medium text-white">
+                {getRecordTitle(item, fallback)}
+              </p>
+
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-neutral-400">
+                {item.status && (
+                  <span className="rounded-full bg-neutral-800 px-2 py-1">
+                    {item.status}
+                  </span>
+                )}
+
+                {item.channel && (
+                  <span className="rounded-full bg-neutral-800 px-2 py-1">
+                    {item.channel}
+                  </span>
+                )}
+
+                {item.amount && (
+                  <span className="rounded-full bg-neutral-800 px-2 py-1">
+                    Kwota: {String(item.amount)}
+                  </span>
+                )}
+
+                {item.total && (
+                  <span className="rounded-full bg-neutral-800 px-2 py-1">
+                    Total: {String(item.total)}
+                  </span>
+                )}
+
+                <span className="rounded-full bg-neutral-800 px-2 py-1">
+                  {formatDate(item.createdAt)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [counts, setCounts] = useState<DashboardCounts | null>(null);
+  const [activity, setActivity] = useState<RecentActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const response = await fetch("/api/dashboard/overview", {
-          method: "GET",
-          cache: "no-store",
-        });
+        const [overviewResponse, activityResponse] = await Promise.all([
+          fetch("/api/dashboard/overview", {
+            method: "GET",
+            cache: "no-store",
+          }),
+          fetch("/api/dashboard/recent-activity", {
+            method: "GET",
+            cache: "no-store",
+          }),
+        ]);
 
-        if (!response.ok) {
-          throw new Error("Dashboard API returned an error");
+        if (!overviewResponse.ok) {
+          throw new Error("Dashboard Overview API returned an error");
         }
 
-        const json: DashboardOverviewResponse = await response.json();
+        if (!activityResponse.ok) {
+          throw new Error("Dashboard Recent Activity API returned an error");
+        }
 
-        setCounts(json.data.counts);
+        const overviewJson: DashboardOverviewResponse =
+          await overviewResponse.json();
+
+        const activityJson: DashboardRecentActivityResponse =
+          await activityResponse.json();
+
+        setCounts(overviewJson.data.counts);
+        setActivity(activityJson.data.activity);
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Unknown dashboard error"
@@ -85,8 +234,8 @@ export default function DashboardPage() {
           </h1>
 
           <p className="mt-3 max-w-2xl text-neutral-400">
-            Panel CRM do kontroli klientów, zleceń, ofert, faktur, płatności i
-            historii systemu.
+            Panel CRM do kontroli klientów, zleceń, ofert, faktur, płatności,
+            powiadomień, załączników i historii systemu.
           </p>
         </div>
 
@@ -118,6 +267,63 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {activity && (
+          <div className="mt-8">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold">Ostatnia aktywność</h2>
+              <p className="mt-2 text-sm text-neutral-400">
+                Najnowsze dane z CRM, faktur, płatności i historii systemu.
+              </p>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <ActivityList
+                title="Ostatnie zlecenia"
+                items={activity.recentOrders}
+                fallback="Zlecenie"
+              />
+
+              <ActivityList
+                title="Ostatnie oferty"
+                items={activity.recentQuotes}
+                fallback="Oferta"
+              />
+
+              <ActivityList
+                title="Ostatnie faktury"
+                items={activity.recentInvoices}
+                fallback="Faktura"
+              />
+
+              <ActivityList
+                title="Ostatnie płatności"
+                items={activity.recentPayments}
+                fallback="Płatność"
+              />
+
+              <ActivityList
+                title="Ostatnie powiadomienia"
+                items={activity.recentNotifications}
+                fallback="Powiadomienie"
+              />
+
+              <ActivityList
+                title="Ostatnie załączniki"
+                items={activity.recentAttachments}
+                fallback="Załącznik"
+              />
+
+              <div className="lg:col-span-2">
+                <ActivityList
+                  title="Audit Logi"
+                  items={activity.recentAuditLogs}
+                  fallback="Audit Log"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
           <h2 className="text-xl font-semibold">Status systemu</h2>
 
@@ -125,8 +331,8 @@ export default function DashboardPage() {
             <div>Backend Foundation: OK</div>
             <div>CRM API: OK</div>
             <div>Dashboard Overview: OK</div>
+            <div>Recent Activity: OK</div>
             <div>Prisma / Neon: OK</div>
-            <div>Test endpoints: aktywne</div>
             <div>Auth: do zrobienia</div>
           </div>
         </div>
