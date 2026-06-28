@@ -150,4 +150,13 @@ export const dashboardRepository = {
       },
     });
   },
+
+  async getAttachments() {
+    return prisma.attachment.findMany({
+      take: 50,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };

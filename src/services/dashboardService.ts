@@ -80,4 +80,14 @@ export const dashboardService = {
       notifications,
     };
   },
+
+  async getAttachments() {
+    const attachments = await dashboardRepository.getAttachments();
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard attachments loaded",
+      attachments,
+    };
+  },
 };
