@@ -123,4 +123,13 @@ export const dashboardRepository = {
       },
     });
   },
+
+  async getInvoices() {
+    return prisma.invoice.findMany({
+      take: 50,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };

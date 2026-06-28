@@ -50,4 +50,14 @@ export const dashboardService = {
       quotes,
     };
   },
+
+  async getInvoices() {
+    const invoices = await dashboardRepository.getInvoices();
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard invoices loaded",
+      invoices,
+    };
+  },
 };
