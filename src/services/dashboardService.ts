@@ -90,4 +90,14 @@ export const dashboardService = {
       attachments,
     };
   },
+
+  async getAuditLogs() {
+    const auditLogs = await dashboardRepository.getAuditLogs();
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard audit logs loaded",
+      auditLogs,
+    };
+  },
 };

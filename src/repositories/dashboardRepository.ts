@@ -159,4 +159,13 @@ export const dashboardRepository = {
       },
     });
   },
+
+  async getAuditLogs() {
+    return prisma.auditLog.findMany({
+      take: 100,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };
