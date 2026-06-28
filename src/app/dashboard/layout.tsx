@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import DashboardLogoutButton from "./DashboardLogoutButton";
 
 const navItems = [
   { label: "Overview", href: "/dashboard" },
@@ -15,7 +17,7 @@ const navItems = [
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="min-h-screen bg-neutral-950 text-white lg:flex">
@@ -44,8 +46,10 @@ export default function DashboardLayout({
           ))}
         </nav>
 
-        <div className="mt-6 rounded-xl border border-yellow-800/60 bg-yellow-950/30 p-4 text-xs text-yellow-200">
-          Brak logowania — przed produkcją dashboard musi być zabezpieczony.
+        <DashboardLogoutButton />
+
+        <div className="mt-6 rounded-xl border border-green-800/60 bg-green-950/30 p-4 text-xs text-green-200">
+          Dashboard zabezpieczony hasłem.
         </div>
       </aside>
 
