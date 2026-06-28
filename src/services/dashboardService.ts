@@ -10,4 +10,14 @@ export const dashboardService = {
       counts,
     };
   },
+
+  async getRecentActivity() {
+    const activity = await dashboardRepository.getRecentActivity();
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard recent activity loaded",
+      activity,
+    };
+  },
 };

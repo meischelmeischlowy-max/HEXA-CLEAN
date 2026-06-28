@@ -39,4 +39,61 @@ export const dashboardRepository = {
       auditLogs,
     };
   },
+
+  async getRecentActivity() {
+    const [
+      recentOrders,
+      recentQuotes,
+      recentInvoices,
+      recentPayments,
+      recentNotifications,
+      recentAttachments,
+      recentAuditLogs,
+    ] = await Promise.all([
+      prisma.order.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+
+      prisma.quote.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+
+      prisma.invoice.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+
+      prisma.payment.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+
+      prisma.notification.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+
+      prisma.attachment.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+
+      prisma.auditLog.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    return {
+      recentOrders,
+      recentQuotes,
+      recentInvoices,
+      recentPayments,
+      recentNotifications,
+      recentAttachments,
+      recentAuditLogs,
+    };
+  },
 };
