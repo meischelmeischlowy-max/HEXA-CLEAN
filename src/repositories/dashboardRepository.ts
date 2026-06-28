@@ -96,4 +96,13 @@ export const dashboardRepository = {
       recentAuditLogs,
     };
   },
+
+  async getCustomers() {
+    return prisma.customer.findMany({
+      take: 50,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };

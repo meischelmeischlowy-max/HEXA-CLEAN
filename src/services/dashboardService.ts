@@ -20,4 +20,14 @@ export const dashboardService = {
       activity,
     };
   },
+
+  async getCustomers() {
+    const customers = await dashboardRepository.getCustomers();
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard customers loaded",
+      customers,
+    };
+  },
 };
