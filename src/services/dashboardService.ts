@@ -70,4 +70,14 @@ export const dashboardService = {
       payments,
     };
   },
+
+  async getNotifications() {
+    const notifications = await dashboardRepository.getNotifications();
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard notifications loaded",
+      notifications,
+    };
+  },
 };

@@ -141,4 +141,13 @@ export const dashboardRepository = {
       },
     });
   },
+
+  async getNotifications() {
+    return prisma.notification.findMany({
+      take: 50,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };
