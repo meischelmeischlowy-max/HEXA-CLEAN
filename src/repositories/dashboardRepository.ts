@@ -114,4 +114,13 @@ export const dashboardRepository = {
       },
     });
   },
+
+  async getQuotes() {
+    return prisma.quote.findMany({
+      take: 50,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };

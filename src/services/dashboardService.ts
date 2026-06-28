@@ -40,4 +40,14 @@ export const dashboardService = {
       orders,
     };
   },
+
+  async getQuotes() {
+    const quotes = await dashboardRepository.getQuotes();
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard quotes loaded",
+      quotes,
+    };
+  },
 };
