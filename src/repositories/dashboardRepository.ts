@@ -132,4 +132,13 @@ export const dashboardRepository = {
       },
     });
   },
+
+  async getPayments() {
+    return prisma.payment.findMany({
+      take: 50,
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  },
 };
