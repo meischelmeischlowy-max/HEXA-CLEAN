@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 
 const DASHBOARD_COOKIE_NAME = "hexa_dashboard_auth";
 
+const testApiRoutes = [
+  "/api/db-test",
+  "/api/db-write-test",
+  "/api/repository-test",
+  "/api/customer-service-test",
+  "/api/session-service-test",
+  "/api/order-service-test",
+  "/api/conversation-service-test",
+  "/api/quote-service-test",
+  "/api/invoice-service-test",
+  "/api/payment-service-test",
+  "/api/notification-service-test",
+  "/api/attachment-service-test",
+  "/api/audit-log-service-test",
+];
+
 function isDashboardPage(pathname: string) {
   return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 }
@@ -17,8 +33,16 @@ function isPublicDashboardApi(pathname: string) {
   );
 }
 
+function isTestApiRoute(pathname: string) {
+  return testApiRoutes.includes(pathname);
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (process.env.NODE_ENV === "production" && isTestApiRoute(pathname)) {
+    return new NextResponse(null, { status: 404 });
+  }
 
   const dashboardToken = process.env.DASHBOARD_AUTH_TOKEN;
   const cookieToken = request.cookies.get(DASHBOARD_COOKIE_NAME)?.value;
@@ -52,5 +76,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/api/:path*"],
 };
