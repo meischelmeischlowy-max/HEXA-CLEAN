@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Customer = {
@@ -47,7 +48,13 @@ function getCustomerName(customer: Customer) {
     .join(" ")
     .trim();
 
-  return customer.name ?? fullName ?? customer.email ?? customer.phone ?? customer.id;
+  return (
+    customer.name ||
+    fullName ||
+    customer.email ||
+    customer.phone ||
+    customer.id
+  );
 }
 
 export default function DashboardCustomersPage() {
@@ -69,7 +76,7 @@ export default function DashboardCustomersPage() {
 
         const json: DashboardCustomersResponse = await response.json();
 
-        setCustomers(json.data.customers);
+        setCustomers(json.data.customers ?? []);
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Unknown customers error"
@@ -122,7 +129,7 @@ export default function DashboardCustomersPage() {
               <div className="p-6 text-neutral-500">Brak klientów w bazie.</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="w-full min-w-[1000px] text-left text-sm">
                   <thead className="border-b border-neutral-800 text-neutral-400">
                     <tr>
                       <th className="p-4 font-medium">Klient</th>
@@ -130,6 +137,7 @@ export default function DashboardCustomersPage() {
                       <th className="p-4 font-medium">Telefon</th>
                       <th className="p-4 font-medium">Miasto</th>
                       <th className="p-4 font-medium">Dodano</th>
+                      <th className="p-4 font-medium">Akcja</th>
                     </tr>
                   </thead>
 
@@ -159,6 +167,15 @@ export default function DashboardCustomersPage() {
 
                         <td className="p-4 text-neutral-400">
                           {formatDate(customer.createdAt)}
+                        </td>
+
+                        <td className="p-4">
+                          <Link
+                            href={`/dashboard/customers/${customer.id}`}
+                            className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
+                          >
+                            Szczegóły
+                          </Link>
                         </td>
                       </tr>
                     ))}
