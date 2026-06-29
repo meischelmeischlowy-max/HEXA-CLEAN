@@ -868,13 +868,94 @@ export const dashboardRepository = {
     };
   },
 
-  async getNotifications() {
+    async getNotifications() {
     return prisma.notification.findMany({
       take: 50,
       orderBy: {
         createdAt: "desc",
       },
     });
+  },
+
+  async getNotificationDetails(notificationId: string) {
+    const notification = await prisma.notification.findUnique({
+      where: {
+        id: notificationId,
+      },
+    });
+
+    if (!notification) {
+      return null;
+    }
+
+    const customerId = notification.customerId ?? null;
+    const orderId = notification.orderId ?? null;
+    const sessionId = notification.sessionId ?? null;
+
+    const [customer, order, session, conversationMessages, auditLogs] =
+      await Promise.all([
+        customerId
+          ? prisma.customer.findUnique({
+              where: {
+                id: customerId,
+              },
+            })
+          : Promise.resolve(null),
+
+        orderId
+          ? prisma.order.findUnique({
+              where: {
+                id: orderId,
+              },
+            })
+          : Promise.resolve(null),
+
+        sessionId
+          ? prisma.session.findUnique({
+              where: {
+                id: sessionId,
+              },
+            })
+          : Promise.resolve(null),
+
+        sessionId
+          ? prisma.conversationMessage.findMany({
+              where: {
+                sessionId,
+              },
+              take: 100,
+              orderBy: {
+                createdAt: "desc",
+              },
+            })
+          : Promise.resolve([]),
+
+        prisma.auditLog.findMany({
+          where: {
+            OR: [
+              {
+                entityId: notificationId,
+              },
+              ...(customerId ? [{ customerId }] : []),
+              ...(orderId ? [{ orderId }] : []),
+              ...(sessionId ? [{ sessionId }] : []),
+            ],
+          },
+          take: 100,
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
+      ]);
+
+    return {
+      notification,
+      customer,
+      order,
+      session,
+      conversationMessages,
+      auditLogs,
+    };
   },
 
   async getAttachments() {

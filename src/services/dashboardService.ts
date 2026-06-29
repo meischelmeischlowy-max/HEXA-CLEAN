@@ -166,13 +166,33 @@ export const dashboardService = {
     };
   },
 
-  async getNotifications() {
+    async getNotifications() {
     const notifications = await dashboardRepository.getNotifications();
 
     return {
       status: "OK",
       message: "HEXA OS Dashboard notifications loaded",
       notifications,
+    };
+  },
+
+  async getNotificationDetails(notificationId: string) {
+    const details =
+      await dashboardRepository.getNotificationDetails(notificationId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Notification not found",
+        notificationId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard notification details loaded",
+      notificationId,
+      details,
     };
   },
 
