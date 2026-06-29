@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Invoice = {
   id: string;
   invoiceNumber?: string | null;
+  number?: string | null;
   status?: string | null;
   subtotal?: string | number | null;
   taxAmount?: string | number | null;
@@ -49,6 +51,10 @@ function formatMoney(value?: string | number | null, currency = "CHF") {
   return `${String(value)} ${currency}`;
 }
 
+function getInvoiceNumber(invoice: Invoice) {
+  return invoice.invoiceNumber ?? invoice.number ?? invoice.id;
+}
+
 export default function DashboardInvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +74,7 @@ export default function DashboardInvoicesPage() {
 
         const json: DashboardInvoicesResponse = await response.json();
 
-        setInvoices(json.data.invoices);
+        setInvoices(json.data.invoices ?? []);
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Unknown invoices error"
@@ -121,7 +127,7 @@ export default function DashboardInvoicesPage() {
               <div className="p-6 text-neutral-500">Brak faktur w bazie.</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] text-left text-sm">
+                <table className="w-full min-w-[1100px] text-left text-sm">
                   <thead className="border-b border-neutral-800 text-neutral-400">
                     <tr>
                       <th className="p-4 font-medium">Faktura</th>
@@ -132,48 +138,62 @@ export default function DashboardInvoicesPage() {
                       <th className="p-4 font-medium">Zapłacono</th>
                       <th className="p-4 font-medium">Termin</th>
                       <th className="p-4 font-medium">Dodano</th>
+                      <th className="p-4 font-medium">Akcja</th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {invoices.map((invoice) => (
-                      <tr
-                        key={invoice.id}
-                        className="border-b border-neutral-800 last:border-b-0"
-                      >
-                        <td className="p-4 font-medium text-white">
-                          {invoice.invoiceNumber ?? invoice.id}
-                        </td>
+                    {invoices.map((invoice) => {
+                      const currency = invoice.currency ?? "CHF";
 
-                        <td className="p-4 text-neutral-300">
-                          {invoice.status ?? "—"}
-                        </td>
+                      return (
+                        <tr
+                          key={invoice.id}
+                          className="border-b border-neutral-800 last:border-b-0"
+                        >
+                          <td className="p-4 font-medium text-white">
+                            {getInvoiceNumber(invoice)}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {formatMoney(invoice.subtotal, invoice.currency ?? "CHF")}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {invoice.status ?? "—"}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {formatMoney(invoice.taxAmount, invoice.currency ?? "CHF")}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {formatMoney(invoice.subtotal, currency)}
+                          </td>
 
-                        <td className="p-4 font-medium text-white">
-                          {formatMoney(invoice.total, invoice.currency ?? "CHF")}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {formatMoney(invoice.taxAmount, currency)}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {formatMoney(invoice.paidAmount, invoice.currency ?? "CHF")}
-                        </td>
+                          <td className="p-4 font-medium text-white">
+                            {formatMoney(invoice.total, currency)}
+                          </td>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(invoice.dueDate)}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {formatMoney(invoice.paidAmount, currency)}
+                          </td>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(invoice.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="p-4 text-neutral-400">
+                            {formatDate(invoice.dueDate)}
+                          </td>
+
+                          <td className="p-4 text-neutral-400">
+                            {formatDate(invoice.createdAt)}
+                          </td>
+
+                          <td className="p-4">
+                            <Link
+                              href={`/dashboard/invoices/${invoice.id}`}
+                              className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
+                            >
+                              Szczegóły
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

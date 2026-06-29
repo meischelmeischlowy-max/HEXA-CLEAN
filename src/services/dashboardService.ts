@@ -118,6 +118,25 @@ export const dashboardService = {
     };
   },
 
+  async getInvoiceDetails(invoiceId: string) {
+    const details = await dashboardRepository.getInvoiceDetails(invoiceId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Invoice not found",
+        invoiceId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard invoice details loaded",
+      invoiceId,
+      details,
+    };
+  },
+
   async getPayments() {
     const payments = await dashboardRepository.getPayments();
 
