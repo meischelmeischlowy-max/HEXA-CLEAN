@@ -5,7 +5,7 @@ import { attachmentService } from "@/services/attachmentService";
 export async function POST() {
   try {
     const attachment = await attachmentService.createAttachment({
-      type: "OTHER",
+      type: "OTHER" as never,
       fileName: `test-attachment-${Date.now()}.txt`,
       mimeType: "text/plain",
       url: "https://example.com/test-attachment.txt",
