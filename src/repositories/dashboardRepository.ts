@@ -1105,12 +1105,115 @@ export const dashboardRepository = {
     };
   },
 
-  async getAuditLogs() {
+    async getAuditLogs() {
     return prisma.auditLog.findMany({
-      take: 100,
+      take: 50,
       orderBy: {
         createdAt: "desc",
       },
     });
+  },
+
+  async getAuditLogDetails(auditLogId: string) {
+    const auditLog = await prisma.auditLog.findUnique({
+      where: {
+        id: auditLogId,
+      },
+    });
+
+    if (!auditLog) {
+      return null;
+    }
+
+    const entityId = auditLog.entityId ?? null;
+    const customerId = auditLog.customerId ?? null;
+    const orderId = auditLog.orderId ?? null;
+    const sessionId = auditLog.sessionId ?? null;
+
+    const relatedAuditLogWhereConditions: {
+      id?: string;
+      entityId?: string;
+      customerId?: string;
+      orderId?: string;
+      sessionId?: string;
+    }[] = [
+      {
+        id: auditLogId,
+      },
+    ];
+
+    if (entityId) {
+      relatedAuditLogWhereConditions.push({ entityId });
+    }
+
+    if (customerId) {
+      relatedAuditLogWhereConditions.push({ customerId });
+    }
+
+    if (orderId) {
+      relatedAuditLogWhereConditions.push({ orderId });
+    }
+
+    if (sessionId) {
+      relatedAuditLogWhereConditions.push({ sessionId });
+    }
+
+    const [customer, order, session, conversationMessages, relatedAuditLogs] =
+      await Promise.all([
+        customerId
+          ? prisma.customer.findUnique({
+              where: {
+                id: customerId,
+              },
+            })
+          : Promise.resolve(null),
+
+        orderId
+          ? prisma.order.findUnique({
+              where: {
+                id: orderId,
+              },
+            })
+          : Promise.resolve(null),
+
+        sessionId
+          ? prisma.session.findUnique({
+              where: {
+                id: sessionId,
+              },
+            })
+          : Promise.resolve(null),
+
+        sessionId
+          ? prisma.conversationMessage.findMany({
+              where: {
+                sessionId,
+              },
+              take: 100,
+              orderBy: {
+                createdAt: "desc",
+              },
+            })
+          : Promise.resolve([]),
+
+        prisma.auditLog.findMany({
+          where: {
+            OR: relatedAuditLogWhereConditions,
+          },
+          take: 100,
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
+      ]);
+
+    return {
+      auditLog,
+      customer,
+      order,
+      session,
+      conversationMessages,
+      relatedAuditLogs,
+    };
   },
 };

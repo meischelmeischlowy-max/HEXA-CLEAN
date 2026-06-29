@@ -137,7 +137,7 @@ export const dashboardService = {
     };
   },
 
-    async getPayments() {
+  async getPayments() {
     const payments = await dashboardRepository.getPayments();
 
     return {
@@ -166,7 +166,7 @@ export const dashboardService = {
     };
   },
 
-    async getNotifications() {
+  async getNotifications() {
     const notifications = await dashboardRepository.getNotifications();
 
     return {
@@ -196,7 +196,7 @@ export const dashboardService = {
     };
   },
 
-    async getAttachments() {
+  async getAttachments() {
     const attachments = await dashboardRepository.getAttachments();
 
     return {
@@ -232,6 +232,25 @@ export const dashboardService = {
       status: "OK",
       message: "HEXA OS Dashboard audit logs loaded",
       auditLogs,
+    };
+  },
+
+  async getAuditLogDetails(auditLogId: string) {
+    const details = await dashboardRepository.getAuditLogDetails(auditLogId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Audit log not found",
+        auditLogId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard audit log details loaded",
+      auditLogId,
+      details,
     };
   },
 };

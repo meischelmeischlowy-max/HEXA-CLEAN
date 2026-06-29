@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type AuditLog = {
@@ -58,7 +59,7 @@ export default function DashboardAuditLogsPage() {
 
         const json: DashboardAuditLogsResponse = await response.json();
 
-        setAuditLogs(json.data.auditLogs);
+        setAuditLogs(json.data.auditLogs ?? []);
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Unknown audit logs error"
@@ -115,7 +116,7 @@ export default function DashboardAuditLogsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-left text-sm">
+                <table className="w-full min-w-[1200px] text-left text-sm">
                   <thead className="border-b border-neutral-800 text-neutral-400">
                     <tr>
                       <th className="p-4 font-medium">Akcja</th>
@@ -125,6 +126,7 @@ export default function DashboardAuditLogsPage() {
                       <th className="p-4 font-medium">IP</th>
                       <th className="p-4 font-medium">Wiadomość</th>
                       <th className="p-4 font-medium">Data</th>
+                      <th className="p-4 font-medium">Akcja</th>
                     </tr>
                   </thead>
 
@@ -162,6 +164,15 @@ export default function DashboardAuditLogsPage() {
 
                         <td className="p-4 text-neutral-400">
                           {formatDate(log.createdAt)}
+                        </td>
+
+                        <td className="p-4">
+                          <Link
+                            href={`/dashboard/audit-logs/${log.id}`}
+                            className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
+                          >
+                            Szczegóły
+                          </Link>
                         </td>
                       </tr>
                     ))}
