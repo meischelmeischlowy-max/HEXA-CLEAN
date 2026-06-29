@@ -1,16 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Quote = {
   id: string;
   quoteNumber?: string | null;
+  number?: string | null;
   status?: string | null;
   subtotal?: string | number | null;
+  taxRate?: string | number | null;
   taxAmount?: string | number | null;
   total?: string | number | null;
   currency?: string | null;
+  customerId?: string | null;
+  orderId?: string | null;
+  sessionId?: string | null;
   validUntil?: string | null;
+  dueDate?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -40,6 +47,18 @@ function formatDate(value?: string | null) {
   });
 }
 
+function formatMoney(value?: string | number | null, currency = "CHF") {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  return `${String(value)} ${currency}`;
+}
+
+function getQuoteNumber(quote: Quote) {
+  return quote.quoteNumber ?? quote.number ?? quote.id;
+}
+
 export default function DashboardQuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +78,7 @@ export default function DashboardQuotesPage() {
 
         const json: DashboardQuotesResponse = await response.json();
 
-        setQuotes(json.data.quotes);
+        setQuotes(json.data.quotes ?? []);
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Unknown quotes error"
@@ -112,7 +131,7 @@ export default function DashboardQuotesPage() {
               <div className="p-6 text-neutral-500">Brak ofert w bazie.</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="w-full min-w-[1000px] text-left text-sm">
                   <thead className="border-b border-neutral-800 text-neutral-400">
                     <tr>
                       <th className="p-4 font-medium">Oferta</th>
@@ -121,52 +140,54 @@ export default function DashboardQuotesPage() {
                       <th className="p-4 font-medium">VAT</th>
                       <th className="p-4 font-medium">Total</th>
                       <th className="p-4 font-medium">Dodano</th>
+                      <th className="p-4 font-medium">Akcja</th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {quotes.map((quote) => (
-                      <tr
-                        key={quote.id}
-                        className="border-b border-neutral-800 last:border-b-0"
-                      >
-                        <td className="p-4 font-medium text-white">
-                          {quote.quoteNumber ?? quote.id}
-                        </td>
+                    {quotes.map((quote) => {
+                      const currency = quote.currency ?? "CHF";
 
-                        <td className="p-4 text-neutral-300">
-                          {quote.status ?? "—"}
-                        </td>
+                      return (
+                        <tr
+                          key={quote.id}
+                          className="border-b border-neutral-800 last:border-b-0"
+                        >
+                          <td className="p-4 font-medium text-white">
+                            {getQuoteNumber(quote)}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {quote.subtotal
-                            ? `${String(quote.subtotal)} ${
-                                quote.currency ?? "CHF"
-                              }`
-                            : "—"}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {quote.status ?? "—"}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {quote.taxAmount
-                            ? `${String(quote.taxAmount)} ${
-                                quote.currency ?? "CHF"
-                              }`
-                            : "—"}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {formatMoney(quote.subtotal, currency)}
+                          </td>
 
-                        <td className="p-4 font-medium text-white">
-                          {quote.total
-                            ? `${String(quote.total)} ${
-                                quote.currency ?? "CHF"
-                              }`
-                            : "—"}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {formatMoney(quote.taxAmount, currency)}
+                          </td>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(quote.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="p-4 font-medium text-white">
+                            {formatMoney(quote.total, currency)}
+                          </td>
+
+                          <td className="p-4 text-neutral-400">
+                            {formatDate(quote.createdAt)}
+                          </td>
+
+                          <td className="p-4">
+                            <Link
+                              href={`/dashboard/quotes/${quote.id}`}
+                              className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
+                            >
+                              Szczegóły
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

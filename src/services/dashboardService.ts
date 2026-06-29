@@ -89,6 +89,25 @@ export const dashboardService = {
     };
   },
 
+  async getQuoteDetails(quoteId: string) {
+    const details = await dashboardRepository.getQuoteDetails(quoteId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Quote not found",
+        quoteId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard quote details loaded",
+      quoteId,
+      details,
+    };
+  },
+
   async getInvoices() {
     const invoices = await dashboardRepository.getInvoices();
 
