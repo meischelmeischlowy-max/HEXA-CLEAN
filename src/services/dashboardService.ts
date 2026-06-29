@@ -31,6 +31,25 @@ export const dashboardService = {
     };
   },
 
+  async getCustomerDetails(customerId: string) {
+    const details = await dashboardRepository.getCustomerDetails(customerId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Customer not found",
+        customerId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard customer details loaded",
+      customerId,
+      details,
+    };
+  },
+
   async getOrders() {
     const orders = await dashboardRepository.getOrders();
 
