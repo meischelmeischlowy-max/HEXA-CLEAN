@@ -1,44 +1,18 @@
 import { NextResponse } from "next/server";
-import { NotificationChannel } from "@prisma/client";
+
 import { notificationService } from "@/services/notificationService";
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    const body = await request.json().catch(() => ({}));
-
-    const allowedChannels = Object.values(NotificationChannel);
-
-    const channelFromBody =
-      typeof body.channel === "string" ? body.channel : allowedChannels[0];
-
-    if (!allowedChannels.includes(channelFromBody as NotificationChannel)) {
-      return NextResponse.json(
-        {
-          layer: "notification-service",
-          message: "Invalid notification channel",
-          allowedChannels,
-        },
-        { status: 400 }
-      );
-    }
-
     const notification = await notificationService.createNotification({
-      channel: channelFromBody as NotificationChannel,
-      recipient: body.recipient ?? "owner@hexa-clean.ch",
-      subject: body.subject ?? "HEXA OS Test Notification",
-      message:
-        body.message ??
-        "Notification Service works. This is a test notification from HEXA OS.",
+      channel: "EMAIL" as never,
+      recipient: "test@example.com",
+      subject: "Notification Service Test",
+      message: "Notification Service works",
       metadata: {
         source: "notification-service-test",
-        createdBy: "HEXA OS backend test",
       },
     });
-
-    const loadedNotification =
-      await notificationService.getNotificationById(notification.id);
-
-    const notifications = await notificationService.getAllNotifications();
 
     return NextResponse.json({
       layer: "notification-service",
@@ -48,14 +22,8 @@ export async function POST(request: Request) {
         notificationId: notification.id,
         channel: notification.channel,
         status: notification.status,
-        recipient: notification.recipient,
-        loadedNotificationId: loadedNotification?.id,
-        notificationsCount: notifications.length,
-        allowedChannels,
       },
-      data: {
-        notification,
-      },
+      data: notification,
     });
   } catch (error) {
     return NextResponse.json(

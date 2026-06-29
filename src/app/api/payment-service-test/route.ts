@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PaymentStatus } from "@prisma/client";
+
 import { paymentService } from "@/services/paymentService";
 
 export async function POST(request: Request) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const payment = await paymentService.createPayment({
       invoiceId,
       amount,
-      status: PaymentStatus.PENDING,
+      status: "PENDING" as never,
     });
 
     const paidPayment = await paymentService.markAsPaid(payment.id);
