@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Attachment = {
@@ -76,7 +77,7 @@ export default function DashboardAttachmentsPage() {
 
         const json: DashboardAttachmentsResponse = await response.json();
 
-        setAttachments(json.data.attachments);
+        setAttachments(json.data.attachments ?? []);
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Unknown attachments error"
@@ -133,7 +134,7 @@ export default function DashboardAttachmentsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-left text-sm">
+                <table className="w-full min-w-[1200px] text-left text-sm">
                   <thead className="border-b border-neutral-800 text-neutral-400">
                     <tr>
                       <th className="p-4 font-medium">Plik</th>
@@ -143,6 +144,7 @@ export default function DashboardAttachmentsPage() {
                       <th className="p-4 font-medium">Uploaded by</th>
                       <th className="p-4 font-medium">Link</th>
                       <th className="p-4 font-medium">Dodano</th>
+                      <th className="p-4 font-medium">Akcja</th>
                     </tr>
                   </thead>
 
@@ -152,7 +154,7 @@ export default function DashboardAttachmentsPage() {
                         key={attachment.id}
                         className="border-b border-neutral-800 last:border-b-0"
                       >
-                        <td className="p-4 font-medium text-white">
+                        <td className="max-w-[260px] truncate p-4 font-medium text-white">
                           {attachment.fileName ?? attachment.id}
                         </td>
 
@@ -189,6 +191,15 @@ export default function DashboardAttachmentsPage() {
 
                         <td className="p-4 text-neutral-400">
                           {formatDate(attachment.createdAt)}
+                        </td>
+
+                        <td className="p-4">
+                          <Link
+                            href={`/dashboard/attachments/${attachment.id}`}
+                            className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
+                          >
+                            Szczegóły
+                          </Link>
                         </td>
                       </tr>
                     ))}

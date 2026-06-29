@@ -196,13 +196,32 @@ export const dashboardService = {
     };
   },
 
-  async getAttachments() {
+    async getAttachments() {
     const attachments = await dashboardRepository.getAttachments();
 
     return {
       status: "OK",
       message: "HEXA OS Dashboard attachments loaded",
       attachments,
+    };
+  },
+
+  async getAttachmentDetails(attachmentId: string) {
+    const details = await dashboardRepository.getAttachmentDetails(attachmentId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Attachment not found",
+        attachmentId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard attachment details loaded",
+      attachmentId,
+      details,
     };
   },
 
