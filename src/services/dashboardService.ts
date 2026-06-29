@@ -60,6 +60,25 @@ export const dashboardService = {
     };
   },
 
+  async getOrderDetails(orderId: string) {
+    const details = await dashboardRepository.getOrderDetails(orderId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Order not found",
+        orderId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard order details loaded",
+      orderId,
+      details,
+    };
+  },
+
   async getQuotes() {
     const quotes = await dashboardRepository.getQuotes();
 
