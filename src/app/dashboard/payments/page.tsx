@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Payment = {
@@ -68,7 +69,7 @@ export default function DashboardPaymentsPage() {
 
         const json: DashboardPaymentsResponse = await response.json();
 
-        setPayments(json.data.payments);
+        setPayments(json.data.payments ?? []);
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Unknown payments error"
@@ -123,7 +124,7 @@ export default function DashboardPaymentsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] text-left text-sm">
+                <table className="w-full min-w-[1100px] text-left text-sm">
                   <thead className="border-b border-neutral-800 text-neutral-400">
                     <tr>
                       <th className="p-4 font-medium">Płatność</th>
@@ -134,48 +135,62 @@ export default function DashboardPaymentsPage() {
                       <th className="p-4 font-medium">Transakcja</th>
                       <th className="p-4 font-medium">Zapłacono</th>
                       <th className="p-4 font-medium">Dodano</th>
+                      <th className="p-4 font-medium">Akcja</th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {payments.map((payment) => (
-                      <tr
-                        key={payment.id}
-                        className="border-b border-neutral-800 last:border-b-0"
-                      >
-                        <td className="p-4 font-medium text-white">
-                          {payment.id}
-                        </td>
+                    {payments.map((payment) => {
+                      const currency = payment.currency ?? "CHF";
 
-                        <td className="p-4 text-neutral-300">
-                          {payment.status ?? "—"}
-                        </td>
+                      return (
+                        <tr
+                          key={payment.id}
+                          className="border-b border-neutral-800 last:border-b-0"
+                        >
+                          <td className="max-w-[220px] truncate p-4 font-medium text-white">
+                            {payment.id}
+                          </td>
 
-                        <td className="p-4 font-medium text-white">
-                          {formatMoney(payment.amount, payment.currency ?? "CHF")}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {payment.status ?? "—"}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {payment.method ?? "—"}
-                        </td>
+                          <td className="p-4 font-medium text-white">
+                            {formatMoney(payment.amount, currency)}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {payment.provider ?? "—"}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {payment.method ?? "—"}
+                          </td>
 
-                        <td className="p-4 text-neutral-300">
-                          {payment.transactionId ?? "—"}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {payment.provider ?? "—"}
+                          </td>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(payment.paidAt)}
-                        </td>
+                          <td className="p-4 text-neutral-300">
+                            {payment.transactionId ?? "—"}
+                          </td>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(payment.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="p-4 text-neutral-400">
+                            {formatDate(payment.paidAt)}
+                          </td>
+
+                          <td className="p-4 text-neutral-400">
+                            {formatDate(payment.createdAt)}
+                          </td>
+
+                          <td className="p-4">
+                            <Link
+                              href={`/dashboard/payments/${payment.id}`}
+                              className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
+                            >
+                              Szczegóły
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

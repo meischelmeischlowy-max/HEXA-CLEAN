@@ -137,13 +137,32 @@ export const dashboardService = {
     };
   },
 
-  async getPayments() {
+    async getPayments() {
     const payments = await dashboardRepository.getPayments();
 
     return {
       status: "OK",
       message: "HEXA OS Dashboard payments loaded",
       payments,
+    };
+  },
+
+  async getPaymentDetails(paymentId: string) {
+    const details = await dashboardRepository.getPaymentDetails(paymentId);
+
+    if (!details) {
+      return {
+        status: "NOT_FOUND",
+        message: "Payment not found",
+        paymentId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "HEXA OS Dashboard payment details loaded",
+      paymentId,
+      details,
     };
   },
 

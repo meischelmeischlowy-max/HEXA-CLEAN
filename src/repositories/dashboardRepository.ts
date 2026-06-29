@@ -708,13 +708,164 @@ export const dashboardRepository = {
     };
   },
 
-  async getPayments() {
+    async getPayments() {
     return prisma.payment.findMany({
       take: 50,
       orderBy: {
         createdAt: "desc",
       },
     });
+  },
+
+  async getPaymentDetails(paymentId: string) {
+    const payment = await prisma.payment.findUnique({
+      where: {
+        id: paymentId,
+      },
+    });
+
+    if (!payment) {
+      return null;
+    }
+
+    const invoiceId = payment.invoiceId;
+
+    const invoice = invoiceId
+      ? await prisma.invoice.findUnique({
+          where: {
+            id: invoiceId,
+          },
+        })
+      : null;
+
+    const customerId = invoice?.customerId ?? null;
+    const orderId = invoice?.orderId ?? null;
+    const quoteId = invoice?.quoteId ?? null;
+
+    const [customer, order, quote, attachments] = await Promise.all([
+      customerId
+        ? prisma.customer.findUnique({
+            where: {
+              id: customerId,
+            },
+          })
+        : Promise.resolve(null),
+
+      orderId
+        ? prisma.order.findUnique({
+            where: {
+              id: orderId,
+            },
+          })
+        : Promise.resolve(null),
+
+      quoteId
+        ? prisma.quote.findUnique({
+            where: {
+              id: quoteId,
+            },
+          })
+        : Promise.resolve(null),
+
+      invoiceId
+        ? prisma.attachment.findMany({
+            where: {
+              invoiceId,
+            },
+            take: 50,
+            orderBy: {
+              createdAt: "desc",
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const sessionId = order?.sessionId ?? quote?.sessionId ?? null;
+
+    const auditLogWhereConditions: {
+      entityId?: string;
+      customerId?: string;
+      orderId?: string;
+      sessionId?: string;
+    }[] = [{ entityId: paymentId }];
+
+    if (invoiceId) {
+      auditLogWhereConditions.push({ entityId: invoiceId });
+    }
+
+    if (customerId) {
+      auditLogWhereConditions.push({ customerId });
+    }
+
+    if (orderId) {
+      auditLogWhereConditions.push({ orderId });
+    }
+
+    if (sessionId) {
+      auditLogWhereConditions.push({ sessionId });
+    }
+
+    const [session, conversationMessages, notifications, auditLogs] =
+      await Promise.all([
+        sessionId
+          ? prisma.session.findUnique({
+              where: {
+                id: sessionId,
+              },
+            })
+          : Promise.resolve(null),
+
+        sessionId
+          ? prisma.conversationMessage.findMany({
+              where: {
+                sessionId,
+              },
+              take: 100,
+              orderBy: {
+                createdAt: "desc",
+              },
+            })
+          : Promise.resolve([]),
+
+        customerId || orderId || sessionId
+          ? prisma.notification.findMany({
+              where: {
+                OR: [
+                  ...(customerId ? [{ customerId }] : []),
+                  ...(orderId ? [{ orderId }] : []),
+                  ...(sessionId ? [{ sessionId }] : []),
+                ],
+              },
+              take: 50,
+              orderBy: {
+                createdAt: "desc",
+              },
+            })
+          : Promise.resolve([]),
+
+        prisma.auditLog.findMany({
+          where: {
+            OR: auditLogWhereConditions,
+          },
+          take: 100,
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
+      ]);
+
+    return {
+      payment,
+      invoice,
+      customer,
+      order,
+      quote,
+      session,
+      conversationMessages,
+      notifications,
+      attachments,
+      auditLogs,
+    };
   },
 
   async getNotifications() {
