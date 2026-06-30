@@ -22,9 +22,15 @@ const navItems = [
     marker: "JOB",
   },
   {
+    label: "Wyceny",
+    href: "/dashboard/estimates",
+    description: "Kalkulator i ceny robocze",
+    marker: "EST",
+  },
+  {
     label: "Oferty",
     href: "/dashboard/quotes",
-    description: "Wyceny dla klientów",
+    description: "Oferty dla klientów",
     marker: "CHF",
   },
   {
@@ -55,16 +61,16 @@ const navItems = [
 
 const futureItems = [
   {
-    label: "Wyceny",
-    description: "Kalkulator, zdjęcia, Vision AI",
-  },
-  {
     label: "AI Concierge",
     description: "Chatbot, sesje, zapytania",
   },
   {
     label: "Automatyzacje",
     description: "Email, SMS, workflow",
+  },
+  {
+    label: "Vision AI",
+    description: "Zdjęcia, ryzyko, analiza",
   },
 ];
 
@@ -166,7 +172,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     System online
                   </p>
                   <p className="mt-1 text-xs leading-5 text-emerald-100/70">
-                    CRM, cennik i workflow administracyjny są aktywne.
+                    CRM, cennik, wyceny i workflow administracyjny są aktywne.
                   </p>
                 </div>
 
