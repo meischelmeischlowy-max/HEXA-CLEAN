@@ -708,7 +708,7 @@ export const dashboardRepository = {
     };
   },
 
-    async getPayments() {
+  async getPayments() {
     return prisma.payment.findMany({
       take: 50,
       orderBy: {
@@ -868,7 +868,7 @@ export const dashboardRepository = {
     };
   },
 
-    async getNotifications() {
+  async getNotifications() {
     return prisma.notification.findMany({
       take: 50,
       orderBy: {
@@ -958,7 +958,7 @@ export const dashboardRepository = {
     };
   },
 
-    async getAttachments() {
+  async getAttachments() {
     return prisma.attachment.findMany({
       take: 50,
       orderBy: {
@@ -1105,7 +1105,7 @@ export const dashboardRepository = {
     };
   },
 
-    async getAuditLogs() {
+  async getAuditLogs() {
     return prisma.auditLog.findMany({
       take: 50,
       orderBy: {
@@ -1302,6 +1302,88 @@ export const dashboardRepository = {
       return {
         order,
         quote,
+        created: true,
+      };
+    });
+  },
+
+  async createInvoiceFromQuote(quoteId: string) {
+    return prisma.$transaction(async (tx) => {
+      const quote = await tx.quote.findUnique({
+        where: {
+          id: quoteId,
+        },
+      });
+
+      if (!quote) {
+        return null;
+      }
+
+      const existingInvoice = await tx.invoice.findFirst({
+        where: {
+          quoteId: quote.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      if (existingInvoice) {
+        return {
+          quote,
+          invoice: existingInvoice,
+          created: false,
+        };
+      }
+
+      const now = new Date();
+      const dueDate = new Date(now);
+      dueDate.setDate(dueDate.getDate() + 14);
+
+      const datePart = now.toISOString().slice(0, 10).replaceAll("-", "");
+      const randomPart = Math.floor(1000 + Math.random() * 9000);
+      const invoiceNumber = `INV-${datePart}-${randomPart}`;
+
+      const invoice = await tx.invoice.create({
+        data: {
+          invoiceNumber,
+          customerId: quote.customerId,
+          orderId: quote.orderId,
+          quoteId: quote.id,
+          status: "DRAFT",
+          issueDate: now,
+          dueDate,
+          subtotal: quote.subtotal,
+          taxRate: quote.taxRate,
+          taxAmount: quote.taxAmount,
+          total: quote.total,
+          paidAmount: 0,
+          currency: quote.currency,
+          notes: quote.notes,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          customerId: quote.customerId,
+          orderId: quote.orderId,
+          sessionId: quote.sessionId,
+          action: "CREATE",
+          entityType: "Invoice",
+          entityId: invoice.id,
+          actorType: "dashboard",
+          message: `Invoice ${invoice.invoiceNumber} created from quote ${quote.quoteNumber}`,
+          metadata: {
+            source: "dashboard_quick_action",
+            quoteId: quote.id,
+            invoiceId: invoice.id,
+          },
+        },
+      });
+
+      return {
+        quote,
+        invoice,
         created: true,
       };
     });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CreateInvoiceFromQuoteButton from "@/components/dashboard/CreateInvoiceFromQuoteButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -168,6 +169,7 @@ export default async function QuoteDetailsPage({
   const auditLogs = details.auditLogs ?? [];
 
   const currency = quote.currency ?? "CHF";
+  const firstInvoice = invoices[0] ?? null;
 
   return (
     <main className="min-h-screen p-6 lg:p-10">
@@ -191,6 +193,17 @@ export default async function QuoteDetailsPage({
             płatności, załączniki i historia systemu.
           </p>
         </div>
+
+        {firstInvoice?.id ? (
+          <Link
+            href={`/dashboard/invoices/${firstInvoice.id}`}
+            className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70"
+          >
+            Otwórz fakturę
+          </Link>
+        ) : (
+          <CreateInvoiceFromQuoteButton quoteId={quote.id} />
+        )}
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
@@ -211,17 +224,23 @@ export default async function QuoteDetailsPage({
 
           <RecordLink
             label="Pierwsza faktura"
-            href={invoices[0]?.id ? `/dashboard/invoices/${invoices[0].id}` : null}
+            href={
+              firstInvoice?.id
+                ? `/dashboard/invoices/${firstInvoice.id}`
+                : null
+            }
             value={
-              invoices[0]?.invoiceNumber ??
-              invoices[0]?.number ??
-              invoices[0]?.id
+              firstInvoice?.invoiceNumber ??
+              firstInvoice?.number ??
+              firstInvoice?.id
             }
           />
 
           <RecordLink
             label="Pierwsza płatność"
-            href={payments[0]?.id ? `/dashboard/payments/${payments[0].id}` : null}
+            href={
+              payments[0]?.id ? `/dashboard/payments/${payments[0].id}` : null
+            }
             value={
               payments[0]?.paymentReference ??
               payments[0]?.reference ??
@@ -292,9 +311,15 @@ export default async function QuoteDetailsPage({
                 value={order.orderNumber ?? order.number ?? order.id}
               />
               <InfoCard label="ID" value={order.id} />
-              <InfoCard label="Numer" value={order.orderNumber ?? order.number} />
+              <InfoCard
+                label="Numer"
+                value={order.orderNumber ?? order.number}
+              />
               <InfoCard label="Status" value={order.status} />
-              <InfoCard label="Usługa" value={order.serviceType ?? order.service} />
+              <InfoCard
+                label="Usługa"
+                value={order.serviceType ?? order.service}
+              />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
