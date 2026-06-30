@@ -1,7 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
+import DashboardPanel from "../../../components/dashboard/DashboardPanel";
+import DashboardTable, {
+  type DashboardTableColumn,
+} from "../../../components/dashboard/DashboardTable";
+import EmptyState from "../../../components/dashboard/EmptyState";
+import MetricCard from "../../../components/dashboard/MetricCard";
+import PageHeader from "../../../components/dashboard/PageHeader";
+import PremiumButton from "../../../components/dashboard/PremiumButton";
+import StatusBadge from "../../../components/dashboard/StatusBadge";
 
 type Invoice = {
   id: string;
@@ -43,16 +52,72 @@ function formatDate(value?: string | null) {
   });
 }
 
-function formatMoney(value?: string | number | null, currency = "CHF") {
+function toNumber(value?: string | number | null) {
   if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? null : value;
+  }
+
+  const parsed = Number(String(value).replace(",", "."));
+
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatMoney(value?: string | number | null, currency = "CHF") {
+  const numberValue = toNumber(value);
+
+  if (numberValue === null) {
     return "—";
   }
 
-  return `${String(value)} ${currency}`;
+  return new Intl.NumberFormat("de-CH", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(numberValue);
 }
 
 function getInvoiceNumber(invoice: Invoice) {
   return invoice.invoiceNumber ?? invoice.number ?? invoice.id;
+}
+
+function normalizeStatus(status?: string | null) {
+  return status?.toUpperCase() ?? "UNKNOWN";
+}
+
+function getOutstandingAmount(invoice: Invoice) {
+  const total = toNumber(invoice.total);
+  const paid = toNumber(invoice.paidAmount) ?? 0;
+
+  if (total === null) {
+    return null;
+  }
+
+  return Math.max(total - paid, 0);
+}
+
+function isOverdue(invoice: Invoice) {
+  if (!invoice.dueDate) return false;
+  if (normalizeStatus(invoice.status) === "PAID") return false;
+
+  const dueDate = new Date(invoice.dueDate);
+
+  if (Number.isNaN(dueDate.getTime())) {
+    return false;
+  }
+
+  return dueDate.getTime() < Date.now();
+}
+
+function getDisplayStatus(invoice: Invoice) {
+  if (isOverdue(invoice)) {
+    return "OVERDUE";
+  }
+
+  return invoice.status ?? "DRAFT";
 }
 
 export default function DashboardInvoicesPage() {
@@ -60,146 +125,362 @@ export default function DashboardInvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadInvoices() {
-      try {
-        const response = await fetch("/api/dashboard/invoices", {
-          method: "GET",
-          cache: "no-store",
-        });
+  const loadInvoices = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
 
-        if (!response.ok) {
-          throw new Error("Dashboard Invoices API returned an error");
-        }
+    try {
+      const response = await fetch("/api/dashboard/invoices", {
+        method: "GET",
+        cache: "no-store",
+      });
 
-        const json: DashboardInvoicesResponse = await response.json();
-
-        setInvoices(json.data.invoices ?? []);
-      } catch (error) {
-        setErrorMessage(
-          error instanceof Error ? error.message : "Unknown invoices error"
-        );
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Dashboard Invoices API returned an error");
       }
-    }
 
-    loadInvoices();
+      const json: DashboardInvoicesResponse = await response.json();
+
+      setInvoices(json.data.invoices ?? []);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unknown invoices error"
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return (
-    <main className="min-h-screen px-6 py-8">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-400">
-            HEXA OS CRM
+  useEffect(() => {
+    loadInvoices();
+  }, [loadInvoices]);
+
+  const stats = useMemo(() => {
+    const draft = invoices.filter(
+      (invoice) => normalizeStatus(invoice.status) === "DRAFT"
+    ).length;
+
+    const sent = invoices.filter(
+      (invoice) => normalizeStatus(invoice.status) === "SENT"
+    ).length;
+
+    const paid = invoices.filter(
+      (invoice) => normalizeStatus(invoice.status) === "PAID"
+    ).length;
+
+    const overdue = invoices.filter((invoice) => isOverdue(invoice)).length;
+
+    const totalValue = invoices.reduce((sum, invoice) => {
+      const amount = toNumber(invoice.total);
+      return amount === null ? sum : sum + amount;
+    }, 0);
+
+    const paidValue = invoices.reduce((sum, invoice) => {
+      const amount = toNumber(invoice.paidAmount);
+      return amount === null ? sum : sum + amount;
+    }, 0);
+
+    const openValue = Math.max(totalValue - paidValue, 0);
+
+    return {
+      total: invoices.length,
+      draft,
+      sent,
+      paid,
+      overdue,
+      totalValue,
+      paidValue,
+      openValue,
+    };
+  }, [invoices]);
+
+  const latestInvoices = useMemo(() => {
+    return invoices.slice(0, 4).map((invoice) => ({
+      id: invoice.id,
+      title: getInvoiceNumber(invoice),
+      description: `Total: ${formatMoney(
+        invoice.total,
+        invoice.currency ?? "CHF"
+      )} · otwarte: ${formatMoney(
+        getOutstandingAmount(invoice),
+        invoice.currency ?? "CHF"
+      )}`,
+      status: getDisplayStatus(invoice),
+      time: formatDate(invoice.createdAt),
+    }));
+  }, [invoices]);
+
+  const columns: DashboardTableColumn<Invoice>[] = [
+    {
+      key: "invoice",
+      header: "Faktura",
+      render: (invoice) => (
+        <div>
+          <p className="font-black tracking-tight text-white">
+            {getInvoiceNumber(invoice)}
           </p>
-
-          <h1 className="mt-3 text-4xl font-bold tracking-tight">Faktury</h1>
-
-          <p className="mt-3 max-w-2xl text-neutral-400">
-            Lista faktur zapisanych w bazie HEXA OS.
+          <p className="mt-1 text-xs text-zinc-500">ID: {invoice.id}</p>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (invoice) => <StatusBadge status={getDisplayStatus(invoice)} />,
+    },
+    {
+      key: "subtotal",
+      header: "Subtotal",
+      render: (invoice) => (
+        <p className="font-semibold text-zinc-200">
+          {formatMoney(invoice.subtotal, invoice.currency ?? "CHF")}
+        </p>
+      ),
+    },
+    {
+      key: "tax",
+      header: "Podatek",
+      render: (invoice) => (
+        <p className="font-semibold text-zinc-200">
+          {formatMoney(invoice.taxAmount, invoice.currency ?? "CHF")}
+        </p>
+      ),
+    },
+    {
+      key: "total",
+      header: "Total",
+      render: (invoice) => (
+        <p className="font-black text-emerald-100">
+          {formatMoney(invoice.total, invoice.currency ?? "CHF")}
+        </p>
+      ),
+    },
+    {
+      key: "paid",
+      header: "Zapłacono",
+      render: (invoice) => (
+        <div>
+          <p className="font-semibold text-zinc-200">
+            {formatMoney(invoice.paidAmount, invoice.currency ?? "CHF")}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Otwarte:{" "}
+            {formatMoney(getOutstandingAmount(invoice), invoice.currency ?? "CHF")}
           </p>
         </div>
+      ),
+    },
+    {
+      key: "due",
+      header: "Termin",
+      render: (invoice) => (
+        <div>
+          <p className="text-sm font-medium text-zinc-400">
+            {formatDate(invoice.dueDate)}
+          </p>
+          {isOverdue(invoice) ? (
+            <p className="mt-1 text-xs font-bold text-red-200">
+              Po terminie
+            </p>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "created",
+      header: "Dodano",
+      render: (invoice) => (
+        <p className="text-sm font-medium text-zinc-400">
+          {formatDate(invoice.createdAt)}
+        </p>
+      ),
+    },
+    {
+      key: "action",
+      header: "Akcja",
+      className: "text-right",
+      render: (invoice) => (
+        <div className="flex justify-end">
+          <PremiumButton
+            href={`/dashboard/invoices/${invoice.id}`}
+            variant="primary"
+            size="sm"
+          >
+            Szczegóły
+          </PremiumButton>
+        </div>
+      ),
+    },
+  ];
 
-        {loading && (
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            Ładowanie faktur...
-          </div>
-        )}
+  return (
+    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+      <section className="mx-auto flex max-w-7xl flex-col gap-6">
+        <PageHeader
+          eyebrow="HEXA OS CRM / Invoices"
+          title="Faktury"
+          description="Moduł faktur kontroluje dokumenty sprzedaży, status wysyłki, terminy płatności, kwoty opłacone i przejście do płatności."
+        >
+          <PremiumButton
+            type="button"
+            variant="secondary"
+            onClick={loadInvoices}
+            disabled={loading}
+          >
+            Odśwież
+          </PremiumButton>
+          <PremiumButton href="/dashboard/quotes" variant="ghost">
+            Oferty
+          </PremiumButton>
+        </PageHeader>
 
-        {errorMessage && (
-          <div className="rounded-2xl border border-red-800 bg-red-950/40 p-6 text-red-200">
-            Błąd: {errorMessage}
-          </div>
-        )}
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Wszystkie faktury"
+            value={String(stats.total)}
+            description="Łączna liczba faktur zapisanych w bazie."
+            trend="Źródło: Invoices API"
+            tone="cyan"
+            icon={<span className="text-lg font-black">INV</span>}
+          />
 
-        {!loading && !errorMessage && (
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900">
-            <div className="border-b border-neutral-800 p-5">
-              <h2 className="text-xl font-semibold">Lista faktur</h2>
-              <p className="mt-1 text-sm text-neutral-400">
-                Liczba rekordów: {invoices.length}
+          <MetricCard
+            title="Wysłane"
+            value={String(stats.sent)}
+            description="Faktury przekazane klientowi do zapłaty."
+            trend="Status SENT"
+            tone="violet"
+            icon={<span className="text-lg font-black">↗</span>}
+          />
+
+          <MetricCard
+            title="Opłacone"
+            value={String(stats.paid)}
+            description="Faktury oznaczone jako zapłacone."
+            trend={formatMoney(stats.paidValue, "CHF")}
+            tone="emerald"
+            icon={<span className="text-lg font-black">✓</span>}
+          />
+
+          <MetricCard
+            title="Otwarte saldo"
+            value={formatMoney(stats.openValue, "CHF")}
+            description={`Po terminie: ${stats.overdue}. Szkice: ${stats.draft}.`}
+            trend="Kontrola płatności"
+            tone={stats.overdue > 0 ? "red" : "amber"}
+            icon={<span className="text-lg font-black">CHF</span>}
+          />
+        </section>
+
+        {loading ? (
+          <DashboardPanel
+            title="Ładowanie faktur"
+            description="HEXA OS pobiera aktualne dane z modułu Invoices."
+          >
+            <div className="grid gap-3">
+              {[1, 2, 3, 4].map((item) => (
+                <div
+                  key={item}
+                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
+                />
+              ))}
+            </div>
+          </DashboardPanel>
+        ) : null}
+
+        {errorMessage ? (
+          <DashboardPanel
+            title="Błąd modułu Invoices"
+            description="Nie udało się pobrać listy faktur z API."
+          >
+            <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
+              <p className="font-bold">Błąd: {errorMessage}</p>
+              <p className="mt-2 text-sm leading-6 text-red-100/70">
+                Sprawdź endpoint /api/dashboard/invoices oraz połączenie z
+                bazą.
               </p>
             </div>
+          </DashboardPanel>
+        ) : null}
 
-            {invoices.length === 0 ? (
-              <div className="p-6 text-neutral-500">Brak faktur w bazie.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-left text-sm">
-                  <thead className="border-b border-neutral-800 text-neutral-400">
-                    <tr>
-                      <th className="p-4 font-medium">Faktura</th>
-                      <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Subtotal</th>
-                      <th className="p-4 font-medium">VAT</th>
-                      <th className="p-4 font-medium">Total</th>
-                      <th className="p-4 font-medium">Zapłacono</th>
-                      <th className="p-4 font-medium">Termin</th>
-                      <th className="p-4 font-medium">Dodano</th>
-                      <th className="p-4 font-medium">Akcja</th>
-                    </tr>
-                  </thead>
+        {!loading && !errorMessage ? (
+          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+            <DashboardPanel
+              title="Lista faktur"
+              description={`Liczba rekordów: ${invoices.length}. Faktura powstaje po zaakceptowanej ofercie i prowadzi dalej do płatności.`}
+              action={
+                <StatusBadge
+                  status={invoices.length > 0 ? "ACCEPTED" : "PENDING"}
+                  label={invoices.length > 0 ? "Faktury aktywne" : "Brak faktur"}
+                />
+              }
+            >
+              <DashboardTable
+                columns={columns}
+                rows={invoices}
+                getRowKey={(invoice) => invoice.id}
+                empty={
+                  <EmptyState
+                    title="Brak faktur w bazie"
+                    description="Pierwsza faktura pojawi się tutaj po utworzeniu jej z zaakceptowanej oferty."
+                    actionLabel="Przejdź do ofert"
+                    actionHref="/dashboard/quotes"
+                  />
+                }
+              />
+            </DashboardPanel>
 
-                  <tbody>
-                    {invoices.map((invoice) => {
-                      const currency = invoice.currency ?? "CHF";
+            <DashboardPanel
+              title="Ostatnie faktury"
+              description="Szybki podgląd najnowszych dokumentów sprzedaży."
+            >
+              <ActivityTimeline
+                items={latestInvoices}
+                emptyTitle="Brak ostatnich faktur"
+                emptyDescription="Po utworzeniu faktur zobaczysz tutaj najnowszą aktywność."
+              />
+            </DashboardPanel>
+          </section>
+        ) : null}
 
-                      return (
-                        <tr
-                          key={invoice.id}
-                          className="border-b border-neutral-800 last:border-b-0"
-                        >
-                          <td className="p-4 font-medium text-white">
-                            {getInvoiceNumber(invoice)}
-                          </td>
-
-                          <td className="p-4 text-neutral-300">
-                            {invoice.status ?? "—"}
-                          </td>
-
-                          <td className="p-4 text-neutral-300">
-                            {formatMoney(invoice.subtotal, currency)}
-                          </td>
-
-                          <td className="p-4 text-neutral-300">
-                            {formatMoney(invoice.taxAmount, currency)}
-                          </td>
-
-                          <td className="p-4 font-medium text-white">
-                            {formatMoney(invoice.total, currency)}
-                          </td>
-
-                          <td className="p-4 text-neutral-300">
-                            {formatMoney(invoice.paidAmount, currency)}
-                          </td>
-
-                          <td className="p-4 text-neutral-400">
-                            {formatDate(invoice.dueDate)}
-                          </td>
-
-                          <td className="p-4 text-neutral-400">
-                            {formatDate(invoice.createdAt)}
-                          </td>
-
-                          <td className="p-4">
-                            <Link
-                              href={`/dashboard/invoices/${invoice.id}`}
-                              className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
-                            >
-                              Szczegóły
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+        {!loading && !errorMessage ? (
+          <DashboardPanel
+            title="Rola modułu Invoices"
+            description="Faktury będą docelowo generowane jako PDF z logo, danymi firmy, statusem DRAFT/SENT/PAID i pełnym zapisem w historii systemu."
+          >
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
+                <p className="text-sm font-black text-cyan-100">
+                  PDF z logo
+                </p>
+                <p className="mt-2 text-sm leading-6 text-cyan-100/70">
+                  Kolejny etap to faktura demo jako dokument PDF z brandingiem
+                  HEXA CLEAN.
+                </p>
               </div>
-            )}
-          </div>
-        )}
+
+              <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
+                <p className="text-sm font-black text-violet-100">
+                  Wysyłka email
+                </p>
+                <p className="mt-2 text-sm leading-6 text-violet-100/70">
+                  Faktura DRAFT będzie wysyłana dopiero po kliknięciu i zapisana
+                  w EmailLog oraz AuditLog.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+                <p className="text-sm font-black text-emerald-100">
+                  Kontrola płatności
+                </p>
+                <p className="mt-2 text-sm leading-6 text-emerald-100/70">
+                  Po płatności system oznacza fakturę jako PAID i zamyka etap
+                  finansowy workflow.
+                </p>
+              </div>
+            </div>
+          </DashboardPanel>
+        ) : null}
       </section>
     </main>
   );
