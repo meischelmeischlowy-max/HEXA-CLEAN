@@ -11,6 +11,16 @@ const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
 };
 
+type CreateEstimateItemBody = {
+  itemName?: string;
+  itemDescription?: string;
+  itemCategory?: string;
+  itemUnit?: string;
+  quantity?: string | number;
+  unitPrice?: string | number;
+  riskMultiplier?: string | number;
+};
+
 type CreateEstimateBody = {
   mode?: string;
   customerType?: string;
@@ -38,6 +48,7 @@ type CreateEstimateBody = {
   discountAmount?: string | number;
   notesCustomer?: string;
   notesInternal?: string;
+  items?: CreateEstimateItemBody[];
 };
 
 function getPrisma() {
@@ -156,6 +167,10 @@ function isManualEstimateBody(
     return true;
   }
 
+  if (Array.isArray(body.items) && body.items.length > 0) {
+    return true;
+  }
+
   return Boolean(
     body.firstName ||
       body.lastName ||
@@ -166,6 +181,24 @@ function isManualEstimateBody(
       body.serviceCity ||
       body.itemName
   );
+}
+
+function getManualItemsFromBody(body: CreateEstimateBody) {
+  if (Array.isArray(body.items) && body.items.length > 0) {
+    return body.items;
+  }
+
+  return [
+    {
+      itemName: body.itemName,
+      itemDescription: body.itemDescription,
+      itemCategory: body.itemCategory,
+      itemUnit: body.itemUnit,
+      quantity: body.quantity,
+      unitPrice: body.unitPrice,
+      riskMultiplier: body.riskMultiplier,
+    },
+  ];
 }
 
 async function getOrCreateDemoCustomer(prisma: PrismaClient) {
@@ -504,27 +537,57 @@ async function createManualEstimate(
 ) {
   const customer = await getOrCreateManualCustomer(prisma, body);
 
-  const quantity = positiveNumber(body.quantity, 1);
-  const unitPrice = positiveNumber(body.unitPrice, 0);
-  const riskMultiplier = positiveMultiplier(body.riskMultiplier, 1);
+  const manualItems = getManualItemsFromBody(body);
+
+  const estimateItems = manualItems.map((item, index) => {
+    const quantity = positiveNumber(item.quantity, 1);
+    const unitPrice = positiveNumber(item.unitPrice, 0);
+    const riskMultiplier = positiveMultiplier(item.riskMultiplier, 1);
+
+    const itemSubtotal = quantity * unitPrice;
+    const itemTotalBeforeDiscount = itemSubtotal * riskMultiplier;
+    const itemRiskAmount = Math.max(itemTotalBeforeDiscount - itemSubtotal, 0);
+
+    return {
+      name: cleanText(item.itemName) ?? `Pozycja ${index + 1}`,
+      description: cleanText(item.itemDescription),
+      category: null,
+      quantity: money(quantity),
+      unitPrice: money(unitPrice),
+      subtotal: money(itemSubtotal),
+      riskMultiplier: money(riskMultiplier),
+      riskAmount: money(itemRiskAmount),
+      discountAmount: "0.00",
+      total: money(itemTotalBeforeDiscount),
+      sortOrder: (index + 1) * 10,
+      metadata: {
+        source: "manual-estimate-api",
+        manualCategory: cleanText(item.itemCategory),
+        manualUnit: cleanText(item.itemUnit),
+      },
+    };
+  });
+
+  const subtotal = estimateItems.reduce(
+    (sum, item) => sum + Number(item.subtotal),
+    0
+  );
+  const riskAmount = estimateItems.reduce(
+    (sum, item) => sum + Number(item.riskAmount),
+    0
+  );
   const travelFee = positiveNumber(body.travelFee, 0);
   const materialFee = positiveNumber(body.materialFee, 0);
   const discountAmount = positiveNumber(body.discountAmount, 0);
 
-  const itemSubtotal = quantity * unitPrice;
-  const itemTotalBeforeDiscount = itemSubtotal * riskMultiplier;
-  const itemRiskAmount = Math.max(itemTotalBeforeDiscount - itemSubtotal, 0);
-
-  const subtotal = itemSubtotal;
-  const riskAmount = itemRiskAmount;
   const totalBeforeDiscount = subtotal + riskAmount + travelFee + materialFee;
   const total = Math.max(totalBeforeDiscount - discountAmount, 0);
+  const averageRiskMultiplier =
+    subtotal > 0 ? (subtotal + riskAmount) / subtotal : 1;
 
   const title =
     cleanText(body.title) ??
-    `Wycena: ${cleanText(body.itemName) ?? "usługa HEXA CLEAN"}`;
-
-  const itemName = cleanText(body.itemName) ?? "Usługa HEXA CLEAN";
+    `Wycena: ${estimateItems[0]?.name ?? "usługa HEXA CLEAN"}`;
 
   const estimate = await prisma.estimate.create({
     data: {
@@ -540,7 +603,7 @@ async function createManualEstimate(
       serviceCity: cleanText(body.serviceCity),
       serviceCountry: cleanText(body.serviceCountry) ?? "CH",
       subtotal: money(subtotal),
-      riskMultiplier: money(riskMultiplier),
+      riskMultiplier: money(averageRiskMultiplier),
       riskAmount: money(riskAmount),
       travelFee: money(travelFee),
       materialFee: money(materialFee),
@@ -558,26 +621,7 @@ async function createManualEstimate(
         cleanText(body.notesInternal) ??
         "Wycena utworzona ręcznie w panelu dashboard.",
       items: {
-        create: [
-          {
-            name: itemName,
-            description: cleanText(body.itemDescription),
-            category: null,
-            quantity: money(quantity),
-            unitPrice: money(unitPrice),
-            subtotal: money(itemSubtotal),
-            riskMultiplier: money(riskMultiplier),
-            riskAmount: money(itemRiskAmount),
-            discountAmount: "0.00",
-            total: money(itemTotalBeforeDiscount),
-            sortOrder: 10,
-            metadata: {
-              source: "manual-estimate-api",
-              manualCategory: cleanText(body.itemCategory),
-              manualUnit: cleanText(body.itemUnit),
-            },
-          },
-        ],
+        create: estimateItems,
       },
     },
     include: {
