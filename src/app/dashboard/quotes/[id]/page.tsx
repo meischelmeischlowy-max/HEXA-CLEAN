@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import CreateInvoiceFromQuoteButton from "@/components/dashboard/CreateInvoiceFromQuoteButton";
+import MarkQuoteAsAcceptedButton from "@/components/dashboard/MarkQuoteAsAcceptedButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -108,6 +109,7 @@ function DataSection({
                           item.quoteNumber ??
                           item.invoiceNumber ??
                           item.paymentReference ??
+                          item.externalRef ??
                           item.reference ??
                           item.fileName ??
                           item.subject ??
@@ -170,6 +172,8 @@ export default async function QuoteDetailsPage({
 
   const currency = quote.currency ?? "CHF";
   const firstInvoice = invoices[0] ?? null;
+  const firstPayment = payments[0] ?? null;
+  const isAccepted = quote.status === "ACCEPTED";
 
   return (
     <main className="min-h-screen p-6 lg:p-10">
@@ -194,16 +198,26 @@ export default async function QuoteDetailsPage({
           </p>
         </div>
 
-        {firstInvoice?.id ? (
-          <Link
-            href={`/dashboard/invoices/${firstInvoice.id}`}
-            className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70"
-          >
-            Otwórz fakturę
-          </Link>
-        ) : (
-          <CreateInvoiceFromQuoteButton quoteId={quote.id} />
-        )}
+        <div className="flex flex-col gap-3 lg:items-end">
+          {isAccepted ? (
+            <div className="rounded-xl border border-lime-600 bg-lime-950/50 px-4 py-3 text-sm font-semibold text-lime-100">
+              Oferta zaakceptowana
+            </div>
+          ) : (
+            <MarkQuoteAsAcceptedButton quoteId={quote.id} />
+          )}
+
+          {firstInvoice?.id ? (
+            <Link
+              href={`/dashboard/invoices/${firstInvoice.id}`}
+              className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70"
+            >
+              Otwórz fakturę
+            </Link>
+          ) : (
+            <CreateInvoiceFromQuoteButton quoteId={quote.id} />
+          )}
+        </div>
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
@@ -213,7 +227,12 @@ export default async function QuoteDetailsPage({
           <RecordLink
             label="Klient"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={customer?.name ?? customer?.email ?? customer?.id}
+            value={
+              customer?.companyName ??
+              customer?.name ??
+              customer?.email ??
+              customer?.id
+            }
           />
 
           <RecordLink
@@ -239,12 +258,15 @@ export default async function QuoteDetailsPage({
           <RecordLink
             label="Pierwsza płatność"
             href={
-              payments[0]?.id ? `/dashboard/payments/${payments[0].id}` : null
+              firstPayment?.id
+                ? `/dashboard/payments/${firstPayment.id}`
+                : null
             }
             value={
-              payments[0]?.paymentReference ??
-              payments[0]?.reference ??
-              payments[0]?.id
+              firstPayment?.paymentReference ??
+              firstPayment?.externalRef ??
+              firstPayment?.reference ??
+              firstPayment?.id
             }
           />
         </div>
@@ -272,6 +294,8 @@ export default async function QuoteDetailsPage({
           <InfoCard label="Zlecenie ID" value={quote.orderId} />
           <InfoCard label="Sesja ID" value={quote.sessionId} />
           <InfoCard label="Ważna do" value={quote.validUntil ?? quote.dueDate} />
+          <InfoCard label="Wysłano" value={quote.sentAt} />
+          <InfoCard label="Zaakceptowano" value={quote.acceptedAt} />
           <InfoCard label="Utworzono" value={quote.createdAt} />
           <InfoCard label="Aktualizacja" value={quote.updatedAt} />
         </div>
@@ -286,10 +310,21 @@ export default async function QuoteDetailsPage({
               <RecordLink
                 label="Otwórz klienta"
                 href={`/dashboard/customers/${customer.id}`}
-                value={customer.name ?? customer.email ?? customer.id}
+                value={
+                  customer.companyName ??
+                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim() ??
+                  customer.email ??
+                  customer.id
+                }
               />
               <InfoCard label="ID" value={customer.id} />
-              <InfoCard label="Imię / nazwa" value={customer.name} />
+              <InfoCard
+                label="Imię / nazwa"
+                value={
+                  customer.companyName ??
+                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim()
+                }
+              />
               <InfoCard label="Email" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
             </div>
