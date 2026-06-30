@@ -100,6 +100,28 @@ enum AttachmentType {
   OTHER
 }
 
+enum ServiceCatalogCategory {
+  REINIGUNG
+  HAUSWARTUNG
+  KLEINREPARATUREN
+  UMZUGSREINIGUNG
+  FENSTERREINIGUNG
+  WOHNUNGSABGABE
+  SPEZIALREINIGUNG
+  OTHER
+}
+
+enum ServiceCatalogUnit {
+  FLAT
+  HOUR
+  M2
+  ROOM
+  WINDOW
+  PIECE
+  KM
+  CUSTOM
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -464,4 +486,40 @@ model AuditLog {
   @@index([entityType])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model ServiceCatalogItem {
+  id String @id @default(uuid()) @db.Uuid
+
+  tenantKey String @default("hexa-clean")
+
+  name        String
+  slug        String
+  description String?
+
+  category ServiceCatalogCategory
+  unit     ServiceCatalogUnit     @default(FLAT)
+
+  basePrice Decimal  @default(0) @db.Decimal(10, 2)
+  minPrice  Decimal  @default(0) @db.Decimal(10, 2)
+  maxPrice  Decimal? @db.Decimal(10, 2)
+
+  defaultQuantity Decimal? @db.Decimal(10, 2)
+  riskMultiplier  Decimal  @default(1.00) @db.Decimal(5, 2)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  notes    String?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantKey, slug])
+  @@index([tenantKey])
+  @@index([category])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("service_catalog_items")
 }
