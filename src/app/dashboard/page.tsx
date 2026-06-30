@@ -1,342 +1,335 @@
-"use client";
+import ActivityTimeline from "../../components/dashboard/ActivityTimeline";
+import DashboardPanel from "../../components/dashboard/DashboardPanel";
+import MetricCard from "../../components/dashboard/MetricCard";
+import PageHeader from "../../components/dashboard/PageHeader";
+import PremiumButton from "../../components/dashboard/PremiumButton";
+import StatusBadge from "../../components/dashboard/StatusBadge";
 
-import { useEffect, useState } from "react";
+const workflowSteps = [
+  {
+    title: "Zlecenie",
+    description: "Nowa sprawa klienta trafia do CRM.",
+    status: "OPEN",
+  },
+  {
+    title: "Oferta",
+    description: "System tworzy ofertę z danych zlecenia.",
+    status: "SENT",
+  },
+  {
+    title: "Faktura",
+    description: "Po akceptacji oferta przechodzi do faktury.",
+    status: "DRAFT",
+  },
+  {
+    title: "Płatność",
+    description: "Płatność oczekuje lub zostaje oznaczona jako opłacona.",
+    status: "PENDING",
+  },
+  {
+    title: "Zakończenie",
+    description: "Zlecenie zamknięte po opłaceniu i realizacji.",
+    status: "COMPLETED",
+  },
+];
 
-type DashboardCounts = {
-  customers: number;
-  sessions: number;
-  conversationMessages: number;
-  orders: number;
-  quotes: number;
-  invoices: number;
-  payments: number;
-  notifications: number;
-  attachments: number;
-  auditLogs: number;
-};
+const activityItems = [
+  {
+    id: "activity-1",
+    title: "Workflow CRM aktywny",
+    description:
+      "Zlecenie → Oferta → Faktura → Płatność → Zakończenie działa jako główny proces operacyjny.",
+    status: "IN_PROGRESS",
+    time: "HEXA OS",
+  },
+  {
+    id: "activity-2",
+    title: "Quick actions gotowe",
+    description:
+      "System posiada akcje tworzenia ofert, faktur, płatności oraz oznaczania statusów.",
+    status: "ACCEPTED",
+    time: "CRM Automation",
+  },
+  {
+    id: "activity-3",
+    title: "Redesign panelu rozpoczęty",
+    description:
+      "Dashboard przechodzi na wygląd premium SaaS z KPI, workflow, timeline i statusami.",
+    status: "SENT",
+    time: "UI Premium",
+  },
+];
 
-type ActivityRecord = {
-  id?: string;
-  createdAt?: string;
-  status?: string;
-  orderNumber?: string;
-  quoteNumber?: string;
-  invoiceNumber?: string;
-  fileName?: string;
-  action?: string;
-  entityType?: string;
-  amount?: string | number;
-  total?: string | number;
-  recipient?: string;
-  channel?: string;
-};
-
-type RecentActivity = {
-  recentOrders: ActivityRecord[];
-  recentQuotes: ActivityRecord[];
-  recentInvoices: ActivityRecord[];
-  recentPayments: ActivityRecord[];
-  recentNotifications: ActivityRecord[];
-  recentAttachments: ActivityRecord[];
-  recentAuditLogs: ActivityRecord[];
-};
-
-type DashboardOverviewResponse = {
-  layer: string;
-  message: string;
-  data: {
-    status: string;
-    message: string;
-    counts: DashboardCounts;
-  };
-};
-
-type DashboardRecentActivityResponse = {
-  layer: string;
-  message: string;
-  data: {
-    status: string;
-    message: string;
-    activity: RecentActivity;
-  };
-};
-
-function formatDate(value?: string) {
-  if (!value) return "brak daty";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("de-CH", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
-
-function getRecordTitle(record: ActivityRecord, fallback: string) {
-  return (
-    record.orderNumber ??
-    record.quoteNumber ??
-    record.invoiceNumber ??
-    record.fileName ??
-    record.action ??
-    record.entityType ??
-    record.recipient ??
-    record.id ??
-    fallback
-  );
-}
-
-function ActivityList({
-  title,
-  items,
-  fallback,
-}: {
-  title: string;
-  items: ActivityRecord[];
-  fallback: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <span className="rounded-full bg-neutral-800 px-3 py-1 text-xs text-neutral-300">
-          {items.length}
-        </span>
-      </div>
-
-      {items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Brak danych.</p>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item, index) => (
-            <div
-              key={item.id ?? `${title}-${index}`}
-              className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
-            >
-              <p className="truncate text-sm font-medium text-white">
-                {getRecordTitle(item, fallback)}
-              </p>
-
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-neutral-400">
-                {item.status && (
-                  <span className="rounded-full bg-neutral-800 px-2 py-1">
-                    {item.status}
-                  </span>
-                )}
-
-                {item.channel && (
-                  <span className="rounded-full bg-neutral-800 px-2 py-1">
-                    {item.channel}
-                  </span>
-                )}
-
-                {item.amount && (
-                  <span className="rounded-full bg-neutral-800 px-2 py-1">
-                    Kwota: {String(item.amount)}
-                  </span>
-                )}
-
-                {item.total && (
-                  <span className="rounded-full bg-neutral-800 px-2 py-1">
-                    Total: {String(item.total)}
-                  </span>
-                )}
-
-                <span className="rounded-full bg-neutral-800 px-2 py-1">
-                  {formatDate(item.createdAt)}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+const modules = [
+  "Klienci",
+  "Zlecenia",
+  "Oferty",
+  "Faktury",
+  "Płatności",
+  "AI Concierge",
+  "Automatyzacje",
+  "Audit log",
+];
 
 export default function DashboardPage() {
-  const [counts, setCounts] = useState<DashboardCounts | null>(null);
-  const [activity, setActivity] = useState<RecentActivity | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        const [overviewResponse, activityResponse] = await Promise.all([
-          fetch("/api/dashboard/overview", {
-            method: "GET",
-            cache: "no-store",
-          }),
-          fetch("/api/dashboard/recent-activity", {
-            method: "GET",
-            cache: "no-store",
-          }),
-        ]);
-
-        if (!overviewResponse.ok) {
-          throw new Error("Dashboard Overview API returned an error");
-        }
-
-        if (!activityResponse.ok) {
-          throw new Error("Dashboard Recent Activity API returned an error");
-        }
-
-        const overviewJson: DashboardOverviewResponse =
-          await overviewResponse.json();
-
-        const activityJson: DashboardRecentActivityResponse =
-          await activityResponse.json();
-
-        setCounts(overviewJson.data.counts);
-        setActivity(activityJson.data.activity);
-      } catch (error) {
-        setErrorMessage(
-          error instanceof Error ? error.message : "Unknown dashboard error"
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDashboard();
-  }, []);
-
-  const cards = counts
-    ? [
-        { label: "Klienci", value: counts.customers },
-        { label: "Sesje", value: counts.sessions },
-        { label: "Wiadomości", value: counts.conversationMessages },
-        { label: "Zlecenia", value: counts.orders },
-        { label: "Oferty", value: counts.quotes },
-        { label: "Faktury", value: counts.invoices },
-        { label: "Płatności", value: counts.payments },
-        { label: "Powiadomienia", value: counts.notifications },
-        { label: "Załączniki", value: counts.attachments },
-        { label: "Audit Logi", value: counts.auditLogs },
-      ]
-    : [];
-
   return (
-    <main className="min-h-screen bg-neutral-950 px-6 py-8 text-white">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-400">
-            HEXA OS
-          </p>
+    <main className="min-h-screen bg-neutral-950 text-white">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        <PageHeader
+          eyebrow="HEXA OS / Business Operations Panel"
+          title="Centrum dowodzenia firmy usługowej"
+          description="Profesjonalny panel CRM do obsługi klientów, zleceń, ofert, faktur, płatności, automatyzacji i późniejszego AI Concierge."
+        >
+          <PremiumButton href="/dashboard/orders" variant="primary">
+            Zlecenia
+          </PremiumButton>
+          <PremiumButton href="/dashboard/customers" variant="secondary">
+            Klienci
+          </PremiumButton>
+        </PageHeader>
 
-          <h1 className="mt-3 text-4xl font-bold tracking-tight">
-            Dashboard właściciela
-          </h1>
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="System"
+            value="Online"
+            description="Panel operacyjny HEXA OS działa i jest gotowy do dalszej rozbudowy."
+            trend="Status: stabilny"
+            tone="emerald"
+            icon={<span className="text-lg font-black">OS</span>}
+          />
 
-          <p className="mt-3 max-w-2xl text-neutral-400">
-            Panel CRM do kontroli klientów, zleceń, ofert, faktur, płatności,
-            powiadomień, załączników i historii systemu.
-          </p>
-        </div>
+          <MetricCard
+            title="Workflow"
+            value="5 etapów"
+            description="Zlecenie, oferta, faktura, płatność i zakończenie procesu."
+            trend="Automatyzacja CRM"
+            tone="cyan"
+            icon={<span className="text-lg font-black">↗</span>}
+          />
 
-        {loading && (
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            Ładowanie danych dashboardu...
-          </div>
-        )}
+          <MetricCard
+            title="Moduły"
+            value="8"
+            description="Klienci, zlecenia, oferty, faktury, płatności, AI i logi."
+            trend="Panel premium SaaS"
+            tone="violet"
+            icon={<span className="text-lg font-black">◆</span>}
+          />
 
-        {errorMessage && (
-          <div className="rounded-2xl border border-red-800 bg-red-950/40 p-6 text-red-200">
-            Błąd: {errorMessage}
-          </div>
-        )}
+          <MetricCard
+            title="Finanse"
+            value="CRM"
+            description="Faktury i płatności są częścią jednego procesu biznesowego."
+            trend="Kontrola płatności"
+            tone="amber"
+            icon={<span className="text-lg font-black">CHF</span>}
+          />
+        </section>
 
-        {counts && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {cards.map((card) => (
-              <div
-                key={card.label}
-                className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5 shadow-lg"
-              >
-                <p className="text-sm text-neutral-400">{card.label}</p>
-                <p className="mt-3 text-3xl font-bold text-white">
-                  {card.value}
-                </p>
+        <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+          <DashboardPanel
+            title="Puls systemu"
+            description="Pokazowy wykres operacyjny. W kolejnym etapie podłączymy tu realne dane z bazy."
+            action={<StatusBadge status="IN_PROGRESS" label="Live preview" />}
+          >
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-5">
+              <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl" />
+              <div className="absolute -bottom-20 left-10 h-48 w-48 rounded-full bg-violet-500/10 blur-3xl" />
+
+              <div className="relative flex flex-col gap-6">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      Operacje
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-white">CRM</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      Automatyzacja
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-white">Ready</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+                      Panel
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-white">
+                      Premium
+                    </p>
+                  </div>
+                </div>
+
+                <svg
+                  viewBox="0 0 900 260"
+                  className="h-64 w-full rounded-3xl border border-white/10 bg-zinc-950/80"
+                  role="img"
+                  aria-label="Wykres pulsu systemu HEXA OS"
+                >
+                  <defs>
+                    <linearGradient id="hexaPulse" x1="0" x2="1" y1="0" y2="0">
+                      <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.2" />
+                      <stop offset="45%" stopColor="#22d3ee" stopOpacity="1" />
+                      <stop offset="100%" stopColor="#a78bfa" stopOpacity="1" />
+                    </linearGradient>
+
+                    <linearGradient id="hexaFill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.18" />
+                      <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+
+                  <path
+                    d="M0 210 L0 170 C70 155 90 130 150 145 C220 165 230 88 300 110 C370 132 400 70 470 95 C540 120 560 180 630 155 C700 130 720 70 790 92 C845 110 870 95 900 80 L900 260 L0 260 Z"
+                    fill="url(#hexaFill)"
+                  />
+
+                  <path
+                    d="M0 170 C70 155 90 130 150 145 C220 165 230 88 300 110 C370 132 400 70 470 95 C540 120 560 180 630 155 C700 130 720 70 790 92 C845 110 870 95 900 80"
+                    fill="none"
+                    stroke="url(#hexaPulse)"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                  />
+
+                  {[120, 260, 420, 580, 740].map((x) => (
+                    <line
+                      key={x}
+                      x1={x}
+                      x2={x}
+                      y1="30"
+                      y2="230"
+                      stroke="white"
+                      strokeOpacity="0.05"
+                    />
+                  ))}
+
+                  {[70, 130, 190].map((y) => (
+                    <line
+                      key={y}
+                      x1="40"
+                      x2="860"
+                      y1={y}
+                      y2={y}
+                      stroke="white"
+                      strokeOpacity="0.05"
+                    />
+                  ))}
+                </svg>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          </DashboardPanel>
 
-        {activity && (
-          <div className="mt-8">
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold">Ostatnia aktywność</h2>
-              <p className="mt-2 text-sm text-neutral-400">
-                Najnowsze dane z CRM, faktur, płatności i historii systemu.
+          <DashboardPanel
+            title="Status operacyjny"
+            description="Najważniejsze moduły systemu w jednym miejscu."
+          >
+            <div className="grid gap-3">
+              {modules.map((module) => (
+                <div
+                  key={module}
+                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                >
+                  <div>
+                    <p className="font-bold text-white">{module}</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Moduł HEXA OS
+                    </p>
+                  </div>
+
+                  <StatusBadge status="ACCEPTED" label="Aktywny" />
+                </div>
+              ))}
+            </div>
+          </DashboardPanel>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+          <DashboardPanel
+            title="Workflow sprzedaży"
+            description="Docelowy proces obsługi klienta od zapytania do zamknięcia zlecenia."
+          >
+            <div className="space-y-4">
+              {workflowSteps.map((step, index) => (
+                <div
+                  key={step.title}
+                  className="relative rounded-3xl border border-white/10 bg-white/[0.03] p-4"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-400/10 text-sm font-black text-cyan-100">
+                        {index + 1}
+                      </div>
+
+                      <div>
+                        <p className="font-black tracking-tight text-white">
+                          {step.title}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-zinc-400">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <StatusBadge status={step.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </DashboardPanel>
+
+          <DashboardPanel
+            title="Ostatnia aktywność"
+            description="Live feed dla akcji CRM, statusów i automatyzacji."
+            action={
+              <PremiumButton href="/dashboard/audit-logs" variant="ghost">
+                Audit log
+              </PremiumButton>
+            }
+          >
+            <ActivityTimeline items={activityItems} />
+          </DashboardPanel>
+        </section>
+
+        <DashboardPanel
+          title="HEXA OS — kierunek produktu"
+          description="Ten panel ma wyglądać jak gotowy system premium, który można pokazać klientowi i później sprzedawać jako rozwiązanie dla firm usługowych."
+        >
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
+              <p className="text-sm font-black text-cyan-100">
+                CRM dla firmy usługowej
+              </p>
+              <p className="mt-2 text-sm leading-6 text-cyan-100/70">
+                Klienci, zlecenia, oferty, faktury i płatności w jednym
+                panelu.
               </p>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <ActivityList
-                title="Ostatnie zlecenia"
-                items={activity.recentOrders}
-                fallback="Zlecenie"
-              />
+            <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
+              <p className="text-sm font-black text-violet-100">
+                AI Concierge
+              </p>
+              <p className="mt-2 text-sm leading-6 text-violet-100/70">
+                Docelowo chatbot z numerem sesji, zbieraniem danych i
+                automatyzacją zapytań.
+              </p>
+            </div>
 
-              <ActivityList
-                title="Ostatnie oferty"
-                items={activity.recentQuotes}
-                fallback="Oferta"
-              />
-
-              <ActivityList
-                title="Ostatnie faktury"
-                items={activity.recentInvoices}
-                fallback="Faktura"
-              />
-
-              <ActivityList
-                title="Ostatnie płatności"
-                items={activity.recentPayments}
-                fallback="Płatność"
-              />
-
-              <ActivityList
-                title="Ostatnie powiadomienia"
-                items={activity.recentNotifications}
-                fallback="Powiadomienie"
-              />
-
-              <ActivityList
-                title="Ostatnie załączniki"
-                items={activity.recentAttachments}
-                fallback="Załącznik"
-              />
-
-              <div className="lg:col-span-2">
-                <ActivityList
-                  title="Audit Logi"
-                  items={activity.recentAuditLogs}
-                  fallback="Audit Log"
-                />
-              </div>
+            <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+              <p className="text-sm font-black text-emerald-100">
+                Automatyzacje
+              </p>
+              <p className="mt-2 text-sm leading-6 text-emerald-100/70">
+                Powiadomienia, email, workflow, statusy i pełny ślad działań w
+                audit log.
+              </p>
             </div>
           </div>
-        )}
-
-        <div className="mt-8 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-          <h2 className="text-xl font-semibold">Status systemu</h2>
-
-          <div className="mt-4 grid gap-3 text-sm text-neutral-300 sm:grid-cols-2 lg:grid-cols-3">
-            <div>Backend Foundation: OK</div>
-            <div>CRM API: OK</div>
-            <div>Dashboard Overview: OK</div>
-            <div>Recent Activity: OK</div>
-            <div>Prisma / Neon: OK</div>
-            <div>Auth: do zrobienia</div>
-          </div>
-        </div>
-      </section>
+        </DashboardPanel>
+      </div>
     </main>
   );
 }
