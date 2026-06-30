@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import MarkPaymentAsPaidButton from "@/components/dashboard/MarkPaymentAsPaidButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -107,6 +108,7 @@ function DataSection({
                           item.quoteNumber ??
                           item.invoiceNumber ??
                           item.paymentReference ??
+                          item.externalRef ??
                           item.reference ??
                           item.fileName ??
                           item.subject ??
@@ -168,6 +170,7 @@ export default async function PaymentDetailsPage({
   const auditLogs = details.auditLogs ?? [];
 
   const currency = payment.currency ?? invoice?.currency ?? "CHF";
+  const isPaid = payment.status === "PAID";
 
   return (
     <main className="min-h-screen p-6 lg:p-10">
@@ -191,6 +194,14 @@ export default async function PaymentDetailsPage({
             oferta, załączniki i historia systemu.
           </p>
         </div>
+
+        {isPaid ? (
+          <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
+            Płatność opłacona
+          </div>
+        ) : (
+          <MarkPaymentAsPaidButton paymentId={payment.id} />
+        )}
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
@@ -232,9 +243,11 @@ export default async function PaymentDetailsPage({
           <InfoCard label="Kwota" value={formatMoney(payment.amount, currency)} />
           <InfoCard label="Waluta" value={currency} />
           <InfoCard label="Faktura ID" value={payment.invoiceId} />
+          <InfoCard label="Zlecenie ID" value={payment.orderId} />
           <InfoCard label="Metoda" value={payment.method} />
-          <InfoCard label="Provider" value={payment.provider} />
-          <InfoCard label="Transaction ID" value={payment.transactionId} />
+          <InfoCard label="Referencja" value={payment.externalRef} />
+          <InfoCard label="Notatki" value={payment.notes} />
+          <InfoCard label="Opłacono" value={payment.paidAt} />
           <InfoCard label="Utworzono" value={payment.createdAt} />
           <InfoCard label="Aktualizacja" value={payment.updatedAt} />
         </div>
@@ -257,11 +270,15 @@ export default async function PaymentDetailsPage({
                 value={invoice.invoiceNumber ?? invoice.number}
               />
               <InfoCard label="Status" value={invoice.status} />
-              <InfoCard label="Total" value={formatMoney(invoice.total, currency)} />
+              <InfoCard
+                label="Total"
+                value={formatMoney(invoice.total, currency)}
+              />
               <InfoCard
                 label="Zapłacono"
                 value={formatMoney(invoice.paidAmount, currency)}
               />
+              <InfoCard label="Opłacono dnia" value={invoice.paidAt} />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">

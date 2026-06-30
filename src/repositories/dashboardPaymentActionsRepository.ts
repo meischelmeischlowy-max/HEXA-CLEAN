@@ -92,4 +92,120 @@ export const dashboardPaymentActionsRepository = {
       };
     });
   },
+
+  async markPaymentAsPaid(paymentId: string) {
+    return prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: {
+          id: paymentId,
+        },
+      });
+
+      if (!payment) {
+        return null;
+      }
+
+      const invoice = payment.invoiceId
+        ? await tx.invoice.findUnique({
+            where: {
+              id: payment.invoiceId,
+            },
+          })
+        : null;
+
+      const order =
+        invoice?.orderId || payment.orderId
+          ? await tx.order.findUnique({
+              where: {
+                id: invoice?.orderId ?? payment.orderId!,
+              },
+            })
+          : null;
+
+      const quote = invoice?.quoteId
+        ? await tx.quote.findUnique({
+            where: {
+              id: invoice.quoteId,
+            },
+          })
+        : null;
+
+      const sessionId = quote?.sessionId ?? order?.sessionId ?? null;
+      const customerId = invoice?.customerId ?? order?.customerId ?? null;
+      const orderId = invoice?.orderId ?? payment.orderId ?? null;
+
+      if (payment.status === "PAID") {
+        return {
+          payment,
+          invoice,
+          updatedInvoice: invoice,
+          updated: false,
+        };
+      }
+
+      const now = new Date();
+
+      const updatedPayment = await tx.payment.update({
+        where: {
+          id: payment.id,
+        },
+        data: {
+          status: "PAID",
+          paidAt: now,
+        },
+      });
+
+      const updatedInvoice = invoice
+        ? await tx.invoice.update({
+            where: {
+              id: invoice.id,
+            },
+            data: {
+              status: "PAID",
+              paidAmount: invoice.total,
+              paidAt: now,
+            },
+          })
+        : null;
+
+      await tx.auditLog.create({
+        data: {
+          customerId,
+          orderId,
+          sessionId,
+          action: "STATUS_CHANGE",
+          entityType: "Payment",
+          entityId: updatedPayment.id,
+          actorType: "dashboard",
+          before: {
+            status: payment.status,
+            paidAt: payment.paidAt,
+          },
+          after: {
+            status: updatedPayment.status,
+            paidAt: updatedPayment.paidAt,
+            invoiceStatus: updatedInvoice?.status ?? null,
+            invoicePaidAmount: updatedInvoice?.paidAmount
+              ? String(updatedInvoice.paidAmount)
+              : null,
+          },
+          message: `Payment ${
+            updatedPayment.externalRef ?? updatedPayment.id
+          } marked as paid`,
+          metadata: {
+            source: "dashboard_quick_action",
+            paymentId: updatedPayment.id,
+            invoiceId: invoice?.id ?? null,
+          },
+        },
+      });
+
+      return {
+        payment: updatedPayment,
+        invoice,
+        updatedInvoice,
+        updated: true,
+      };
+    });
+  },
 };
