@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
 function formatValue(value: unknown) {
@@ -17,6 +18,26 @@ function formatValue(value: unknown) {
   }
 
   return String(value);
+}
+
+function getEntityHref(entityType: unknown, entityId: unknown) {
+  if (!entityType || !entityId) {
+    return null;
+  }
+
+  const type = String(entityType).toLowerCase();
+  const id = String(entityId);
+
+  if (type.includes("customer")) return `/dashboard/customers/${id}`;
+  if (type.includes("order")) return `/dashboard/orders/${id}`;
+  if (type.includes("quote")) return `/dashboard/quotes/${id}`;
+  if (type.includes("invoice")) return `/dashboard/invoices/${id}`;
+  if (type.includes("payment")) return `/dashboard/payments/${id}`;
+  if (type.includes("notification")) return `/dashboard/notifications/${id}`;
+  if (type.includes("attachment")) return `/dashboard/attachments/${id}`;
+  if (type.includes("audit")) return `/dashboard/audit-logs/${id}`;
+
+  return null;
 }
 
 function InfoCard({ label, value }: { label: string; value: unknown }) {
@@ -48,9 +69,11 @@ function JsonCard({ label, value }: { label: string; value: unknown }) {
 function DataSection({
   title,
   items,
+  basePath,
 }: {
   title: string;
   items: Record<string, unknown>[];
+  basePath?: string;
 }) {
   return (
     <section className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
@@ -66,7 +89,7 @@ function DataSection({
         <p className="text-sm text-neutral-500">Brak danych.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="text-xs uppercase tracking-[0.2em] text-neutral-500">
               <tr>
                 <th className="border-b border-neutral-800 px-3 py-3">ID</th>
@@ -79,38 +102,58 @@ function DataSection({
                 <th className="border-b border-neutral-800 px-3 py-3">
                   Data
                 </th>
+                <th className="border-b border-neutral-800 px-3 py-3">
+                  Akcja
+                </th>
               </tr>
             </thead>
 
             <tbody>
-              {items.map((item) => (
-                <tr
-                  key={String(item.id)}
-                  className="border-b border-neutral-800"
-                >
-                  <td className="max-w-[220px] truncate px-3 py-3 text-neutral-400">
-                    {formatValue(item.id)}
-                  </td>
+              {items.map((item, index) => {
+                const itemId = item.id ? String(item.id) : "";
 
-                  <td className="px-3 py-3 text-neutral-300">
-                    {formatValue(item.type ?? item.role ?? item.entityType)}
-                  </td>
+                return (
+                  <tr
+                    key={itemId || `${title}-${index}`}
+                    className="border-b border-neutral-800"
+                  >
+                    <td className="max-w-[220px] truncate px-3 py-3 text-neutral-400">
+                      {formatValue(item.id)}
+                    </td>
 
-                  <td className="max-w-[480px] truncate px-3 py-3 text-white">
-                    {formatValue(
-                      item.action ??
-                        item.content ??
-                        item.message ??
-                        item.body ??
-                        item.subject
-                    )}
-                  </td>
+                    <td className="px-3 py-3 text-neutral-300">
+                      {formatValue(item.type ?? item.role ?? item.entityType)}
+                    </td>
 
-                  <td className="px-3 py-3 text-neutral-400">
-                    {formatValue(item.createdAt)}
-                  </td>
-                </tr>
-              ))}
+                    <td className="max-w-[480px] truncate px-3 py-3 text-white">
+                      {formatValue(
+                        item.action ??
+                          item.content ??
+                          item.message ??
+                          item.body ??
+                          item.subject
+                      )}
+                    </td>
+
+                    <td className="px-3 py-3 text-neutral-400">
+                      {formatValue(item.createdAt)}
+                    </td>
+
+                    <td className="px-3 py-3">
+                      {basePath && itemId ? (
+                        <Link
+                          href={`${basePath}/${itemId}`}
+                          className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-400 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+                        >
+                          Szczegóły
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-neutral-600">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -141,6 +184,8 @@ export default async function AuditLogDetailsPage({
   const conversationMessages = details.conversationMessages ?? [];
   const relatedAuditLogs = details.relatedAuditLogs ?? [];
 
+  const entityHref = getEntityHref(auditLog.entityType, auditLog.entityId);
+
   return (
     <main className="min-h-screen p-6 lg:p-10">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -164,6 +209,40 @@ export default async function AuditLogDetailsPage({
           </p>
         </div>
       </div>
+
+      <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
+        <h2 className="mb-4 text-xl font-bold">Szybka nawigacja CRM</h2>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <RecordLink
+            label="Powiązany rekord"
+            href={entityHref}
+            value={auditLog.entityType ?? auditLog.entityId}
+          />
+
+          <RecordLink
+            label="Klient"
+            href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
+            value={customer?.name ?? customer?.email ?? customer?.id}
+          />
+
+          <RecordLink
+            label="Zlecenie"
+            href={order?.id ? `/dashboard/orders/${order.id}` : null}
+            value={order?.orderNumber ?? order?.number ?? order?.id}
+          />
+
+          <RecordLink
+            label="Powiązany audit log"
+            href={
+              relatedAuditLogs[0]?.id
+                ? `/dashboard/audit-logs/${relatedAuditLogs[0].id}`
+                : null
+            }
+            value={relatedAuditLogs[0]?.action ?? relatedAuditLogs[0]?.id}
+          />
+        </div>
+      </section>
 
       <section className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
         <h2 className="mb-4 text-xl font-bold">Audit Log</h2>
@@ -204,6 +283,11 @@ export default async function AuditLogDetailsPage({
 
           {customer ? (
             <div className="grid gap-4">
+              <RecordLink
+                label="Otwórz klienta"
+                href={`/dashboard/customers/${customer.id}`}
+                value={customer.name ?? customer.email ?? customer.id}
+              />
               <InfoCard label="ID" value={customer.id} />
               <InfoCard label="Imię / nazwa" value={customer.name} />
               <InfoCard label="Email" value={customer.email} />
@@ -221,6 +305,11 @@ export default async function AuditLogDetailsPage({
 
           {order ? (
             <div className="grid gap-4">
+              <RecordLink
+                label="Otwórz zlecenie"
+                href={`/dashboard/orders/${order.id}`}
+                value={order.orderNumber ?? order.number ?? order.id}
+              />
               <InfoCard label="ID" value={order.id} />
               <InfoCard
                 label="Numer"
@@ -264,6 +353,7 @@ export default async function AuditLogDetailsPage({
         <DataSection
           title="Powiązane Audit Logi"
           items={relatedAuditLogs as Record<string, unknown>[]}
+          basePath="/dashboard/audit-logs"
         />
       </div>
     </main>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
 function formatValue(value: unknown) {
@@ -43,9 +44,11 @@ function InfoCard({ label, value }: { label: string; value: unknown }) {
 function DataSection({
   title,
   items,
+  basePath,
 }: {
   title: string;
   items: Record<string, unknown>[];
+  basePath?: string;
 }) {
   return (
     <section className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
@@ -61,7 +64,7 @@ function DataSection({
         <p className="text-sm text-neutral-500">Brak danych.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="text-xs uppercase tracking-[0.2em] text-neutral-500">
               <tr>
                 <th className="border-b border-neutral-800 px-3 py-3">ID</th>
@@ -74,40 +77,62 @@ function DataSection({
                 <th className="border-b border-neutral-800 px-3 py-3">
                   Data
                 </th>
+                <th className="border-b border-neutral-800 px-3 py-3">
+                  Akcja
+                </th>
               </tr>
             </thead>
 
             <tbody>
-              {items.map((item) => (
-                <tr
-                  key={String(item.id)}
-                  className="border-b border-neutral-800"
-                >
-                  <td className="max-w-[220px] truncate px-3 py-3 text-neutral-400">
-                    {formatValue(item.id)}
-                  </td>
+              {items.map((item) => {
+                const itemId = item.id ? String(item.id) : "";
 
-                  <td className="px-3 py-3 text-neutral-300">
-                    {formatValue(item.status ?? item.type ?? item.channel)}
-                  </td>
+                return (
+                  <tr
+                    key={itemId || JSON.stringify(item)}
+                    className="border-b border-neutral-800"
+                  >
+                    <td className="max-w-[220px] truncate px-3 py-3 text-neutral-400">
+                      {formatValue(item.id)}
+                    </td>
 
-                  <td className="px-3 py-3 text-white">
-                    {formatValue(
-                      item.number ??
-                        item.orderNumber ??
-                        item.quoteNumber ??
-                        item.invoiceNumber ??
-                        item.fileName ??
-                        item.subject ??
-                        item.action
-                    )}
-                  </td>
+                    <td className="px-3 py-3 text-neutral-300">
+                      {formatValue(item.status ?? item.type ?? item.channel)}
+                    </td>
 
-                  <td className="px-3 py-3 text-neutral-400">
-                    {formatValue(item.createdAt)}
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-3 py-3 text-white">
+                      {formatValue(
+                        item.number ??
+                          item.orderNumber ??
+                          item.quoteNumber ??
+                          item.invoiceNumber ??
+                          item.paymentReference ??
+                          item.reference ??
+                          item.fileName ??
+                          item.subject ??
+                          item.action
+                      )}
+                    </td>
+
+                    <td className="px-3 py-3 text-neutral-400">
+                      {formatValue(item.createdAt)}
+                    </td>
+
+                    <td className="px-3 py-3">
+                      {basePath && itemId ? (
+                        <Link
+                          href={`${basePath}/${itemId}`}
+                          className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-400 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+                        >
+                          Szczegóły
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-neutral-600">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -168,6 +193,44 @@ export default async function QuoteDetailsPage({
         </div>
       </div>
 
+      <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
+        <h2 className="mb-4 text-xl font-bold">Szybka nawigacja CRM</h2>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <RecordLink
+            label="Klient"
+            href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
+            value={customer?.name ?? customer?.email ?? customer?.id}
+          />
+
+          <RecordLink
+            label="Zlecenie"
+            href={order?.id ? `/dashboard/orders/${order.id}` : null}
+            value={order?.orderNumber ?? order?.number ?? order?.id}
+          />
+
+          <RecordLink
+            label="Pierwsza faktura"
+            href={invoices[0]?.id ? `/dashboard/invoices/${invoices[0].id}` : null}
+            value={
+              invoices[0]?.invoiceNumber ??
+              invoices[0]?.number ??
+              invoices[0]?.id
+            }
+          />
+
+          <RecordLink
+            label="Pierwsza płatność"
+            href={payments[0]?.id ? `/dashboard/payments/${payments[0].id}` : null}
+            value={
+              payments[0]?.paymentReference ??
+              payments[0]?.reference ??
+              payments[0]?.id
+            }
+          />
+        </div>
+      </section>
+
       <section className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
         <h2 className="mb-4 text-xl font-bold">Oferta</h2>
 
@@ -176,9 +239,15 @@ export default async function QuoteDetailsPage({
           <InfoCard label="Numer" value={quote.quoteNumber ?? quote.number} />
           <InfoCard label="Status" value={quote.status} />
           <InfoCard label="Waluta" value={currency} />
-          <InfoCard label="Subtotal" value={formatMoney(quote.subtotal, currency)} />
+          <InfoCard
+            label="Subtotal"
+            value={formatMoney(quote.subtotal, currency)}
+          />
           <InfoCard label="Tax Rate" value={quote.taxRate} />
-          <InfoCard label="Tax Amount" value={formatMoney(quote.taxAmount, currency)} />
+          <InfoCard
+            label="Tax Amount"
+            value={formatMoney(quote.taxAmount, currency)}
+          />
           <InfoCard label="Total" value={formatMoney(quote.total, currency)} />
           <InfoCard label="Klient ID" value={quote.customerId} />
           <InfoCard label="Zlecenie ID" value={quote.orderId} />
@@ -195,6 +264,11 @@ export default async function QuoteDetailsPage({
 
           {customer ? (
             <div className="grid gap-4">
+              <RecordLink
+                label="Otwórz klienta"
+                href={`/dashboard/customers/${customer.id}`}
+                value={customer.name ?? customer.email ?? customer.id}
+              />
               <InfoCard label="ID" value={customer.id} />
               <InfoCard label="Imię / nazwa" value={customer.name} />
               <InfoCard label="Email" value={customer.email} />
@@ -212,6 +286,11 @@ export default async function QuoteDetailsPage({
 
           {order ? (
             <div className="grid gap-4">
+              <RecordLink
+                label="Otwórz zlecenie"
+                href={`/dashboard/orders/${order.id}`}
+                value={order.orderNumber ?? order.number ?? order.id}
+              />
               <InfoCard label="ID" value={order.id} />
               <InfoCard label="Numer" value={order.orderNumber ?? order.number} />
               <InfoCard label="Status" value={order.status} />
@@ -249,26 +328,31 @@ export default async function QuoteDetailsPage({
         <DataSection
           title="Faktury"
           items={invoices as Record<string, unknown>[]}
+          basePath="/dashboard/invoices"
         />
 
         <DataSection
           title="Płatności"
           items={payments as Record<string, unknown>[]}
+          basePath="/dashboard/payments"
         />
 
         <DataSection
           title="Powiadomienia"
           items={notifications as Record<string, unknown>[]}
+          basePath="/dashboard/notifications"
         />
 
         <DataSection
           title="Załączniki"
           items={attachments as Record<string, unknown>[]}
+          basePath="/dashboard/attachments"
         />
 
         <DataSection
           title="Audit Logi"
           items={auditLogs as Record<string, unknown>[]}
+          basePath="/dashboard/audit-logs"
         />
       </div>
     </main>
