@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import EstimateStatusActions from "../../../../components/dashboard/EstimateStatusActions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -97,6 +98,24 @@ function statusLabel(status: string) {
   return labels[status] ?? status;
 }
 
+function metadataText(metadata: unknown, key: string) {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  if (!(key in metadata)) {
+    return null;
+  }
+
+  const value = (metadata as Record<string, unknown>)[key];
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  return value;
+}
+
 export default async function DashboardEstimateDetailsPage({
   params,
 }: {
@@ -176,6 +195,11 @@ export default async function DashboardEstimateDetailsPage({
           </div>
         </section>
 
+        <EstimateStatusActions
+          estimateId={estimate.id}
+          currentStatus={estimate.status}
+        />
+
         <section className="grid gap-4 lg:grid-cols-4">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-sm text-neutral-400">Klient</p>
@@ -227,7 +251,7 @@ export default async function DashboardEstimateDetailsPage({
             <div>
               <h2 className="text-xl font-semibold">Pozycje wyceny</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Kalkulacja z katalogu usług i mnożnika ryzyka.
+                Kalkulacja z katalogu usług albo z ręcznego formularza.
               </p>
             </div>
 
@@ -250,33 +274,38 @@ export default async function DashboardEstimateDetailsPage({
               </thead>
 
               <tbody className="divide-y divide-white/10">
-                {estimate.items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-4 py-4">
-                      <p className="font-semibold text-neutral-100">
-                        {item.name}
-                      </p>
-                      <p className="mt-1 text-xs text-neutral-500">
-                        {item.description ?? item.category ?? "—"}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 text-neutral-300">
-                      {formatNumber(item.quantity)} {item.unit}
-                    </td>
-                    <td className="px-4 py-4 text-neutral-300">
-                      {formatMoney(item.unitPrice, estimate.currency)}
-                    </td>
-                    <td className="px-4 py-4 text-neutral-300">
-                      x{formatNumber(item.riskMultiplier)}
-                    </td>
-                    <td className="px-4 py-4 text-neutral-300">
-                      {formatMoney(item.riskAmount, estimate.currency)}
-                    </td>
-                    <td className="px-4 py-4 text-right font-semibold">
-                      {formatMoney(item.total, estimate.currency)}
-                    </td>
-                  </tr>
-                ))}
+                {estimate.items.map((item) => {
+                  const manualUnit = metadataText(item.metadata, "manualUnit");
+                  const unit = item.unit ?? manualUnit ?? "—";
+
+                  return (
+                    <tr key={item.id}>
+                      <td className="px-4 py-4">
+                        <p className="font-semibold text-neutral-100">
+                          {item.name}
+                        </p>
+                        <p className="mt-1 text-xs text-neutral-500">
+                          {item.description ?? item.category ?? "—"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-neutral-300">
+                        {formatNumber(item.quantity)} {unit}
+                      </td>
+                      <td className="px-4 py-4 text-neutral-300">
+                        {formatMoney(item.unitPrice, estimate.currency)}
+                      </td>
+                      <td className="px-4 py-4 text-neutral-300">
+                        x{formatNumber(item.riskMultiplier)}
+                      </td>
+                      <td className="px-4 py-4 text-neutral-300">
+                        {formatMoney(item.riskAmount, estimate.currency)}
+                      </td>
+                      <td className="px-4 py-4 text-right font-semibold">
+                        {formatMoney(item.total, estimate.currency)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
