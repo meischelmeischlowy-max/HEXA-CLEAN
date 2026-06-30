@@ -138,6 +138,7 @@ function getServiceStatus(service: ServiceCatalogItem) {
 export default function DashboardServicesPage() {
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadServices = useCallback(async () => {
@@ -148,6 +149,7 @@ export default function DashboardServicesPage() {
       const response = await fetch("/api/dashboard/services", {
         method: "GET",
         cache: "no-store",
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -165,6 +167,36 @@ export default function DashboardServicesPage() {
       setLoading(false);
     }
   }, []);
+
+  const seedDemoServices = useCallback(async () => {
+    setSeeding(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/dashboard/services", {
+        method: "POST",
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Dashboard Services seed API returned an error");
+      }
+
+      const json: DashboardServicesResponse = await response.json();
+
+      setServices(json.data.services ?? []);
+      await loadServices();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unknown services seed error"
+      );
+    } finally {
+      setSeeding(false);
+    }
+  }, [loadServices]);
 
   useEffect(() => {
     loadServices();
@@ -305,12 +337,22 @@ export default function DashboardServicesPage() {
         >
           <PremiumButton
             type="button"
+            variant="primary"
+            onClick={seedDemoServices}
+            disabled={loading || seeding}
+          >
+            {seeding ? "Dodawanie..." : "Dodaj przykładowy cennik"}
+          </PremiumButton>
+
+          <PremiumButton
+            type="button"
             variant="secondary"
             onClick={loadServices}
-            disabled={loading}
+            disabled={loading || seeding}
           >
             Odśwież
           </PremiumButton>
+
           <PremiumButton href="/dashboard/quotes" variant="ghost">
             Oferty
           </PremiumButton>
@@ -406,7 +448,7 @@ export default function DashboardServicesPage() {
                 empty={
                   <EmptyState
                     title="Brak usług w cenniku"
-                    description="Dodamy teraz pierwsze pozycje cennika: sprzątanie, okna, Endreinigung, dojazd i usługi specjalne."
+                    description="Kliknij „Dodaj przykładowy cennik”, aby dodać pierwsze pozycje: sprzątanie, okna, Endreinigung, dojazd i usługi specjalne."
                     actionLabel="Wróć do overview"
                     actionHref="/dashboard"
                   />
