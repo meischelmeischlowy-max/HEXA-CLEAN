@@ -82,7 +82,7 @@ function customerName(customer: {
   return [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "—";
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
     DRAFT: "Robocza",
     AI_REVIEW: "AI sprawdza",
@@ -94,6 +94,10 @@ function statusLabel(status: string) {
     REJECTED: "Odrzucona",
     EXPIRED: "Wygasła",
   };
+
+  if (!status) {
+    return "—";
+  }
 
   return labels[status] ?? status;
 }
@@ -114,6 +118,34 @@ function metadataText(metadata: unknown, key: string) {
   }
 
   return value;
+}
+
+function auditActionLabel(action: string | null | undefined) {
+  const labels: Record<string, string> = {
+    CREATE: "Utworzono",
+    UPDATE: "Zmieniono",
+    DELETE: "Usunięto",
+    SEND: "Wysłano",
+    ACCEPT: "Zaakceptowano",
+    REJECT: "Odrzucono",
+  };
+
+  if (!action) {
+    return "Zdarzenie";
+  }
+
+  return labels[action] ?? action;
+}
+
+function auditStatusChange(before: unknown, after: unknown) {
+  const beforeStatus = metadataText(before, "status");
+  const afterStatus = metadataText(after, "status");
+
+  if (!beforeStatus && !afterStatus) {
+    return null;
+  }
+
+  return `${statusLabel(beforeStatus)} → ${statusLabel(afterStatus)}`;
 }
 
 export default async function DashboardEstimateDetailsPage({
@@ -158,6 +190,8 @@ export default async function DashboardEstimateDetailsPage({
     notFound();
   }
 
+  const latestAuditLog = estimate.auditLogs[0];
+
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-8 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-8">
@@ -200,7 +234,7 @@ export default async function DashboardEstimateDetailsPage({
           currentStatus={estimate.status}
         />
 
-        <section className="grid gap-4 lg:grid-cols-4">
+        <section className="grid gap-4 lg:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-sm text-neutral-400">Klient</p>
             <p className="mt-2 text-xl font-semibold">
@@ -232,6 +266,16 @@ export default async function DashboardEstimateDetailsPage({
             </p>
             <p className="mt-1 text-sm text-neutral-500">
               Źródło: {estimate.source ?? "—"}
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <p className="text-sm text-neutral-400">Ostatnia aktywność</p>
+            <p className="mt-2 text-xl font-semibold">
+              {latestAuditLog ? formatDate(latestAuditLog.createdAt) : "—"}
+            </p>
+            <p className="mt-1 text-sm text-neutral-500">
+              {latestAuditLog?.message ?? "Brak historii zmian"}
             </p>
           </div>
 
@@ -390,6 +434,62 @@ export default async function DashboardEstimateDetailsPage({
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xl font-semibold">Historia wyceny</h2>
+            <p className="text-sm text-neutral-400">
+              Techniczny audit log: utworzenie wyceny, zmiany statusu i późniejsze
+              decyzje właściciela.
+            </p>
+          </div>
+
+          {estimate.auditLogs.length === 0 ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
+              Brak historii zmian.
+            </div>
+          ) : (
+            <div className="mt-6 flex flex-col gap-4">
+              {estimate.auditLogs.map((log) => {
+                const statusChange = auditStatusChange(log.before, log.after);
+
+                return (
+                  <div
+                    key={log.id}
+                    className="rounded-2xl border border-white/10 bg-black/20 p-5"
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-200">
+                          {auditActionLabel(log.action)}
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-neutral-300">
+                          {log.message ?? "Zdarzenie bez opisu."}
+                        </p>
+
+                        {statusChange ? (
+                          <p className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-sm font-semibold text-cyan-100">
+                            Status: {statusChange}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="text-left lg:text-right">
+                        <p className="text-sm font-semibold text-neutral-200">
+                          {formatDate(log.createdAt)}
+                        </p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-neutral-500">
+                          {log.actorType ?? "system"} · {log.entityType ?? "Estimate"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-3">
