@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import CreatePaymentFromInvoiceButton from "@/components/dashboard/CreatePaymentFromInvoiceButton";
+import MarkInvoiceAsSentButton from "@/components/dashboard/MarkInvoiceAsSentButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -172,6 +173,10 @@ export default async function InvoiceDetailsPage({
   const currency = invoice.currency ?? "CHF";
   const firstPayment = payments[0] ?? null;
 
+  const isDraft = invoice.status === "DRAFT";
+  const isSent = invoice.status === "SENT";
+  const isPaid = invoice.status === "PAID";
+
   return (
     <main className="min-h-screen p-6 lg:p-10">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -195,16 +200,34 @@ export default async function InvoiceDetailsPage({
           </p>
         </div>
 
-        {firstPayment?.id ? (
-          <Link
-            href={`/dashboard/payments/${firstPayment.id}`}
-            className="rounded-xl border border-violet-600 bg-violet-950/50 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-300 hover:bg-violet-900/70"
-          >
-            Otwórz płatność
-          </Link>
-        ) : (
-          <CreatePaymentFromInvoiceButton invoiceId={invoice.id} />
-        )}
+        <div className="flex flex-col gap-3 lg:items-end">
+          {isPaid ? (
+            <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
+              Faktura opłacona
+            </div>
+          ) : isSent ? (
+            <div className="rounded-xl border border-sky-600 bg-sky-950/50 px-4 py-3 text-sm font-semibold text-sky-100">
+              Faktura wysłana
+            </div>
+          ) : isDraft ? (
+            <MarkInvoiceAsSentButton invoiceId={invoice.id} />
+          ) : (
+            <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 px-4 py-3 text-sm font-semibold text-neutral-300">
+              Status faktury: {invoice.status}
+            </div>
+          )}
+
+          {firstPayment?.id ? (
+            <Link
+              href={`/dashboard/payments/${firstPayment.id}`}
+              className="rounded-xl border border-violet-600 bg-violet-950/50 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-300 hover:bg-violet-900/70"
+            >
+              Otwórz płatność
+            </Link>
+          ) : (
+            <CreatePaymentFromInvoiceButton invoiceId={invoice.id} />
+          )}
+        </div>
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
@@ -214,7 +237,12 @@ export default async function InvoiceDetailsPage({
           <RecordLink
             label="Klient"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={customer?.name ?? customer?.email ?? customer?.id}
+            value={
+              customer?.companyName ??
+              customer?.name ??
+              customer?.email ??
+              customer?.id
+            }
           />
 
           <RecordLink
@@ -271,7 +299,10 @@ export default async function InvoiceDetailsPage({
             label="Zapłacono"
             value={formatMoney(invoice.paidAmount, currency)}
           />
+          <InfoCard label="Data wystawienia" value={invoice.issueDate} />
           <InfoCard label="Termin płatności" value={invoice.dueDate} />
+          <InfoCard label="Wysłano" value={invoice.sentAt} />
+          <InfoCard label="Opłacono" value={invoice.paidAt} />
           <InfoCard label="Klient ID" value={invoice.customerId} />
           <InfoCard label="Zlecenie ID" value={invoice.orderId} />
           <InfoCard label="Oferta ID" value={invoice.quoteId} />
@@ -289,10 +320,21 @@ export default async function InvoiceDetailsPage({
               <RecordLink
                 label="Otwórz klienta"
                 href={`/dashboard/customers/${customer.id}`}
-                value={customer.name ?? customer.email ?? customer.id}
+                value={
+                  customer.companyName ??
+                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim() ??
+                  customer.email ??
+                  customer.id
+                }
               />
               <InfoCard label="ID" value={customer.id} />
-              <InfoCard label="Imię / nazwa" value={customer.name} />
+              <InfoCard
+                label="Imię / nazwa"
+                value={
+                  customer.companyName ??
+                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim()
+                }
+              />
               <InfoCard label="Email" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
             </div>
