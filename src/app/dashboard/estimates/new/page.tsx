@@ -17,6 +17,16 @@ type CreateEstimateResponse = {
   };
 };
 
+type EstimateItemForm = {
+  itemName: string;
+  itemDescription: string;
+  itemCategory: string;
+  itemUnit: string;
+  quantity: string;
+  unitPrice: string;
+  riskMultiplier: string;
+};
+
 type EstimateForm = {
   firstName: string;
   lastName: string;
@@ -28,18 +38,22 @@ type EstimateForm = {
   serviceStreet: string;
   serviceZipCode: string;
   serviceCity: string;
-  itemName: string;
-  itemDescription: string;
-  itemCategory: string;
-  itemUnit: string;
-  quantity: string;
-  unitPrice: string;
-  riskMultiplier: string;
   travelFee: string;
   materialFee: string;
   discountAmount: string;
   notesCustomer: string;
   notesInternal: string;
+  items: EstimateItemForm[];
+};
+
+const emptyItem: EstimateItemForm = {
+  itemName: "",
+  itemDescription: "",
+  itemCategory: "cleaning",
+  itemUnit: "h",
+  quantity: "1",
+  unitPrice: "45",
+  riskMultiplier: "1.00",
 };
 
 const initialForm: EstimateForm = {
@@ -53,19 +67,23 @@ const initialForm: EstimateForm = {
   serviceStreet: "",
   serviceZipCode: "",
   serviceCity: "",
-  itemName: "Sprzątanie mieszkania",
-  itemDescription: "",
-  itemCategory: "cleaning",
-  itemUnit: "h",
-  quantity: "4",
-  unitPrice: "45",
-  riskMultiplier: "1.00",
   travelFee: "0",
   materialFee: "0",
   discountAmount: "0",
   notesCustomer:
     "Cena orientacyjna. Ostateczna oferta po potwierdzeniu zakresu.",
   notesInternal: "Wycena utworzona ręcznie w panelu HEXA OS.",
+  items: [
+    {
+      itemName: "Sprzątanie mieszkania",
+      itemDescription: "",
+      itemCategory: "cleaning",
+      itemUnit: "h",
+      quantity: "4",
+      unitPrice: "45",
+      riskMultiplier: "1.00",
+    },
+  ],
 };
 
 function toNumber(value: string) {
@@ -92,20 +110,35 @@ export default function NewEstimatePage() {
   const [error, setError] = useState("");
 
   const preview = useMemo(() => {
-    const quantity = toNumber(form.quantity);
-    const unitPrice = toNumber(form.unitPrice);
-    const riskMultiplier = toNumber(form.riskMultiplier) || 1;
+    const itemRows = form.items.map((item) => {
+      const quantity = toNumber(item.quantity);
+      const unitPrice = toNumber(item.unitPrice);
+      const riskMultiplier = toNumber(item.riskMultiplier) || 1;
+
+      const subtotal = quantity * unitPrice;
+      const riskTotal = subtotal * riskMultiplier;
+      const riskAmount = Math.max(riskTotal - subtotal, 0);
+      const total = subtotal + riskAmount;
+
+      return {
+        name: item.itemName || "Pozycja bez nazwy",
+        subtotal,
+        riskAmount,
+        total,
+      };
+    });
+
+    const subtotal = itemRows.reduce((sum, item) => sum + item.subtotal, 0);
+    const riskAmount = itemRows.reduce((sum, item) => sum + item.riskAmount, 0);
     const travelFee = toNumber(form.travelFee);
     const materialFee = toNumber(form.materialFee);
     const discountAmount = toNumber(form.discountAmount);
 
-    const subtotal = quantity * unitPrice;
-    const riskTotal = subtotal * riskMultiplier;
-    const riskAmount = Math.max(riskTotal - subtotal, 0);
     const totalBeforeDiscount = subtotal + riskAmount + travelFee + materialFee;
     const total = Math.max(totalBeforeDiscount - discountAmount, 0);
 
     return {
+      itemRows,
       subtotal,
       riskAmount,
       travelFee,
@@ -117,11 +150,55 @@ export default function NewEstimatePage() {
     };
   }, [form]);
 
-  function updateField(field: keyof EstimateForm, value: string) {
+  function updateField(field: keyof Omit<EstimateForm, "items">, value: string) {
     setForm((currentForm) => ({
       ...currentForm,
       [field]: value,
     }));
+  }
+
+  function updateItemField(
+    index: number,
+    field: keyof EstimateItemForm,
+    value: string
+  ) {
+    setForm((currentForm) => ({
+      ...currentForm,
+      items: currentForm.items.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              [field]: value,
+            }
+          : item
+      ),
+    }));
+  }
+
+  function addItem() {
+    setForm((currentForm) => ({
+      ...currentForm,
+      items: [
+        ...currentForm.items,
+        {
+          ...emptyItem,
+          itemName: `Pozycja ${currentForm.items.length + 1}`,
+        },
+      ],
+    }));
+  }
+
+  function removeItem(index: number) {
+    setForm((currentForm) => {
+      if (currentForm.items.length <= 1) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        items: currentForm.items.filter((_, itemIndex) => itemIndex !== index),
+      };
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -131,6 +208,17 @@ export default function NewEstimatePage() {
     setError("");
 
     try {
+      const cleanedItems = form.items
+        .map((item) => ({
+          ...item,
+          itemName: item.itemName.trim(),
+        }))
+        .filter((item) => item.itemName.length > 0);
+
+      if (cleanedItems.length === 0) {
+        throw new Error("Dodaj przynajmniej jedną pozycję wyceny.");
+      }
+
       const response = await fetch("/api/dashboard/estimates", {
         method: "POST",
         headers: {
@@ -140,6 +228,7 @@ export default function NewEstimatePage() {
         body: JSON.stringify({
           mode: "manual",
           ...form,
+          items: cleanedItems,
         }),
       });
 
@@ -212,8 +301,8 @@ export default function NewEstimatePage() {
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-                Ręczne utworzenie roboczej wyceny. Cena nadal wymaga kontroli
-                właściciela przed wysłaniem klientowi.
+                Ręczne utworzenie roboczej wyceny z wieloma pozycjami. Cena
+                nadal wymaga kontroli właściciela przed wysłaniem klientowi.
               </p>
             </div>
 
@@ -342,8 +431,8 @@ export default function NewEstimatePage() {
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
               <h2 className="text-xl font-semibold">Zakres wyceny</h2>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-2 md:col-span-2">
+              <div className="mt-5 grid gap-4">
+                <label className="flex flex-col gap-2">
                   <span className="text-sm text-neutral-400">Tytuł wyceny</span>
                   <input
                     value={form.title}
@@ -353,7 +442,7 @@ export default function NewEstimatePage() {
                   />
                 </label>
 
-                <label className="flex flex-col gap-2 md:col-span-2">
+                <label className="flex flex-col gap-2">
                   <span className="text-sm text-neutral-400">Opis / zakres</span>
                   <textarea
                     value={form.description}
@@ -365,94 +454,172 @@ export default function NewEstimatePage() {
                     placeholder="Krótki opis pracy, mieszkania, stanu zabrudzenia itd."
                   />
                 </label>
-
-                <label className="flex flex-col gap-2 md:col-span-2">
-                  <span className="text-sm text-neutral-400">Nazwa pozycji</span>
-                  <input
-                    value={form.itemName}
-                    onChange={(event) =>
-                      updateField("itemName", event.target.value)
-                    }
-                    required
-                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
-                    placeholder="np. Sprzątanie mieszkania"
-                  />
-                </label>
-
-                <label className="flex flex-col gap-2 md:col-span-2">
-                  <span className="text-sm text-neutral-400">Opis pozycji</span>
-                  <textarea
-                    value={form.itemDescription}
-                    onChange={(event) =>
-                      updateField("itemDescription", event.target.value)
-                    }
-                    rows={3}
-                    className="resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
-                    placeholder="np. Kuchnia, łazienka, podłogi, kurz, podstawowe czyszczenie"
-                  />
-                </label>
               </div>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-semibold">Kalkulacja</h2>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Pozycje wyceny</h2>
+                  <p className="mt-1 text-sm text-neutral-400">
+                    Dodaj osobno sprzątanie, okna, dojazd, materiały lub inne
+                    usługi.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/20"
+                >
+                  Dodaj pozycję
+                </button>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-5">
+                {form.items.map((item, index) => (
+                  <div
+                    key={index}
+                    className="rounded-3xl border border-white/10 bg-black/20 p-5"
+                  >
+                    <div className="mb-4 flex items-center justify-between gap-4">
+                      <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-200">
+                        Pozycja {index + 1}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        disabled={form.items.length <= 1}
+                        className="rounded-xl border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Usuń
+                      </button>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="flex flex-col gap-2 md:col-span-2">
+                        <span className="text-sm text-neutral-400">
+                          Nazwa pozycji
+                        </span>
+                        <input
+                          value={item.itemName}
+                          onChange={(event) =>
+                            updateItemField(index, "itemName", event.target.value)
+                          }
+                          required
+                          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                          placeholder="np. Sprzątanie mieszkania"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-2 md:col-span-2">
+                        <span className="text-sm text-neutral-400">
+                          Opis pozycji
+                        </span>
+                        <textarea
+                          value={item.itemDescription}
+                          onChange={(event) =>
+                            updateItemField(
+                              index,
+                              "itemDescription",
+                              event.target.value
+                            )
+                          }
+                          rows={3}
+                          className="resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                          placeholder="np. Kuchnia, łazienka, podłogi, kurz"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-2">
+                        <span className="text-sm text-neutral-400">
+                          Kategoria
+                        </span>
+                        <input
+                          value={item.itemCategory}
+                          onChange={(event) =>
+                            updateItemField(
+                              index,
+                              "itemCategory",
+                              event.target.value
+                            )
+                          }
+                          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                          placeholder="cleaning"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-2">
+                        <span className="text-sm text-neutral-400">
+                          Jednostka
+                        </span>
+                        <input
+                          value={item.itemUnit}
+                          onChange={(event) =>
+                            updateItemField(index, "itemUnit", event.target.value)
+                          }
+                          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                          placeholder="h / m² / szt."
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-2">
+                        <span className="text-sm text-neutral-400">Ilość</span>
+                        <input
+                          value={item.quantity}
+                          onChange={(event) =>
+                            updateItemField(index, "quantity", event.target.value)
+                          }
+                          inputMode="decimal"
+                          required
+                          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-2">
+                        <span className="text-sm text-neutral-400">
+                          Cena jednostkowa CHF
+                        </span>
+                        <input
+                          value={item.unitPrice}
+                          onChange={(event) =>
+                            updateItemField(index, "unitPrice", event.target.value)
+                          }
+                          inputMode="decimal"
+                          required
+                          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-2 md:col-span-2">
+                        <span className="text-sm text-neutral-400">
+                          Mnożnik ryzyka
+                        </span>
+                        <input
+                          value={item.riskMultiplier}
+                          onChange={(event) =>
+                            updateItemField(
+                              index,
+                              "riskMultiplier",
+                              event.target.value
+                            )
+                          }
+                          inputMode="decimal"
+                          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                          placeholder="1.00"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+              <h2 className="text-xl font-semibold">Opłaty dodatkowe</h2>
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Ilość</span>
-                  <input
-                    value={form.quantity}
-                    onChange={(event) =>
-                      updateField("quantity", event.target.value)
-                    }
-                    inputMode="decimal"
-                    required
-                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
-                  />
-                </label>
-
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Jednostka</span>
-                  <input
-                    value={form.itemUnit}
-                    onChange={(event) =>
-                      updateField("itemUnit", event.target.value)
-                    }
-                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
-                    placeholder="h / m² / szt."
-                  />
-                </label>
-
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">
-                    Cena jednostkowa CHF
-                  </span>
-                  <input
-                    value={form.unitPrice}
-                    onChange={(event) =>
-                      updateField("unitPrice", event.target.value)
-                    }
-                    inputMode="decimal"
-                    required
-                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
-                  />
-                </label>
-
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">
-                    Mnożnik ryzyka
-                  </span>
-                  <input
-                    value={form.riskMultiplier}
-                    onChange={(event) =>
-                      updateField("riskMultiplier", event.target.value)
-                    }
-                    inputMode="decimal"
-                    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
-                    placeholder="1.00"
-                  />
-                </label>
-
                 <label className="flex flex-col gap-2">
                   <span className="text-sm text-neutral-400">Dojazd CHF</span>
                   <input
@@ -477,7 +644,7 @@ export default function NewEstimatePage() {
                   />
                 </label>
 
-                <label className="flex flex-col gap-2 md:col-span-3">
+                <label className="flex flex-col gap-2">
                   <span className="text-sm text-neutral-400">Rabat CHF</span>
                   <input
                     value={form.discountAmount}
@@ -532,6 +699,30 @@ export default function NewEstimatePage() {
             </p>
 
             <div className="mt-6 space-y-4 text-sm">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-neutral-500">
+                  Pozycje
+                </p>
+
+                <div className="mt-3 space-y-3">
+                  {preview.itemRows.map((item, index) => (
+                    <div
+                      key={`${item.name}-${index}`}
+                      className="border-b border-white/10 pb-3 last:border-b-0 last:pb-0"
+                    >
+                      <div className="flex justify-between gap-4">
+                        <span className="text-neutral-300">{item.name}</span>
+                        <span className="font-semibold">{money(item.total)}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        Subtotal {money(item.subtotal)} · Ryzyko{" "}
+                        {money(item.riskAmount)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
                 <span className="text-neutral-400">Subtotal</span>
                 <span className="font-semibold">{money(preview.subtotal)}</span>
@@ -580,7 +771,8 @@ export default function NewEstimatePage() {
             </button>
 
             <p className="mt-4 text-xs leading-5 text-neutral-400">
-              Po utworzeniu system przeniesie Cię na szczegóły tej jednej wyceny.
+              Po utworzeniu system przeniesie Cię na szczegóły tej jednej
+              wyceny.
             </p>
           </aside>
         </form>
