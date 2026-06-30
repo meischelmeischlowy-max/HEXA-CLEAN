@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import CreateInvoiceFromQuoteButton from "@/components/dashboard/CreateInvoiceFromQuoteButton";
 import MarkQuoteAsAcceptedButton from "@/components/dashboard/MarkQuoteAsAcceptedButton";
+import MarkQuoteAsSentButton from "@/components/dashboard/MarkQuoteAsSentButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -173,7 +174,17 @@ export default async function QuoteDetailsPage({
   const currency = quote.currency ?? "CHF";
   const firstInvoice = invoices[0] ?? null;
   const firstPayment = payments[0] ?? null;
+
+  const isDraft = quote.status === "DRAFT";
+  const isSent = quote.status === "SENT";
   const isAccepted = quote.status === "ACCEPTED";
+
+  const customerName =
+    customer?.companyName ??
+    [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") ??
+    customer?.name ??
+    customer?.email ??
+    customer?.id;
 
   return (
     <main className="min-h-screen p-6 lg:p-10">
@@ -203,8 +214,20 @@ export default async function QuoteDetailsPage({
             <div className="rounded-xl border border-lime-600 bg-lime-950/50 px-4 py-3 text-sm font-semibold text-lime-100">
               Oferta zaakceptowana
             </div>
+          ) : isSent ? (
+            <>
+              <div className="rounded-xl border border-sky-600 bg-sky-950/50 px-4 py-3 text-sm font-semibold text-sky-100">
+                Oferta wysłana
+              </div>
+
+              <MarkQuoteAsAcceptedButton quoteId={quote.id} />
+            </>
+          ) : isDraft ? (
+            <MarkQuoteAsSentButton quoteId={quote.id} />
           ) : (
-            <MarkQuoteAsAcceptedButton quoteId={quote.id} />
+            <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 px-4 py-3 text-sm font-semibold text-neutral-300">
+              Status oferty: {quote.status}
+            </div>
           )}
 
           {firstInvoice?.id ? (
@@ -227,12 +250,7 @@ export default async function QuoteDetailsPage({
           <RecordLink
             label="Klient"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={
-              customer?.companyName ??
-              customer?.name ??
-              customer?.email ??
-              customer?.id
-            }
+            value={customerName}
           />
 
           <RecordLink
@@ -310,21 +328,10 @@ export default async function QuoteDetailsPage({
               <RecordLink
                 label="Otwórz klienta"
                 href={`/dashboard/customers/${customer.id}`}
-                value={
-                  customer.companyName ??
-                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim() ??
-                  customer.email ??
-                  customer.id
-                }
+                value={customerName}
               />
               <InfoCard label="ID" value={customer.id} />
-              <InfoCard
-                label="Imię / nazwa"
-                value={
-                  customer.companyName ??
-                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim()
-                }
-              />
+              <InfoCard label="Imię / nazwa" value={customerName} />
               <InfoCard label="Email" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
             </div>
