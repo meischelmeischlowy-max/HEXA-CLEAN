@@ -1,4 +1,4 @@
-import { PrismaClient, ServiceCatalogUnit } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextResponse } from "next/server";
 
@@ -558,60 +558,26 @@ async function createManualEstimate(
         cleanText(body.notesInternal) ??
         "Wycena utworzona ręcznie w panelu dashboard.",
       items: {
-        create: {
-          name: itemName,
-          description: cleanText(body.itemDescription),
-          unit:
-            (cleanText(body.itemUnit) as ServiceCatalogUnit) ?? ServiceCatalogUnit.CUSTOM,
-          quantity: money(quantity),
-          unitPrice: money(unitPrice),
-          subtotal: money(itemSubtotal),
-          riskMultiplier: money(riskMultiplier),
-          riskAmount: money(itemRiskAmount),
-          discountAmount: "0.00",
-          total: money(itemTotalBeforeDiscount),
-          sortOrder: 10,
-          metadata: {
-            source: "manual-estimate-api",
-            category: cleanText(body.itemCategory),
+        create: [
+          {
+            name: itemName,
+            description: cleanText(body.itemDescription),
+            category: null,
+            quantity: money(quantity),
+            unitPrice: money(unitPrice),
+            subtotal: money(itemSubtotal),
+            riskMultiplier: money(riskMultiplier),
+            riskAmount: money(itemRiskAmount),
+            discountAmount: "0.00",
+            total: money(itemTotalBeforeDiscount),
+            sortOrder: 10,
+            metadata: {
+              source: "manual-estimate-api",
+              manualCategory: cleanText(body.itemCategory),
+              manualUnit: cleanText(body.itemUnit),
+            },
           },
-        },
-      },
-      notifications: {
-        create: {
-          customerId: customer.id,
-          channel: "SYSTEM",
-          status: "PENDING",
-          recipient: "owner",
-          subject: "Nowa ręczna wycena HEXA CLEAN",
-          message: `Nowa ręczna wycena: ${title}. Suma: ${money(
-            total
-          )} CHF. Wymaga kontroli właściciela.`,
-          metadata: {
-            source: "manual-estimate-api",
-          },
-        },
-      },
-      auditLogs: {
-        create: {
-          customerId: customer.id,
-          action: "CREATE",
-          entityType: "Estimate",
-          actorType: "admin",
-          message: "Manual estimate created from dashboard form.",
-          after: {
-            title,
-            subtotal: money(subtotal),
-            riskAmount: money(riskAmount),
-            travelFee: money(travelFee),
-            materialFee: money(materialFee),
-            discountAmount: money(discountAmount),
-            total: money(total),
-          },
-          metadata: {
-            source: "manual-estimate-api",
-          },
-        },
+        ],
       },
     },
     include: {

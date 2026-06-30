@@ -136,13 +136,32 @@ export default function NewEstimatePage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "same-origin",
         body: JSON.stringify({
           mode: "manual",
           ...form,
         }),
       });
 
-      const data = (await response.json()) as CreateEstimateResponse;
+      const rawText = await response.text();
+
+      if (!rawText.trim()) {
+        throw new Error(
+          `API zwróciło pustą odpowiedź. HTTP status: ${response.status}`
+        );
+      }
+
+      let data: CreateEstimateResponse;
+
+      try {
+        data = JSON.parse(rawText) as CreateEstimateResponse;
+      } catch {
+        throw new Error(
+          `API nie zwróciło JSON. HTTP status: ${
+            response.status
+          }. Odpowiedź: ${rawText.slice(0, 300)}`
+        );
+      }
 
       if (!response.ok || data.data?.status === "error") {
         throw new Error(
@@ -210,7 +229,10 @@ export default function NewEstimatePage() {
           </section>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <form
+          onSubmit={handleSubmit}
+          className="grid gap-6 lg:grid-cols-[1fr_380px]"
+        >
           <div className="flex flex-col gap-6">
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
               <h2 className="text-xl font-semibold">Klient</h2>
@@ -220,7 +242,9 @@ export default function NewEstimatePage() {
                   <span className="text-sm text-neutral-400">Imię</span>
                   <input
                     value={form.firstName}
-                    onChange={(event) => updateField("firstName", event.target.value)}
+                    onChange={(event) =>
+                      updateField("firstName", event.target.value)
+                    }
                     className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
                     placeholder="np. Anna"
                   />
@@ -230,7 +254,9 @@ export default function NewEstimatePage() {
                   <span className="text-sm text-neutral-400">Nazwisko</span>
                   <input
                     value={form.lastName}
-                    onChange={(event) => updateField("lastName", event.target.value)}
+                    onChange={(event) =>
+                      updateField("lastName", event.target.value)
+                    }
                     className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
                     placeholder="np. Müller"
                   />
@@ -344,7 +370,9 @@ export default function NewEstimatePage() {
                   <span className="text-sm text-neutral-400">Nazwa pozycji</span>
                   <input
                     value={form.itemName}
-                    onChange={(event) => updateField("itemName", event.target.value)}
+                    onChange={(event) =>
+                      updateField("itemName", event.target.value)
+                    }
                     required
                     className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
                     placeholder="np. Sprzątanie mieszkania"
@@ -374,7 +402,9 @@ export default function NewEstimatePage() {
                   <span className="text-sm text-neutral-400">Ilość</span>
                   <input
                     value={form.quantity}
-                    onChange={(event) => updateField("quantity", event.target.value)}
+                    onChange={(event) =>
+                      updateField("quantity", event.target.value)
+                    }
                     inputMode="decimal"
                     required
                     className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
@@ -385,14 +415,18 @@ export default function NewEstimatePage() {
                   <span className="text-sm text-neutral-400">Jednostka</span>
                   <input
                     value={form.itemUnit}
-                    onChange={(event) => updateField("itemUnit", event.target.value)}
+                    onChange={(event) =>
+                      updateField("itemUnit", event.target.value)
+                    }
                     className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
                     placeholder="h / m² / szt."
                   />
                 </label>
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Cena jednostkowa CHF</span>
+                  <span className="text-sm text-neutral-400">
+                    Cena jednostkowa CHF
+                  </span>
                   <input
                     value={form.unitPrice}
                     onChange={(event) =>
@@ -405,7 +439,9 @@ export default function NewEstimatePage() {
                 </label>
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Mnożnik ryzyka</span>
+                  <span className="text-sm text-neutral-400">
+                    Mnożnik ryzyka
+                  </span>
                   <input
                     value={form.riskMultiplier}
                     onChange={(event) =>
@@ -421,7 +457,9 @@ export default function NewEstimatePage() {
                   <span className="text-sm text-neutral-400">Dojazd CHF</span>
                   <input
                     value={form.travelFee}
-                    onChange={(event) => updateField("travelFee", event.target.value)}
+                    onChange={(event) =>
+                      updateField("travelFee", event.target.value)
+                    }
                     inputMode="decimal"
                     className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
                   />
@@ -458,7 +496,9 @@ export default function NewEstimatePage() {
 
               <div className="mt-5 grid gap-4">
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Notatka dla klienta</span>
+                  <span className="text-sm text-neutral-400">
+                    Notatka dla klienta
+                  </span>
                   <textarea
                     value={form.notesCustomer}
                     onChange={(event) =>
@@ -470,7 +510,9 @@ export default function NewEstimatePage() {
                 </label>
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Notatka wewnętrzna</span>
+                  <span className="text-sm text-neutral-400">
+                    Notatka wewnętrzna
+                  </span>
                   <textarea
                     value={form.notesInternal}
                     onChange={(event) =>
@@ -512,7 +554,9 @@ export default function NewEstimatePage() {
 
               <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
                 <span className="text-neutral-400">Rabat</span>
-                <span className="font-semibold">- {money(preview.discountAmount)}</span>
+                <span className="font-semibold">
+                  - {money(preview.discountAmount)}
+                </span>
               </div>
             </div>
 
