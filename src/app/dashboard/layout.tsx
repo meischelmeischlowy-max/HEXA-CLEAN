@@ -1,205 +1,209 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-
 import DashboardLogoutButton from "./DashboardLogoutButton";
 
 const navItems = [
   {
     label: "Overview",
     href: "/dashboard",
-    icon: "⌘",
-    description: "Podsumowanie systemu",
+    description: "Centrum systemu",
+    marker: "OS",
   },
   {
     label: "Klienci",
     href: "/dashboard/customers",
-    icon: "◎",
-    description: "Baza klientów",
+    description: "CRM i kontakty",
+    marker: "CRM",
   },
   {
     label: "Zlecenia",
     href: "/dashboard/orders",
-    icon: "◇",
-    description: "Zamówienia i realizacje",
+    description: "Prace i realizacje",
+    marker: "JOB",
   },
   {
     label: "Oferty",
     href: "/dashboard/quotes",
-    icon: "✦",
-    description: "Wyceny i akceptacje",
+    description: "Wyceny dla klientów",
+    marker: "CHF",
   },
   {
     label: "Faktury",
     href: "/dashboard/invoices",
-    icon: "▣",
-    description: "Sprzedaż i dokumenty",
+    description: "Dokumenty sprzedaży",
+    marker: "INV",
   },
   {
     label: "Płatności",
     href: "/dashboard/payments",
-    icon: "●",
-    description: "Wpłaty i rozliczenia",
+    description: "Kontrola wpłat",
+    marker: "PAY",
   },
   {
-    label: "Powiadomienia",
-    href: "/dashboard/notifications",
-    icon: "✉",
-    description: "E-mail / SMS / system",
-  },
-  {
-    label: "Załączniki",
-    href: "/dashboard/attachments",
-    icon: "▤",
-    description: "Pliki i dokumenty",
-  },
-  {
-    label: "Audit Logi",
+    label: "Audit log",
     href: "/dashboard/audit-logs",
-    icon: "◌",
-    description: "Historia systemu",
+    description: "Historia działań",
+    marker: "LOG",
   },
 ];
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+const futureItems = [
+  {
+    label: "AI Concierge",
+    description: "Chatbot, sesje, zapytania",
+  },
+  {
+    label: "Automatyzacje",
+    description: "Email, powiadomienia, workflow",
+  },
+];
+
+export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#030712] text-white">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.22),transparent_34rem),radial-gradient(circle_at_top_right,rgba(14,165,233,0.18),transparent_32rem),linear-gradient(180deg,#030712_0%,#020617_45%,#000_100%)]" />
+    <div className="min-h-screen bg-neutral-950 text-white">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute bottom-[-15%] right-[-10%] h-[32rem] w-[32rem] rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 rounded-full bg-emerald-500/5 blur-3xl" />
+      </div>
 
-      <div className="min-h-screen lg:flex">
-        <aside className="border-b border-blue-500/20 bg-black/55 p-4 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:w-80 lg:border-b-0 lg:border-r lg:p-6">
-          <div className="rounded-3xl border border-blue-500/25 bg-gradient-to-br from-blue-950/50 via-neutral-950/80 to-black p-5 shadow-[0_0_45px_rgba(37,99,235,0.20)]">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-400/40 bg-blue-500/10 text-2xl font-black text-blue-300 shadow-[0_0_25px_rgba(59,130,246,0.35)]">
-                MM
-              </div>
+      <div className="relative flex min-h-screen">
+        <aside className="hidden w-80 shrink-0 border-r border-white/10 bg-zinc-950/80 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl lg:block">
+          <div className="flex h-full flex-col">
+            <Link
+              href="/dashboard"
+              className="group relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5 shadow-2xl shadow-cyan-500/10 transition hover:border-cyan-300/40 hover:bg-cyan-400/15"
+            >
+              <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-300/10 blur-2xl transition group-hover:bg-cyan-300/20" />
 
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-blue-300">
-                  Digital Studio
-                </p>
-
-                <h2 className="mt-1 text-xl font-black tracking-tight text-white">
-                  Business Panel
-                </h2>
-              </div>
-            </div>
-
-            <p className="mt-4 text-sm leading-6 text-neutral-400">
-              Premium CRM dla firm: klienci, zlecenia, oferty, faktury,
-              płatności, automatyzacje i historia systemu.
-            </p>
-
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-3">
-                <p className="text-lg font-bold text-blue-200">AI</p>
-                <p className="mt-1 text-[10px] uppercase tracking-widest text-neutral-500">
-                  Chatbot
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-3">
-                <p className="text-lg font-bold text-cyan-200">CRM</p>
-                <p className="mt-1 text-[10px] uppercase tracking-widest text-neutral-500">
-                  Panel
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-3">
-                <p className="text-lg font-bold text-green-200">24/7</p>
-                <p className="mt-1 text-[10px] uppercase tracking-widest text-neutral-500">
-                  Online
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <nav className="mt-6 grid gap-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="group rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-blue-400/60 hover:bg-blue-500/10 hover:shadow-[0_0_28px_rgba(37,99,235,0.16)]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 text-sm font-bold text-blue-300 transition group-hover:border-blue-300/70 group-hover:text-blue-100">
-                    {item.icon}
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-neutral-100">
-                      {item.label}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-neutral-500">
-                      {item.description}
-                    </p>
-                  </div>
+              <div className="relative flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/30 bg-black/30 text-sm font-black tracking-tight text-cyan-100">
+                  H
                 </div>
-              </Link>
-            ))}
-          </nav>
 
-          <div className="mt-6">
-            <DashboardLogoutButton />
-          </div>
-
-          <div className="mt-6 rounded-3xl border border-green-500/25 bg-green-500/10 p-4 shadow-[0_0_30px_rgba(34,197,94,0.08)]">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-green-400/30 bg-green-500/10 text-green-300">
-                ✓
+                <div>
+                  <p className="text-lg font-black tracking-tight text-white">
+                    HEXA OS
+                  </p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100/70">
+                    Operations Panel
+                  </p>
+                </div>
               </div>
+            </Link>
 
-              <div>
-                <p className="text-sm font-semibold text-green-100">
-                  Panel zabezpieczony
-                </p>
-                <p className="mt-1 text-xs leading-5 text-green-200/70">
-                  Dostęp chroniony hasłem. Gotowe pod wdrożenie jako system dla
-                  klienta MM Digital Studio.
-                </p>
+            <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="px-3 pb-3 pt-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
+                Moduły systemu
+              </p>
+
+              <nav className="space-y-2">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-3 transition hover:border-cyan-400/20 hover:bg-cyan-400/10"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[10px] font-black text-zinc-300 transition group-hover:border-cyan-300/30 group-hover:bg-cyan-400/10 group-hover:text-cyan-100">
+                      {item.marker}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="font-bold tracking-tight text-zinc-100 transition group-hover:text-white">
+                        {item.label}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-500 transition group-hover:text-cyan-100/70">
+                        {item.description}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </nav>
+            </div>
+
+            <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="px-3 pb-3 pt-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
+                Rozbudowa
+              </p>
+
+              <div className="space-y-2">
+                {futureItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"
+                  >
+                    <div>
+                      <p className="font-bold tracking-tight text-zinc-300">
+                        {item.label}
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        {item.description}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">
+                      soon
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-4">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-blue-300">
-              Powered by
-            </p>
-            <p className="mt-2 text-sm font-bold text-white">
-              MM Digital Studio
-            </p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Websites • AI Chatbots • Automation
-            </p>
+            <div className="mt-auto rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-emerald-100">
+                    System online
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-emerald-100/70">
+                    CRM, workflow i panel administracyjny są aktywne.
+                  </p>
+                </div>
+
+                <div className="h-3 w-3 rounded-full bg-emerald-300 shadow-lg shadow-emerald-400/60" />
+              </div>
+
+              <div className="mt-4">
+                <DashboardLogoutButton />
+              </div>
+            </div>
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1">
-          <div className="border-b border-white/10 bg-black/30 px-6 py-4 backdrop-blur-xl lg:px-10">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-blue-300">
-                  MM Business OS
-                </p>
-                <h1 className="mt-2 text-2xl font-black tracking-tight text-white">
-                  Panel zarządzania firmą
-                </h1>
-              </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-20 border-b border-white/10 bg-zinc-950/85 px-4 py-3 backdrop-blur-xl lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <Link href="/dashboard" className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-400/10 text-sm font-black text-cyan-100">
+                  H
+                </div>
 
-              <div className="rounded-full border border-blue-500/25 bg-blue-500/10 px-4 py-2 text-xs font-semibold text-blue-100">
-                Live Dashboard • CRM • Automatyzacje
-              </div>
+                <div>
+                  <p className="font-black tracking-tight text-white">
+                    HEXA OS
+                  </p>
+                  <p className="text-xs text-zinc-500">Operations Panel</p>
+                </div>
+              </Link>
+
+              <DashboardLogoutButton />
             </div>
-          </div>
 
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-blue-500/10 to-transparent" />
-            <div className="relative">{children}</div>
-          </div>
-        </main>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-zinc-300"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </header>
+
+          {children}
+        </div>
       </div>
     </div>
   );
