@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import CreateQuoteFromOrderButton from "@/components/dashboard/CreateQuoteFromOrderButton";
+import MarkOrderAsCompletedButton from "@/components/dashboard/MarkOrderAsCompletedButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -100,6 +101,7 @@ function DataSection({
                           item.quoteNumber ??
                           item.invoiceNumber ??
                           item.paymentReference ??
+                          item.externalRef ??
                           item.reference ??
                           item.fileName ??
                           item.subject ??
@@ -161,6 +163,9 @@ export default async function OrderDetailsPage({
   const auditLogs = details.auditLogs ?? [];
 
   const firstQuote = quotes[0] ?? null;
+  const firstInvoice = invoices[0] ?? null;
+  const firstPayment = payments[0] ?? null;
+  const isCompleted = order.status === "COMPLETED";
 
   return (
     <main className="min-h-screen p-6 lg:p-10">
@@ -185,16 +190,26 @@ export default async function OrderDetailsPage({
           </p>
         </div>
 
-        {firstQuote?.id ? (
-          <Link
-            href={`/dashboard/quotes/${firstQuote.id}`}
-            className="rounded-xl border border-cyan-600 bg-cyan-950/50 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-900/70"
-          >
-            Otwórz ofertę
-          </Link>
-        ) : (
-          <CreateQuoteFromOrderButton orderId={order.id} />
-        )}
+        <div className="flex flex-col gap-3 lg:items-end">
+          {isCompleted ? (
+            <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
+              Zlecenie zakończone
+            </div>
+          ) : (
+            <MarkOrderAsCompletedButton orderId={order.id} />
+          )}
+
+          {firstQuote?.id ? (
+            <Link
+              href={`/dashboard/quotes/${firstQuote.id}`}
+              className="rounded-xl border border-cyan-600 bg-cyan-950/50 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-900/70"
+            >
+              Otwórz ofertę
+            </Link>
+          ) : (
+            <CreateQuoteFromOrderButton orderId={order.id} />
+          )}
+        </div>
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
@@ -220,24 +235,27 @@ export default async function OrderDetailsPage({
           <RecordLink
             label="Pierwsza faktura"
             href={
-              invoices[0]?.id ? `/dashboard/invoices/${invoices[0].id}` : null
+              firstInvoice?.id ? `/dashboard/invoices/${firstInvoice.id}` : null
             }
             value={
-              invoices[0]?.invoiceNumber ??
-              invoices[0]?.number ??
-              invoices[0]?.id
+              firstInvoice?.invoiceNumber ??
+              firstInvoice?.number ??
+              firstInvoice?.id
             }
           />
 
           <RecordLink
             label="Pierwsza płatność"
             href={
-              payments[0]?.id ? `/dashboard/payments/${payments[0].id}` : null
+              firstPayment?.id
+                ? `/dashboard/payments/${firstPayment.id}`
+                : null
             }
             value={
-              payments[0]?.paymentReference ??
-              payments[0]?.reference ??
-              payments[0]?.id
+              firstPayment?.paymentReference ??
+              firstPayment?.externalRef ??
+              firstPayment?.reference ??
+              firstPayment?.id
             }
           />
         </div>
@@ -251,12 +269,31 @@ export default async function OrderDetailsPage({
           <InfoCard label="Numer" value={order.orderNumber ?? order.number} />
           <InfoCard label="Status" value={order.status} />
           <InfoCard label="Typ usługi" value={order.serviceType ?? order.type} />
+          <InfoCard label="Tytuł" value={order.title} />
+          <InfoCard label="Opis" value={order.description} />
+          <InfoCard label="Cena szacowana" value={order.estimatedPrice} />
+          <InfoCard label="Cena końcowa" value={order.finalPrice} />
+          <InfoCard label="Waluta" value={order.currency} />
           <InfoCard label="Klient ID" value={order.customerId} />
           <InfoCard label="Sesja ID" value={order.sessionId} />
-          <InfoCard label="Adres" value={order.address} />
-          <InfoCard label="Miasto" value={order.city} />
-          <InfoCard label="Kod pocztowy" value={order.postalCode} />
-          <InfoCard label="Data usługi" value={order.serviceDate} />
+          <InfoCard
+            label="Adres"
+            value={order.serviceStreet ?? order.address}
+          />
+          <InfoCard
+            label="Miasto"
+            value={order.serviceCity ?? order.city}
+          />
+          <InfoCard
+            label="Kod pocztowy"
+            value={order.serviceZipCode ?? order.postalCode}
+          />
+          <InfoCard
+            label="Data preferowana"
+            value={order.preferredDate ?? order.serviceDate}
+          />
+          <InfoCard label="Start" value={order.scheduledStart} />
+          <InfoCard label="Koniec" value={order.scheduledEnd} />
           <InfoCard label="Utworzono" value={order.createdAt} />
           <InfoCard label="Aktualizacja" value={order.updatedAt} />
         </div>
@@ -274,9 +311,16 @@ export default async function OrderDetailsPage({
                 value={customer.name ?? customer.email ?? customer.id}
               />
               <InfoCard label="ID" value={customer.id} />
-              <InfoCard label="Imię / nazwa" value={customer.name} />
+              <InfoCard
+                label="Imię / nazwa"
+                value={
+                  customer.companyName ??
+                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim()
+                }
+              />
               <InfoCard label="Email" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
+              <InfoCard label="Miasto" value={customer.city} />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
