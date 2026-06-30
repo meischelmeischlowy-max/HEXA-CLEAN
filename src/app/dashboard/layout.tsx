@@ -40,6 +40,12 @@ const navItems = [
     marker: "PAY",
   },
   {
+    label: "Cennik",
+    href: "/dashboard/services",
+    description: "Usługi i stawki",
+    marker: "SVC",
+  },
+  {
     label: "Audit log",
     href: "/dashboard/audit-logs",
     description: "Historia działań",
@@ -49,12 +55,16 @@ const navItems = [
 
 const futureItems = [
   {
+    label: "Wyceny",
+    description: "Kalkulator, zdjęcia, Vision AI",
+  },
+  {
     label: "AI Concierge",
     description: "Chatbot, sesje, zapytania",
   },
   {
     label: "Automatyzacje",
-    description: "Email, powiadomienia, workflow",
+    description: "Email, SMS, workflow",
   },
 ];
 
@@ -156,7 +166,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     System online
                   </p>
                   <p className="mt-1 text-xs leading-5 text-emerald-100/70">
-                    CRM, workflow i panel administracyjny są aktywne.
+                    CRM, cennik i workflow administracyjny są aktywne.
                   </p>
                 </div>
 
