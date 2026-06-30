@@ -148,7 +148,9 @@ export default function DashboardEstimatesPage() {
       const data = (await response.json()) as EstimatesResponse;
 
       if (!response.ok) {
-        throw new Error(data.message ?? data.data?.message ?? "Nie udało się pobrać wycen.");
+        throw new Error(
+          data.message ?? data.data?.message ?? "Nie udało się pobrać wycen."
+        );
       }
 
       setEstimates(getEstimatesFromResponse(data));
@@ -178,7 +180,9 @@ export default function DashboardEstimatesPage() {
       const data = (await response.json()) as EstimatesResponse;
 
       if (!response.ok) {
-        throw new Error(data.message ?? data.data?.message ?? "Nie udało się dodać demo-wyceny.");
+        throw new Error(
+          data.message ?? data.data?.message ?? "Nie udało się dodać demo-wyceny."
+        );
       }
 
       await loadEstimates();
@@ -217,14 +221,23 @@ export default function DashboardEstimatesPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={createDemoEstimate}
-              disabled={isCreating}
-              className="rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isCreating ? "Dodawanie..." : "Dodaj demo-wycenę"}
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/dashboard/estimates/new"
+                className="rounded-2xl bg-cyan-300 px-5 py-3 text-center text-sm font-black text-neutral-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200"
+              >
+                Nowa wycena
+              </Link>
+
+              <button
+                type="button"
+                onClick={createDemoEstimate}
+                disabled={isCreating}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-neutral-100 shadow-lg shadow-black/20 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCreating ? "Dodawanie..." : "Dodaj demo-wycenę"}
+              </button>
+            </div>
           </div>
         </section>
 
@@ -235,7 +248,7 @@ export default function DashboardEstimatesPage() {
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Suma demo</p>
+            <p className="text-sm text-neutral-400">Suma wycen</p>
             <p className="mt-2 text-3xl font-black">
               {formatMoney(totals.totalValue, "CHF")}
             </p>
@@ -244,7 +257,8 @@ export default function DashboardEstimatesPage() {
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
             <p className="text-sm text-amber-100/70">Uwaga</p>
             <p className="mt-2 text-sm leading-6 text-amber-100">
-              Ceny są testowe. Nie traktować jako realny cennik dla klientów.
+              Ceny są testowe/robocze. Nie traktować jako realny cennik dla
+              klientów bez zatwierdzenia właściciela.
             </p>
           </div>
         </section>
@@ -260,18 +274,28 @@ export default function DashboardEstimatesPage() {
             <div>
               <h2 className="text-xl font-semibold">Lista wycen</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Kliknij numer albo przycisk „Szczegóły”, żeby otworzyć jedną wycenę.
+                Kliknij numer albo przycisk „Szczegóły”, żeby otworzyć jedną
+                wycenę.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={loadEstimates}
-              disabled={isLoading}
-              className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-neutral-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? "Odświeżanie..." : "Odśwież"}
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/dashboard/estimates/new"
+                className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 hover:bg-cyan-300/20"
+              >
+                Nowa wycena
+              </Link>
+
+              <button
+                type="button"
+                onClick={loadEstimates}
+                disabled={isLoading}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-neutral-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoading ? "Odświeżanie..." : "Odśwież"}
+              </button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -282,7 +306,9 @@ export default function DashboardEstimatesPage() {
 
           {!isLoading && estimates.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-              Brak wycen. Kliknij „Dodaj demo-wycenę”, żeby utworzyć testowy wpis.
+              Brak wycen. Kliknij „Nowa wycena”, żeby utworzyć pierwszą
+              ręczną wycenę, albo „Dodaj demo-wycenę”, żeby utworzyć testowy
+              wpis.
             </div>
           ) : null}
 
