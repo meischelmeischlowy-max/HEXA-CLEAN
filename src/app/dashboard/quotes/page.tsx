@@ -1,7 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
+import DashboardPanel from "../../../components/dashboard/DashboardPanel";
+import DashboardTable, {
+  type DashboardTableColumn,
+} from "../../../components/dashboard/DashboardTable";
+import EmptyState from "../../../components/dashboard/EmptyState";
+import MetricCard from "../../../components/dashboard/MetricCard";
+import PageHeader from "../../../components/dashboard/PageHeader";
+import PremiumButton from "../../../components/dashboard/PremiumButton";
+import StatusBadge from "../../../components/dashboard/StatusBadge";
 
 type Quote = {
   id: string;
@@ -47,16 +56,54 @@ function formatDate(value?: string | null) {
   });
 }
 
-function formatMoney(value?: string | number | null, currency = "CHF") {
+function toNumber(value?: string | number | null) {
   if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? null : value;
+  }
+
+  const parsed = Number(String(value).replace(",", "."));
+
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function formatMoney(value?: string | number | null, currency = "CHF") {
+  const numberValue = toNumber(value);
+
+  if (numberValue === null) {
     return "—";
   }
 
-  return `${String(value)} ${currency}`;
+  return new Intl.NumberFormat("de-CH", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(numberValue);
+}
+
+function formatTaxRate(value?: string | number | null) {
+  const numberValue = toNumber(value);
+
+  if (numberValue === null) {
+    return "—";
+  }
+
+  return `${numberValue}%`;
 }
 
 function getQuoteNumber(quote: Quote) {
   return quote.quoteNumber ?? quote.number ?? quote.id;
+}
+
+function getQuoteDeadline(quote: Quote) {
+  return quote.validUntil ?? quote.dueDate ?? null;
+}
+
+function normalizeStatus(status?: string | null) {
+  return status?.toUpperCase() ?? "UNKNOWN";
 }
 
 export default function DashboardQuotesPage() {
@@ -64,136 +111,337 @@ export default function DashboardQuotesPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadQuotes() {
-      try {
-        const response = await fetch("/api/dashboard/quotes", {
-          method: "GET",
-          cache: "no-store",
-        });
+  const loadQuotes = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
 
-        if (!response.ok) {
-          throw new Error("Dashboard Quotes API returned an error");
-        }
+    try {
+      const response = await fetch("/api/dashboard/quotes", {
+        method: "GET",
+        cache: "no-store",
+      });
 
-        const json: DashboardQuotesResponse = await response.json();
-
-        setQuotes(json.data.quotes ?? []);
-      } catch (error) {
-        setErrorMessage(
-          error instanceof Error ? error.message : "Unknown quotes error"
-        );
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Dashboard Quotes API returned an error");
       }
-    }
 
-    loadQuotes();
+      const json: DashboardQuotesResponse = await response.json();
+
+      setQuotes(json.data.quotes ?? []);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unknown quotes error"
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return (
-    <main className="min-h-screen px-6 py-8">
-      <section className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.35em] text-cyan-400">
-            HEXA OS CRM
+  useEffect(() => {
+    loadQuotes();
+  }, [loadQuotes]);
+
+  const stats = useMemo(() => {
+    const draft = quotes.filter(
+      (quote) => normalizeStatus(quote.status) === "DRAFT"
+    ).length;
+
+    const sent = quotes.filter(
+      (quote) => normalizeStatus(quote.status) === "SENT"
+    ).length;
+
+    const accepted = quotes.filter(
+      (quote) => normalizeStatus(quote.status) === "ACCEPTED"
+    ).length;
+
+    const totalValue = quotes.reduce((sum, quote) => {
+      const amount = toNumber(quote.total);
+      return amount === null ? sum : sum + amount;
+    }, 0);
+
+    return {
+      total: quotes.length,
+      draft,
+      sent,
+      accepted,
+      totalValue,
+    };
+  }, [quotes]);
+
+  const latestQuotes = useMemo(() => {
+    return quotes.slice(0, 4).map((quote) => ({
+      id: quote.id,
+      title: getQuoteNumber(quote),
+      description: `Total: ${formatMoney(
+        quote.total,
+        quote.currency ?? "CHF"
+      )} · klient: ${quote.customerId ?? "brak przypisania"}`,
+      status: quote.status ?? "DRAFT",
+      time: formatDate(quote.createdAt),
+    }));
+  }, [quotes]);
+
+  const columns: DashboardTableColumn<Quote>[] = [
+    {
+      key: "quote",
+      header: "Oferta",
+      render: (quote) => (
+        <div>
+          <p className="font-black tracking-tight text-white">
+            {getQuoteNumber(quote)}
           </p>
-
-          <h1 className="mt-3 text-4xl font-bold tracking-tight">Oferty</h1>
-
-          <p className="mt-3 max-w-2xl text-neutral-400">
-            Lista ofert i wycen zapisanych w bazie HEXA OS.
+          <p className="mt-1 text-xs text-zinc-500">ID: {quote.id}</p>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (quote) => <StatusBadge status={quote.status} />,
+    },
+    {
+      key: "links",
+      header: "Powiązania",
+      render: (quote) => (
+        <div className="space-y-1">
+          <p className="text-sm text-zinc-300">
+            Klient:{" "}
+            <span className="font-semibold text-zinc-100">
+              {quote.customerId ?? "—"}
+            </span>
+          </p>
+          <p className="text-xs text-zinc-500">
+            Zlecenie: {quote.orderId ?? "—"}
           </p>
         </div>
+      ),
+    },
+    {
+      key: "subtotal",
+      header: "Subtotal",
+      render: (quote) => (
+        <p className="font-semibold text-zinc-200">
+          {formatMoney(quote.subtotal, quote.currency ?? "CHF")}
+        </p>
+      ),
+    },
+    {
+      key: "tax",
+      header: "Podatek",
+      render: (quote) => (
+        <div>
+          <p className="font-semibold text-zinc-200">
+            {formatMoney(quote.taxAmount, quote.currency ?? "CHF")}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Stawka: {formatTaxRate(quote.taxRate)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "total",
+      header: "Total",
+      render: (quote) => (
+        <p className="font-black text-emerald-100">
+          {formatMoney(quote.total, quote.currency ?? "CHF")}
+        </p>
+      ),
+    },
+    {
+      key: "deadline",
+      header: "Ważna do",
+      render: (quote) => (
+        <p className="text-sm font-medium text-zinc-400">
+          {formatDate(getQuoteDeadline(quote))}
+        </p>
+      ),
+    },
+    {
+      key: "action",
+      header: "Akcja",
+      className: "text-right",
+      render: (quote) => (
+        <div className="flex justify-end">
+          <PremiumButton
+            href={`/dashboard/quotes/${quote.id}`}
+            variant="primary"
+            size="sm"
+          >
+            Szczegóły
+          </PremiumButton>
+        </div>
+      ),
+    },
+  ];
 
-        {loading && (
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            Ładowanie ofert...
-          </div>
-        )}
+  return (
+    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+      <section className="mx-auto flex max-w-7xl flex-col gap-6">
+        <PageHeader
+          eyebrow="HEXA OS CRM / Quotes"
+          title="Oferty i wyceny"
+          description="Moduł ofert łączy zlecenia, klientów i przyszły kalkulator wyceny. Tutaj oferta przechodzi ze szkicu do wysyłki, akceptacji i późniejszej faktury."
+        >
+          <PremiumButton
+            type="button"
+            variant="secondary"
+            onClick={loadQuotes}
+            disabled={loading}
+          >
+            Odśwież
+          </PremiumButton>
+          <PremiumButton href="/dashboard/orders" variant="ghost">
+            Zlecenia
+          </PremiumButton>
+        </PageHeader>
 
-        {errorMessage && (
-          <div className="rounded-2xl border border-red-800 bg-red-950/40 p-6 text-red-200">
-            Błąd: {errorMessage}
-          </div>
-        )}
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Wszystkie oferty"
+            value={String(stats.total)}
+            description="Łączna liczba ofert zapisanych w bazie."
+            trend="Źródło: Quotes API"
+            tone="cyan"
+            icon={<span className="text-lg font-black">Q</span>}
+          />
 
-        {!loading && !errorMessage && (
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900">
-            <div className="border-b border-neutral-800 p-5">
-              <h2 className="text-xl font-semibold">Lista ofert</h2>
-              <p className="mt-1 text-sm text-neutral-400">
-                Liczba rekordów: {quotes.length}
+          <MetricCard
+            title="Szkice"
+            value={String(stats.draft)}
+            description="Oferty przygotowane, ale jeszcze niewysłane."
+            trend="Status DRAFT"
+            tone="zinc"
+            icon={<span className="text-lg font-black">D</span>}
+          />
+
+          <MetricCard
+            title="Wysłane"
+            value={String(stats.sent)}
+            description="Oferty przekazane klientowi do decyzji."
+            trend="Status SENT"
+            tone="violet"
+            icon={<span className="text-lg font-black">↗</span>}
+          />
+
+          <MetricCard
+            title="Zaakceptowane"
+            value={String(stats.accepted)}
+            description="Oferty gotowe do przejścia w fakturę."
+            trend={formatMoney(stats.totalValue, "CHF")}
+            tone="emerald"
+            icon={<span className="text-lg font-black">✓</span>}
+          />
+        </section>
+
+        {loading ? (
+          <DashboardPanel
+            title="Ładowanie ofert"
+            description="HEXA OS pobiera aktualne dane z modułu Quotes."
+          >
+            <div className="grid gap-3">
+              {[1, 2, 3, 4].map((item) => (
+                <div
+                  key={item}
+                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
+                />
+              ))}
+            </div>
+          </DashboardPanel>
+        ) : null}
+
+        {errorMessage ? (
+          <DashboardPanel
+            title="Błąd modułu Quotes"
+            description="Nie udało się pobrać listy ofert z API."
+          >
+            <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
+              <p className="font-bold">Błąd: {errorMessage}</p>
+              <p className="mt-2 text-sm leading-6 text-red-100/70">
+                Sprawdź endpoint /api/dashboard/quotes oraz połączenie z bazą.
               </p>
             </div>
+          </DashboardPanel>
+        ) : null}
 
-            {quotes.length === 0 ? (
-              <div className="p-6 text-neutral-500">Brak ofert w bazie.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] text-left text-sm">
-                  <thead className="border-b border-neutral-800 text-neutral-400">
-                    <tr>
-                      <th className="p-4 font-medium">Oferta</th>
-                      <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Subtotal</th>
-                      <th className="p-4 font-medium">VAT</th>
-                      <th className="p-4 font-medium">Total</th>
-                      <th className="p-4 font-medium">Dodano</th>
-                      <th className="p-4 font-medium">Akcja</th>
-                    </tr>
-                  </thead>
+        {!loading && !errorMessage ? (
+          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+            <DashboardPanel
+              title="Lista ofert"
+              description={`Liczba rekordów: ${quotes.length}. Oferta jest etapem pomiędzy wyceną roboczą a fakturą.`}
+              action={
+                <StatusBadge
+                  status={quotes.length > 0 ? "ACCEPTED" : "PENDING"}
+                  label={quotes.length > 0 ? "Oferty aktywne" : "Brak ofert"}
+                />
+              }
+            >
+              <DashboardTable
+                columns={columns}
+                rows={quotes}
+                getRowKey={(quote) => quote.id}
+                empty={
+                  <EmptyState
+                    title="Brak ofert w bazie"
+                    description="Pierwsza oferta pojawi się tutaj po utworzeniu jej ze zlecenia albo po wdrożeniu modułu wyceny HEXA OS."
+                    actionLabel="Przejdź do zleceń"
+                    actionHref="/dashboard/orders"
+                  />
+                }
+              />
+            </DashboardPanel>
 
-                  <tbody>
-                    {quotes.map((quote) => {
-                      const currency = quote.currency ?? "CHF";
+            <DashboardPanel
+              title="Ostatnie oferty"
+              description="Szybki podgląd najnowszych dokumentów ofertowych."
+            >
+              <ActivityTimeline
+                items={latestQuotes}
+                emptyTitle="Brak ostatnich ofert"
+                emptyDescription="Po utworzeniu ofert zobaczysz tutaj najnowszą aktywność."
+              />
+            </DashboardPanel>
+          </section>
+        ) : null}
 
-                      return (
-                        <tr
-                          key={quote.id}
-                          className="border-b border-neutral-800 last:border-b-0"
-                        >
-                          <td className="p-4 font-medium text-white">
-                            {getQuoteNumber(quote)}
-                          </td>
-
-                          <td className="p-4 text-neutral-300">
-                            {quote.status ?? "—"}
-                          </td>
-
-                          <td className="p-4 text-neutral-300">
-                            {formatMoney(quote.subtotal, currency)}
-                          </td>
-
-                          <td className="p-4 text-neutral-300">
-                            {formatMoney(quote.taxAmount, currency)}
-                          </td>
-
-                          <td className="p-4 font-medium text-white">
-                            {formatMoney(quote.total, currency)}
-                          </td>
-
-                          <td className="p-4 text-neutral-400">
-                            {formatDate(quote.createdAt)}
-                          </td>
-
-                          <td className="p-4">
-                            <Link
-                              href={`/dashboard/quotes/${quote.id}`}
-                              className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
-                            >
-                              Szczegóły
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+        {!loading && !errorMessage ? (
+          <DashboardPanel
+            title="Rola modułu Quotes"
+            description="Docelowo oferty będą tworzone z oficjalnej wyceny, zatwierdzanej po danych klienta, zdjęciach i kontroli właściciela."
+          >
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
+                <p className="text-sm font-black text-cyan-100">
+                  Z wyceny do oferty
+                </p>
+                <p className="mt-2 text-sm leading-6 text-cyan-100/70">
+                  AI i kalkulator mogą przygotować cenę roboczą, ale oficjalna
+                  oferta powinna być zatwierdzona przez człowieka.
+                </p>
               </div>
-            )}
-          </div>
-        )}
+
+              <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
+                <p className="text-sm font-black text-violet-100">
+                  Wysyłka do klienta
+                </p>
+                <p className="mt-2 text-sm leading-6 text-violet-100/70">
+                  Kolejny etap to PDF z logo, email do klienta oraz zapis w
+                  EmailLog i AuditLog.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+                <p className="text-sm font-black text-emerald-100">
+                  Akceptacja
+                </p>
+                <p className="mt-2 text-sm leading-6 text-emerald-100/70">
+                  Zaakceptowana oferta przechodzi dalej do faktury i płatności w
+                  workflow HEXA OS.
+                </p>
+              </div>
+            </div>
+          </DashboardPanel>
+        ) : null}
       </section>
     </main>
   );
