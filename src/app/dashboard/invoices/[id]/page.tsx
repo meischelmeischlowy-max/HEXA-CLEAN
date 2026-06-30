@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CreatePaymentFromInvoiceButton from "@/components/dashboard/CreatePaymentFromInvoiceButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -107,6 +108,8 @@ function DataSection({
                           item.quoteNumber ??
                           item.invoiceNumber ??
                           item.paymentReference ??
+                          item.externalRef ??
+                          item.reference ??
                           item.fileName ??
                           item.subject ??
                           item.action
@@ -167,6 +170,7 @@ export default async function InvoiceDetailsPage({
   const auditLogs = details.auditLogs ?? [];
 
   const currency = invoice.currency ?? "CHF";
+  const firstPayment = payments[0] ?? null;
 
   return (
     <main className="min-h-screen p-6 lg:p-10">
@@ -190,6 +194,17 @@ export default async function InvoiceDetailsPage({
             płatności, załączniki i historia systemu.
           </p>
         </div>
+
+        {firstPayment?.id ? (
+          <Link
+            href={`/dashboard/payments/${firstPayment.id}`}
+            className="rounded-xl border border-violet-600 bg-violet-950/50 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-300 hover:bg-violet-900/70"
+          >
+            Otwórz płatność
+          </Link>
+        ) : (
+          <CreatePaymentFromInvoiceButton invoiceId={invoice.id} />
+        )}
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
@@ -217,12 +232,15 @@ export default async function InvoiceDetailsPage({
           <RecordLink
             label="Pierwsza płatność"
             href={
-              payments[0]?.id ? `/dashboard/payments/${payments[0].id}` : null
+              firstPayment?.id
+                ? `/dashboard/payments/${firstPayment.id}`
+                : null
             }
             value={
-              payments[0]?.paymentReference ??
-              payments[0]?.reference ??
-              payments[0]?.id
+              firstPayment?.paymentReference ??
+              firstPayment?.externalRef ??
+              firstPayment?.reference ??
+              firstPayment?.id
             }
           />
         </div>
@@ -250,7 +268,7 @@ export default async function InvoiceDetailsPage({
           />
           <InfoCard label="Total" value={formatMoney(invoice.total, currency)} />
           <InfoCard
-            label="Paid Amount"
+            label="Zapłacono"
             value={formatMoney(invoice.paidAmount, currency)}
           />
           <InfoCard label="Termin płatności" value={invoice.dueDate} />
@@ -329,7 +347,10 @@ export default async function InvoiceDetailsPage({
                 value={quote.quoteNumber ?? quote.number}
               />
               <InfoCard label="Status" value={quote.status} />
-              <InfoCard label="Total" value={formatMoney(quote.total, currency)} />
+              <InfoCard
+                label="Total"
+                value={formatMoney(quote.total, currency)}
+              />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">Brak powiązanej oferty.</p>
