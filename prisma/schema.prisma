@@ -45,6 +45,18 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum EstimateStatus {
+  DRAFT
+  AI_REVIEW
+  NEEDS_PHOTOS
+  NEEDS_HUMAN_REVIEW
+  READY_TO_SEND
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
 enum QuoteStatus {
   DRAFT
   SENT
@@ -152,6 +164,7 @@ model Customer {
   sessions      Session[]
   messages      ConversationMessage[]
   orders        Order[]
+  estimates     Estimate[]
   quotes        Quote[]
   invoices      Invoice[]
   notifications Notification[]
@@ -179,6 +192,7 @@ model Session {
 
   messages      ConversationMessage[]
   orders        Order[]
+  estimates     Estimate[]
   quotes        Quote[]
   notifications Notification[]
   attachments   Attachment[]
@@ -247,6 +261,7 @@ model Order {
   notesCustomer String?
   notesInternal String?
 
+  estimates     Estimate[]
   quotes        Quote[]
   invoices      Invoice[]
   payments      Payment[]
@@ -263,6 +278,108 @@ model Order {
   @@index([serviceType])
   @@index([scheduledStart])
   @@map("orders")
+}
+
+model Estimate {
+  id             String @id @default(uuid()) @db.Uuid
+  estimateNumber String @unique
+
+  tenantKey String @default("hexa-clean")
+
+  customerId String   @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  orderId String? @db.Uuid
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  sessionId String?  @db.Uuid
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  status EstimateStatus @default(DRAFT)
+  source String?
+
+  title       String?
+  description String?
+
+  serviceStreet  String?
+  serviceZipCode String?
+  serviceCity    String?
+  serviceCountry String? @default("CH")
+
+  preferredDate DateTime?
+
+  subtotal       Decimal @default(0) @db.Decimal(10, 2)
+  riskMultiplier Decimal @default(1.00) @db.Decimal(5, 2)
+  riskAmount     Decimal @default(0) @db.Decimal(10, 2)
+  travelFee      Decimal @default(0) @db.Decimal(10, 2)
+  materialFee    Decimal @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+  total          Decimal @default(0) @db.Decimal(10, 2)
+  currency       String  @default("CHF")
+
+  aiMinTotal Decimal? @db.Decimal(10, 2)
+  aiMaxTotal Decimal? @db.Decimal(10, 2)
+  aiNotes    String?
+
+  notesCustomer String?
+  notesInternal String?
+
+  validUntil DateTime?
+  sentAt     DateTime?
+  acceptedAt DateTime?
+  rejectedAt DateTime?
+
+  items         EstimateItem[]
+  notifications Notification[]
+  attachments   Attachment[]
+  auditLogs     AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantKey])
+  @@index([customerId])
+  @@index([orderId])
+  @@index([sessionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("estimates")
+}
+
+model EstimateItem {
+  id String @id @default(uuid()) @db.Uuid
+
+  estimateId String   @db.Uuid
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  serviceCatalogItemId String?             @db.Uuid
+  serviceCatalogItem   ServiceCatalogItem? @relation(fields: [serviceCatalogItemId], references: [id], onDelete: SetNull)
+
+  name        String
+  description String?
+
+  category ServiceCatalogCategory?
+  unit     ServiceCatalogUnit      @default(FLAT)
+
+  quantity       Decimal @default(1.00) @db.Decimal(10, 2)
+  unitPrice      Decimal @default(0) @db.Decimal(10, 2)
+  subtotal       Decimal @default(0) @db.Decimal(10, 2)
+  riskMultiplier Decimal @default(1.00) @db.Decimal(5, 2)
+  riskAmount     Decimal @default(0) @db.Decimal(10, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+  total          Decimal @default(0) @db.Decimal(10, 2)
+
+  sortOrder Int   @default(0)
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estimateId])
+  @@index([serviceCatalogItemId])
+  @@index([category])
+  @@index([sortOrder])
+  @@map("estimate_items")
 }
 
 model Quote {
@@ -387,6 +504,9 @@ model Notification {
   orderId String? @db.Uuid
   order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
+  estimateId String?   @db.Uuid
+  estimate   Estimate? @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+
   sessionId String?  @db.Uuid
   session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
@@ -408,6 +528,7 @@ model Notification {
 
   @@index([customerId])
   @@index([orderId])
+  @@index([estimateId])
   @@index([sessionId])
   @@index([status])
   @@index([channel])
@@ -422,6 +543,9 @@ model Attachment {
 
   orderId String? @db.Uuid
   order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  estimateId String?   @db.Uuid
+  estimate   Estimate? @relation(fields: [estimateId], references: [id], onDelete: SetNull)
 
   sessionId String?  @db.Uuid
   session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
@@ -446,6 +570,7 @@ model Attachment {
 
   @@index([customerId])
   @@index([orderId])
+  @@index([estimateId])
   @@index([sessionId])
   @@index([quoteId])
   @@index([invoiceId])
@@ -460,6 +585,9 @@ model AuditLog {
 
   orderId String? @db.Uuid
   order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  estimateId String?   @db.Uuid
+  estimate   Estimate? @relation(fields: [estimateId], references: [id], onDelete: SetNull)
 
   sessionId String?  @db.Uuid
   session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
@@ -481,6 +609,7 @@ model AuditLog {
 
   @@index([customerId])
   @@index([orderId])
+  @@index([estimateId])
   @@index([sessionId])
   @@index([action])
   @@index([entityType])
@@ -512,6 +641,8 @@ model ServiceCatalogItem {
 
   notes    String?
   metadata Json?
+
+  estimateItems EstimateItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
