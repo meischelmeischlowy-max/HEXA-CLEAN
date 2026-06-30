@@ -253,4 +253,25 @@ export const dashboardService = {
       details,
     };
   },
+
+  async createQuoteFromOrder(orderId: string) {
+    const result = await dashboardRepository.createQuoteFromOrder(orderId);
+
+    if (!result) {
+      return {
+        status: "NOT_FOUND",
+        message: "Order not found",
+        orderId,
+      };
+    }
+
+    return {
+      status: "OK",
+      message: "Quote created from order",
+      orderId,
+      quoteId: result.quote.id,
+      order: result.order,
+      quote: result.quote,
+    };
+  },
 };

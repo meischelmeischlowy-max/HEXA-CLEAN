@@ -1216,4 +1216,94 @@ export const dashboardRepository = {
       relatedAuditLogs,
     };
   },
+
+  async createQuoteFromOrder(orderId: string) {
+    return prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: {
+          id: orderId,
+        },
+      });
+
+      if (!order) {
+        return null;
+      }
+
+      const existingQuote = await tx.quote.findFirst({
+        where: {
+          orderId: order.id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      if (existingQuote) {
+        return {
+          order,
+          quote: existingQuote,
+          created: false,
+        };
+      }
+
+      const now = new Date();
+      const datePart = now.toISOString().slice(0, 10).replaceAll("-", "");
+      const randomPart = Math.floor(1000 + Math.random() * 9000);
+      const quoteNumber = `QUO-${datePart}-${randomPart}`;
+
+      const baseAmount = order.finalPrice ?? order.estimatedPrice ?? 0;
+
+      const quote = await tx.quote.create({
+        data: {
+          quoteNumber,
+          customerId: order.customerId,
+          orderId: order.id,
+          sessionId: order.sessionId,
+          status: "DRAFT",
+          subtotal: baseAmount,
+          taxRate: 0,
+          taxAmount: 0,
+          total: baseAmount,
+          currency: order.currency,
+          items: {
+            source: "dashboard_quick_action",
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            serviceType: order.serviceType,
+            title: order.title,
+            description: order.description,
+            estimatedPrice: order.estimatedPrice
+              ? String(order.estimatedPrice)
+              : null,
+            finalPrice: order.finalPrice ? String(order.finalPrice) : null,
+          },
+          notes: order.notesInternal ?? order.notesCustomer ?? null,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          customerId: order.customerId,
+          orderId: order.id,
+          sessionId: order.sessionId,
+          action: "CREATE",
+          entityType: "Quote",
+          entityId: quote.id,
+          actorType: "dashboard",
+          message: `Quote ${quote.quoteNumber} created from order ${order.orderNumber}`,
+          metadata: {
+            source: "dashboard_quick_action",
+            orderId: order.id,
+            quoteId: quote.id,
+          },
+        },
+      });
+
+      return {
+        order,
+        quote,
+        created: true,
+      };
+    });
+  },
 };

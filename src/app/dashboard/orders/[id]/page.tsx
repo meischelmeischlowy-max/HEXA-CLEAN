@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import CreateQuoteFromOrderButton from "@/components/dashboard/CreateQuoteFromOrderButton";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
@@ -159,6 +160,8 @@ export default async function OrderDetailsPage({
   const attachments = details.attachments ?? [];
   const auditLogs = details.auditLogs ?? [];
 
+  const firstQuote = quotes[0] ?? null;
+
   return (
     <main className="min-h-screen p-6 lg:p-10">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -181,6 +184,17 @@ export default async function OrderDetailsPage({
             płatności, załączniki i historia systemu.
           </p>
         </div>
+
+        {firstQuote?.id ? (
+          <Link
+            href={`/dashboard/quotes/${firstQuote.id}`}
+            className="rounded-xl border border-cyan-600 bg-cyan-950/50 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-900/70"
+          >
+            Otwórz ofertę
+          </Link>
+        ) : (
+          <CreateQuoteFromOrderButton orderId={order.id} />
+        )}
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
@@ -195,8 +209,12 @@ export default async function OrderDetailsPage({
 
           <RecordLink
             label="Pierwsza oferta"
-            href={quotes[0]?.id ? `/dashboard/quotes/${quotes[0].id}` : null}
-            value={quotes[0]?.quoteNumber ?? quotes[0]?.number ?? quotes[0]?.id}
+            href={firstQuote?.id ? `/dashboard/quotes/${firstQuote.id}` : null}
+            value={
+              firstQuote?.quoteNumber ??
+              firstQuote?.number ??
+              firstQuote?.id
+            }
           />
 
           <RecordLink
