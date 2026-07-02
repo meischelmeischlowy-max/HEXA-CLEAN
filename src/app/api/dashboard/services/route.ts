@@ -1,6 +1,10 @@
-import { PrismaClient } from "@prisma/client";
+import {
+  PrismaClient,
+  ServiceCatalogCategory,
+  ServiceCatalogUnit,
+} from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,6 +33,83 @@ function getPrisma() {
   }
 
   return globalForPrisma.hexaPrisma;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ł/g, "l")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeDecimal(value: unknown, fallback = "0.00") {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  const normalized = String(value).replace(",", ".").trim();
+  const number = Number(normalized);
+
+  if (Number.isNaN(number)) {
+    return fallback;
+  }
+
+  return number.toFixed(2);
+}
+
+function normalizeNullableDecimal(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const normalized = String(value).replace(",", ".").trim();
+  const number = Number(normalized);
+
+  if (Number.isNaN(number)) {
+    return null;
+  }
+
+  return number.toFixed(2);
+}
+
+function normalizeInt(value: unknown, fallback = 0) {
+  const number = Number(value);
+
+  if (Number.isNaN(number)) {
+    return fallback;
+  }
+
+  return Math.trunc(number);
+}
+
+function normalizeBoolean(value: unknown, fallback = true) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return fallback;
+}
+
+function isCategory(value: unknown): value is ServiceCatalogCategory {
+  return Object.values(ServiceCatalogCategory).includes(
+    value as ServiceCatalogCategory
+  );
+}
+
+function isUnit(value: unknown): value is ServiceCatalogUnit {
+  return Object.values(ServiceCatalogUnit).includes(value as ServiceCatalogUnit);
 }
 
 const demoServices = [
@@ -75,13 +156,13 @@ const demoServices = [
     defaultQuantity: "6.00",
     riskMultiplier: "1.10",
     sortOrder: 30,
-    notes: "Dodatkowa dopłata możliwa przy dużych oknach, wysokości albo silnym zabrudzeniu.",
+    notes:
+      "Dodatkowa dopłata możliwa przy dużych oknach, wysokości albo silnym zabrudzeniu.",
   },
   {
     name: "Sprzątanie biura",
     slug: "sprzatanie-biura",
-    description:
-      "Regularne lub jednorazowe sprzątanie powierzchni biurowej.",
+    description: "Regularne lub jednorazowe sprzątanie powierzchni biurowej.",
     category: "REINIGUNG" as const,
     unit: "HOUR" as const,
     basePrice: "45.00",
@@ -204,9 +285,76 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const prisma = getPrisma();
+
+    let body: Record<string, unknown> = {};
+
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+
+    if (body.mode === "manual") {
+      const name = String(body.name ?? "").trim();
+
+      if (!name) {
+        return NextResponse.json(
+          {
+            layer: "service-catalog-api",
+            message: "Service name is required",
+            data: {
+              status: "error",
+              message: "Nazwa usługi jest wymagana.",
+              service: null,
+            },
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      const category = isCategory(body.category)
+        ? body.category
+        : ServiceCatalogCategory.OTHER;
+
+      const unit = isUnit(body.unit) ? body.unit : ServiceCatalogUnit.FLAT;
+
+      const slugSource = String(body.slug ?? "").trim() || name;
+      const slug = slugify(slugSource);
+
+      const service = await prisma.serviceCatalogItem.create({
+        data: {
+          tenantKey: TENANT_KEY,
+          name,
+          slug,
+          description: String(body.description ?? "").trim() || null,
+          category,
+          unit,
+          basePrice: normalizeDecimal(body.basePrice, "0.00"),
+          minPrice: normalizeDecimal(body.minPrice, "0.00"),
+          maxPrice: normalizeNullableDecimal(body.maxPrice),
+          defaultQuantity: normalizeNullableDecimal(body.defaultQuantity),
+          riskMultiplier: normalizeDecimal(body.riskMultiplier, "1.00"),
+          isActive: normalizeBoolean(body.isActive, true),
+          sortOrder: normalizeInt(body.sortOrder, 0),
+          notes: String(body.notes ?? "").trim() || null,
+        },
+      });
+
+      return NextResponse.json({
+        layer: "service-catalog-api",
+        message: "Manual service created",
+        data: {
+          status: "success",
+          message: "Service created",
+          service,
+        },
+      });
+    }
 
     const services = await Promise.all(
       demoServices.map((service) =>
@@ -261,18 +409,18 @@ export async function POST() {
       },
     });
   } catch (error) {
-    console.error("Service Catalog seed error:", error);
+    console.error("Service Catalog POST error:", error);
 
     return NextResponse.json(
       {
         layer: "service-catalog-api",
-        message: "Service Catalog seed error",
+        message: "Service Catalog POST error",
         data: {
           status: "error",
           message:
             error instanceof Error
               ? error.message
-              : "Unknown service catalog seed error",
+              : "Unknown service catalog POST error",
           services: [],
         },
       },

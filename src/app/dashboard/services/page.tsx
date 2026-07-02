@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
@@ -134,6 +135,29 @@ function getServiceStatus(service: ServiceCatalogItem) {
   return service.isActive ? "ACCEPTED" : "CANCELLED";
 }
 
+function ActionLink({
+  href,
+  children,
+  primary = false,
+}: {
+  href: string;
+  children: React.ReactNode;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
+        primary
+          ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-100 hover:border-cyan-300 hover:bg-cyan-500/20"
+          : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-cyan-500/60 hover:text-cyan-100"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
 export default function DashboardServicesPage() {
   const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,8 +257,15 @@ export default function DashboardServicesPage() {
       header: "Usługa",
       render: (service) => (
         <div>
-          <p className="font-black tracking-tight text-white">{service.name}</p>
+          <Link
+            href={`/dashboard/services/${service.id}`}
+            className="font-black tracking-tight text-white transition hover:text-cyan-200"
+          >
+            {service.name}
+          </Link>
+
           <p className="mt-1 text-xs text-zinc-500">Slug: {service.slug}</p>
+
           {service.description ? (
             <p className="mt-2 max-w-md text-sm leading-6 text-zinc-400">
               {service.description}
@@ -312,6 +343,21 @@ export default function DashboardServicesPage() {
         </p>
       ),
     },
+    {
+      key: "actions",
+      header: "Akcje",
+      render: (service) => (
+        <div className="flex flex-wrap gap-2">
+          <ActionLink href={`/dashboard/services/${service.id}`} primary>
+            Szczegóły
+          </ActionLink>
+
+          <ActionLink href={`/dashboard/services/${service.id}/edit`}>
+            Edytuj
+          </ActionLink>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -322,9 +368,13 @@ export default function DashboardServicesPage() {
           title="Cennik usług"
           description="Fundament pod kalkulator wyceny, AI Concierge, oferty i faktury. Tutaj definiujemy, za co system ma liczyć cenę."
         >
+          <PremiumButton href="/dashboard/services/new" variant="primary">
+            Dodaj usługę
+          </PremiumButton>
+
           <PremiumButton
             type="button"
-            variant="primary"
+            variant="secondary"
             onClick={seedDemoServices}
             disabled={loading || seeding}
           >
@@ -340,8 +390,8 @@ export default function DashboardServicesPage() {
             Odśwież
           </PremiumButton>
 
-          <PremiumButton href="/dashboard/quotes" variant="ghost">
-            Oferty
+          <PremiumButton href="/dashboard/estimates" variant="ghost">
+            Wyceny
           </PremiumButton>
         </PageHeader>
 
@@ -432,9 +482,9 @@ export default function DashboardServicesPage() {
               empty={
                 <EmptyState
                   title="Brak usług w cenniku"
-                  description="Kliknij „Dodaj przykładowy cennik”, aby dodać pierwsze pozycje: sprzątanie, okna, Endreinigung, dojazd i usługi specjalne."
-                  actionLabel="Wróć do overview"
-                  actionHref="/dashboard"
+                  description="Dodaj pierwszą usługę ręcznie albo użyj przykładowego cennika demo."
+                  actionLabel="Dodaj usługę"
+                  actionHref="/dashboard/services/new"
                 />
               }
             />
