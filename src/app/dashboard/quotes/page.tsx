@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -166,19 +165,6 @@ export default function DashboardQuotesPage() {
       accepted,
       totalValue,
     };
-  }, [quotes]);
-
-  const latestQuotes = useMemo(() => {
-    return quotes.slice(0, 4).map((quote) => ({
-      id: quote.id,
-      title: getQuoteNumber(quote),
-      description: `Total: ${formatMoney(
-        quote.total,
-        quote.currency ?? "CHF"
-      )} · klient: ${quote.customerId ?? "brak przypisania"}`,
-      status: quote.status ?? "DRAFT",
-      time: formatDate(quote.createdAt),
-    }));
   }, [quotes]);
 
   const columns: DashboardTableColumn<Quote>[] = [
@@ -365,43 +351,30 @@ export default function DashboardQuotesPage() {
         ) : null}
 
         {!loading && !errorMessage ? (
-          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <DashboardPanel
-              title="Lista ofert"
-              description={`Liczba rekordów: ${quotes.length}. Oferta jest etapem pomiędzy wyceną roboczą a fakturą.`}
-              action={
-                <StatusBadge
-                  status={quotes.length > 0 ? "ACCEPTED" : "PENDING"}
-                  label={quotes.length > 0 ? "Oferty aktywne" : "Brak ofert"}
+          <DashboardPanel
+            title="Lista ofert"
+            description={`Liczba rekordów: ${quotes.length}. Oferta jest etapem pomiędzy wyceną roboczą a fakturą.`}
+            action={
+              <StatusBadge
+                status={quotes.length > 0 ? "ACCEPTED" : "PENDING"}
+                label={quotes.length > 0 ? "Oferty aktywne" : "Brak ofert"}
+              />
+            }
+          >
+            <DashboardTable
+              columns={columns}
+              rows={quotes}
+              getRowKey={(quote) => quote.id}
+              empty={
+                <EmptyState
+                  title="Brak ofert w bazie"
+                  description="Pierwsza oferta pojawi się tutaj po utworzeniu jej ze zlecenia albo po wdrożeniu modułu wyceny HEXA OS."
+                  actionLabel="Przejdź do zleceń"
+                  actionHref="/dashboard/orders"
                 />
               }
-            >
-              <DashboardTable
-                columns={columns}
-                rows={quotes}
-                getRowKey={(quote) => quote.id}
-                empty={
-                  <EmptyState
-                    title="Brak ofert w bazie"
-                    description="Pierwsza oferta pojawi się tutaj po utworzeniu jej ze zlecenia albo po wdrożeniu modułu wyceny HEXA OS."
-                    actionLabel="Przejdź do zleceń"
-                    actionHref="/dashboard/orders"
-                  />
-                }
-              />
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Ostatnie oferty"
-              description="Szybki podgląd najnowszych dokumentów ofertowych."
-            >
-              <ActivityTimeline
-                items={latestQuotes}
-                emptyTitle="Brak ostatnich ofert"
-                emptyDescription="Po utworzeniu ofert zobaczysz tutaj najnowszą aktywność."
-              />
-            </DashboardPanel>
-          </section>
+            />
+          </DashboardPanel>
         ) : null}
 
         {!loading && !errorMessage ? (
