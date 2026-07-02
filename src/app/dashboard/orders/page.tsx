@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -168,16 +167,6 @@ export default function DashboardOrdersPage() {
     };
   }, [orders]);
 
-  const latestOrders = useMemo(() => {
-    return orders.slice(0, 4).map((order) => ({
-      id: order.id,
-      title: getOrderTitle(order),
-      description: `${getOrderService(order)} · ${getOrderLocation(order)}`,
-      status: order.status ?? "OPEN",
-      time: formatDate(order.createdAt),
-    }));
-  }, [orders]);
-
   const columns: DashboardTableColumn<Order>[] = [
     {
       key: "order",
@@ -331,43 +320,30 @@ export default function DashboardOrdersPage() {
         ) : null}
 
         {!loading && !errorMessage ? (
-          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <DashboardPanel
-              title="Lista zleceń"
-              description={`Liczba rekordów: ${orders.length}. Kliknij szczegóły, aby przejść do workflow zlecenia.`}
-              action={
-                <StatusBadge
-                  status={orders.length > 0 ? "ACCEPTED" : "PENDING"}
-                  label={orders.length > 0 ? "Dane aktywne" : "Brak danych"}
+          <DashboardPanel
+            title="Lista zleceń"
+            description={`Liczba rekordów: ${orders.length}. Kliknij szczegóły, aby przejść do workflow zlecenia.`}
+            action={
+              <StatusBadge
+                status={orders.length > 0 ? "ACCEPTED" : "PENDING"}
+                label={orders.length > 0 ? "Dane aktywne" : "Brak danych"}
+              />
+            }
+          >
+            <DashboardTable
+              columns={columns}
+              rows={orders}
+              getRowKey={(order) => order.id}
+              empty={
+                <EmptyState
+                  title="Brak zleceń w bazie"
+                  description="Gdy AI Concierge, formularz lub panel administratora utworzy pierwsze zlecenie, pojawi się ono w tej tabeli."
+                  actionLabel="Wróć do overview"
+                  actionHref="/dashboard"
                 />
               }
-            >
-              <DashboardTable
-                columns={columns}
-                rows={orders}
-                getRowKey={(order) => order.id}
-                empty={
-                  <EmptyState
-                    title="Brak zleceń w bazie"
-                    description="Gdy AI Concierge, formularz lub panel administratora utworzy pierwsze zlecenie, pojawi się ono w tej tabeli."
-                    actionLabel="Wróć do overview"
-                    actionHref="/dashboard"
-                  />
-                }
-              />
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Ostatnie zlecenia"
-              description="Szybki podgląd najnowszych rekordów w module Orders."
-            >
-              <ActivityTimeline
-                items={latestOrders}
-                emptyTitle="Brak ostatnich zleceń"
-                emptyDescription="Po dodaniu zleceń zobaczysz tutaj najnowszą aktywność."
-              />
-            </DashboardPanel>
-          </section>
+            />
+          </DashboardPanel>
         ) : null}
       </section>
     </main>

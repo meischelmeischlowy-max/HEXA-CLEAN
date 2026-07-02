@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -197,18 +196,6 @@ export default function DashboardAuditLogsPage() {
     };
   }, [auditLogs]);
 
-  const latestEvents = useMemo(() => {
-    return auditLogs.slice(0, 5).map((log) => ({
-      id: log.id,
-      title: formatAction(log.action),
-      description:
-        log.message ??
-        `${getEntity(log)} · ${log.entityId ?? "brak ID"} · ${getActor(log)}`,
-      status: getActionStatus(log.action),
-      time: formatDate(log.createdAt),
-    }));
-  }, [auditLogs]);
-
   const columns: DashboardTableColumn<AuditLog>[] = [
     {
       key: "action",
@@ -385,45 +372,32 @@ export default function DashboardAuditLogsPage() {
         ) : null}
 
         {!loading && !errorMessage ? (
-          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <DashboardPanel
-              title="Tabela zdarzeń"
-              description={`Liczba rekordów: ${auditLogs.length}. Każdy wpis pomaga odtworzyć, kto i kiedy wykonał daną akcję.`}
-              action={
-                <StatusBadge
-                  status={auditLogs.length > 0 ? "ACCEPTED" : "PENDING"}
-                  label={
-                    auditLogs.length > 0 ? "Historia aktywna" : "Brak wpisów"
-                  }
-                />
-              }
-            >
-              <DashboardTable
-                columns={columns}
-                rows={auditLogs}
-                getRowKey={(log) => log.id}
-                empty={
-                  <EmptyState
-                    title="Brak wpisów audit log"
-                    description="Pierwsze wpisy pojawią się tutaj po utworzeniu ofert, faktur, płatności albo zmianach statusów w systemie."
-                    actionLabel="Wróć do overview"
-                    actionHref="/dashboard"
-                  />
+          <DashboardPanel
+            title="Tabela zdarzeń"
+            description={`Liczba rekordów: ${auditLogs.length}. Każdy wpis pomaga odtworzyć, kto i kiedy wykonał daną akcję.`}
+            action={
+              <StatusBadge
+                status={auditLogs.length > 0 ? "ACCEPTED" : "PENDING"}
+                label={
+                  auditLogs.length > 0 ? "Historia aktywna" : "Brak wpisów"
                 }
               />
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Live feed"
-              description="Najnowsze zdarzenia systemowe w formie osi czasu."
-            >
-              <ActivityTimeline
-                items={latestEvents}
-                emptyTitle="Brak ostatnich zdarzeń"
-                emptyDescription="Po wykonaniu akcji w CRM zobaczysz tutaj live feed."
-              />
-            </DashboardPanel>
-          </section>
+            }
+          >
+            <DashboardTable
+              columns={columns}
+              rows={auditLogs}
+              getRowKey={(log) => log.id}
+              empty={
+                <EmptyState
+                  title="Brak wpisów audit log"
+                  description="Pierwsze wpisy pojawią się tutaj po utworzeniu ofert, faktur, płatności albo zmianach statusów w systemie."
+                  actionLabel="Wróć do overview"
+                  actionHref="/dashboard"
+                />
+              }
+            />
+          </DashboardPanel>
         ) : null}
 
         {!loading && !errorMessage ? (

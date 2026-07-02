@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -70,12 +69,6 @@ function getCustomerLocation(customer: Customer) {
   return [customer.postalCode, customer.city].filter(Boolean).join(" ") || "—";
 }
 
-function getCustomerAddress(customer: Customer) {
-  return [customer.address, customer.postalCode, customer.city]
-    .filter(Boolean)
-    .join(", ");
-}
-
 function hasContactData(customer: Customer) {
   return Boolean(customer.email || customer.phone);
 }
@@ -118,9 +111,6 @@ export default function DashboardCustomersPage() {
   const stats = useMemo(() => {
     const withEmail = customers.filter((customer) => customer.email).length;
     const withPhone = customers.filter((customer) => customer.phone).length;
-    const withAddress = customers.filter(
-      (customer) => customer.address || customer.city || customer.postalCode
-    ).length;
     const completeProfiles = customers.filter(
       (customer) =>
         hasContactData(customer) &&
@@ -131,23 +121,8 @@ export default function DashboardCustomersPage() {
       total: customers.length,
       withEmail,
       withPhone,
-      withAddress,
       completeProfiles,
     };
-  }, [customers]);
-
-  const latestCustomers = useMemo(() => {
-    return customers.slice(0, 4).map((customer) => ({
-      id: customer.id,
-      title: getCustomerName(customer),
-      description:
-        getCustomerAddress(customer) ||
-        customer.email ||
-        customer.phone ||
-        "Brak pełnych danych kontaktowych",
-      status: hasContactData(customer) ? "ACCEPTED" : "PENDING",
-      time: formatDate(customer.createdAt),
-    }));
   }, [customers]);
 
   const columns: DashboardTableColumn<Customer>[] = [
@@ -321,43 +296,30 @@ export default function DashboardCustomersPage() {
         ) : null}
 
         {!loading && !errorMessage ? (
-          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <DashboardPanel
-              title="Lista klientów"
-              description={`Liczba rekordów: ${customers.length}. Klienci są fundamentem pod zlecenia, wyceny, oferty, faktury i historię CRM.`}
-              action={
-                <StatusBadge
-                  status={customers.length > 0 ? "ACCEPTED" : "PENDING"}
-                  label={customers.length > 0 ? "Baza aktywna" : "Brak danych"}
+          <DashboardPanel
+            title="Lista klientów"
+            description={`Liczba rekordów: ${customers.length}. Klienci są fundamentem pod zlecenia, wyceny, oferty, faktury i historię CRM.`}
+            action={
+              <StatusBadge
+                status={customers.length > 0 ? "ACCEPTED" : "PENDING"}
+                label={customers.length > 0 ? "Baza aktywna" : "Brak danych"}
+              />
+            }
+          >
+            <DashboardTable
+              columns={columns}
+              rows={customers}
+              getRowKey={(customer) => customer.id}
+              empty={
+                <EmptyState
+                  title="Brak klientów w bazie"
+                  description="Pierwszy klient pojawi się tutaj po dodaniu zlecenia telefonicznego, formularza kontaktowego albo zapytania z AI Concierge."
+                  actionLabel="Wróć do overview"
+                  actionHref="/dashboard"
                 />
               }
-            >
-              <DashboardTable
-                columns={columns}
-                rows={customers}
-                getRowKey={(customer) => customer.id}
-                empty={
-                  <EmptyState
-                    title="Brak klientów w bazie"
-                    description="Pierwszy klient pojawi się tutaj po dodaniu zlecenia telefonicznego, formularza kontaktowego albo zapytania z AI Concierge."
-                    actionLabel="Wróć do overview"
-                    actionHref="/dashboard"
-                  />
-                }
-              />
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Ostatni klienci"
-              description="Szybki podgląd najnowszych kontaktów w module CRM."
-            >
-              <ActivityTimeline
-                items={latestCustomers}
-                emptyTitle="Brak ostatnich klientów"
-                emptyDescription="Po dodaniu klientów zobaczysz tutaj najnowsze kontakty."
-              />
-            </DashboardPanel>
-          </section>
+            />
+          </DashboardPanel>
         ) : null}
 
         {!loading && !errorMessage ? (

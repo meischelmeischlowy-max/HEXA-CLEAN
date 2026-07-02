@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -42,6 +41,20 @@ type DashboardServicesResponse = {
   };
 };
 
+function toNumber(value?: string | number | null) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? null : value;
+  }
+
+  const parsed = Number(String(value).replace(",", "."));
+
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
 
@@ -55,20 +68,6 @@ function formatDate(value?: string | null) {
     dateStyle: "short",
     timeStyle: "short",
   });
-}
-
-function toNumber(value?: string | number | null) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  if (typeof value === "number") {
-    return Number.isNaN(value) ? null : value;
-  }
-
-  const parsed = Number(String(value).replace(",", "."));
-
-  return Number.isNaN(parsed) ? null : parsed;
 }
 
 function formatMoney(value?: string | number | null, currency = "CHF") {
@@ -226,18 +225,6 @@ export default function DashboardServicesPage() {
       averageBasePrice,
       highRisk,
     };
-  }, [services]);
-
-  const latestServices = useMemo(() => {
-    return services.slice(0, 4).map((service) => ({
-      id: service.id,
-      title: service.name,
-      description: `${formatCategory(service.category)} · ${formatMoney(
-        service.basePrice
-      )} / ${formatUnit(service.unit)}`,
-      status: getServiceStatus(service),
-      time: formatDate(service.updatedAt ?? service.createdAt),
-    }));
   }, [services]);
 
   const columns: DashboardTableColumn<ServiceCatalogItem>[] = [
@@ -428,45 +415,30 @@ export default function DashboardServicesPage() {
         ) : null}
 
         {!loading && !errorMessage ? (
-          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <DashboardPanel
-              title="Lista usług"
-              description={`Liczba rekordów: ${services.length}. Ten katalog będzie używany przez moduł wyceny i przyszłe Vision AI.`}
-              action={
-                <StatusBadge
-                  status={services.length > 0 ? "ACCEPTED" : "PENDING"}
-                  label={
-                    services.length > 0 ? "Cennik aktywny" : "Brak pozycji"
-                  }
+          <DashboardPanel
+            title="Lista usług"
+            description={`Liczba rekordów: ${services.length}. Ten katalog będzie używany przez moduł wyceny i przyszłe Vision AI.`}
+            action={
+              <StatusBadge
+                status={services.length > 0 ? "ACCEPTED" : "PENDING"}
+                label={services.length > 0 ? "Cennik aktywny" : "Brak pozycji"}
+              />
+            }
+          >
+            <DashboardTable
+              columns={columns}
+              rows={services}
+              getRowKey={(service) => service.id}
+              empty={
+                <EmptyState
+                  title="Brak usług w cenniku"
+                  description="Kliknij „Dodaj przykładowy cennik”, aby dodać pierwsze pozycje: sprzątanie, okna, Endreinigung, dojazd i usługi specjalne."
+                  actionLabel="Wróć do overview"
+                  actionHref="/dashboard"
                 />
               }
-            >
-              <DashboardTable
-                columns={columns}
-                rows={services}
-                getRowKey={(service) => service.id}
-                empty={
-                  <EmptyState
-                    title="Brak usług w cenniku"
-                    description="Kliknij „Dodaj przykładowy cennik”, aby dodać pierwsze pozycje: sprzątanie, okna, Endreinigung, dojazd i usługi specjalne."
-                    actionLabel="Wróć do overview"
-                    actionHref="/dashboard"
-                  />
-                }
-              />
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Ostatnie usługi"
-              description="Szybki podgląd najnowszych pozycji katalogu."
-            >
-              <ActivityTimeline
-                items={latestServices}
-                emptyTitle="Brak usług"
-                emptyDescription="Po dodaniu cennika zobaczysz tutaj najnowsze pozycje."
-              />
-            </DashboardPanel>
-          </section>
+            />
+          </DashboardPanel>
         ) : null}
 
         {!loading && !errorMessage ? (

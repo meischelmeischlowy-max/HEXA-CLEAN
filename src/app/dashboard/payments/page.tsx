@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -186,23 +185,6 @@ export default function DashboardPaymentsPage() {
       paidValue,
       pendingValue,
     };
-  }, [payments]);
-
-  const latestPayments = useMemo(() => {
-    return payments.slice(0, 4).map((payment) => ({
-      id: payment.id,
-      title: getPaymentTitle(payment),
-      description: `${formatMoney(
-        payment.amount,
-        payment.currency ?? "CHF"
-      )} · ${formatPaymentMethod(payment.method)} · faktura: ${
-        payment.invoiceId ?? "—"
-      }`,
-      status: payment.status ?? "PENDING",
-      time: payment.paidAt
-        ? `Zapłacono: ${formatDate(payment.paidAt)}`
-        : `Dodano: ${formatDate(payment.createdAt)}`,
-    }));
   }, [payments]);
 
   const columns: DashboardTableColumn<Payment>[] = [
@@ -391,45 +373,32 @@ export default function DashboardPaymentsPage() {
         ) : null}
 
         {!loading && !errorMessage ? (
-          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <DashboardPanel
-              title="Lista płatności"
-              description={`Liczba rekordów: ${payments.length}. Płatność aktualizuje fakturę i zamyka etap finansowy procesu.`}
-              action={
-                <StatusBadge
-                  status={payments.length > 0 ? "ACCEPTED" : "PENDING"}
-                  label={
-                    payments.length > 0 ? "Płatności aktywne" : "Brak płatności"
-                  }
-                />
-              }
-            >
-              <DashboardTable
-                columns={columns}
-                rows={payments}
-                getRowKey={(payment) => payment.id}
-                empty={
-                  <EmptyState
-                    title="Brak płatności w bazie"
-                    description="Pierwsza płatność pojawi się tutaj po utworzeniu jej z faktury."
-                    actionLabel="Przejdź do faktur"
-                    actionHref="/dashboard/invoices"
-                  />
+          <DashboardPanel
+            title="Lista płatności"
+            description={`Liczba rekordów: ${payments.length}. Płatność aktualizuje fakturę i zamyka etap finansowy procesu.`}
+            action={
+              <StatusBadge
+                status={payments.length > 0 ? "ACCEPTED" : "PENDING"}
+                label={
+                  payments.length > 0 ? "Płatności aktywne" : "Brak płatności"
                 }
               />
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Ostatnie płatności"
-              description="Szybki podgląd najnowszych operacji finansowych."
-            >
-              <ActivityTimeline
-                items={latestPayments}
-                emptyTitle="Brak ostatnich płatności"
-                emptyDescription="Po utworzeniu płatności zobaczysz tutaj najnowszą aktywność."
-              />
-            </DashboardPanel>
-          </section>
+            }
+          >
+            <DashboardTable
+              columns={columns}
+              rows={payments}
+              getRowKey={(payment) => payment.id}
+              empty={
+                <EmptyState
+                  title="Brak płatności w bazie"
+                  description="Pierwsza płatność pojawi się tutaj po utworzeniu jej z faktury."
+                  actionLabel="Przejdź do faktur"
+                  actionHref="/dashboard/invoices"
+                />
+              }
+            />
+          </DashboardPanel>
         ) : null}
 
         {!loading && !errorMessage ? (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ActivityTimeline from "../../../components/dashboard/ActivityTimeline";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -192,22 +191,6 @@ export default function DashboardInvoicesPage() {
       paidValue,
       openValue,
     };
-  }, [invoices]);
-
-  const latestInvoices = useMemo(() => {
-    return invoices.slice(0, 4).map((invoice) => ({
-      id: invoice.id,
-      title: getInvoiceNumber(invoice),
-      description: `Total: ${formatMoney(
-        invoice.total,
-        invoice.currency ?? "CHF"
-      )} · otwarte: ${formatMoney(
-        getOutstandingAmount(invoice),
-        invoice.currency ?? "CHF"
-      )}`,
-      status: getDisplayStatus(invoice),
-      time: formatDate(invoice.createdAt),
-    }));
   }, [invoices]);
 
   const columns: DashboardTableColumn<Invoice>[] = [
@@ -404,43 +387,30 @@ export default function DashboardInvoicesPage() {
         ) : null}
 
         {!loading && !errorMessage ? (
-          <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-            <DashboardPanel
-              title="Lista faktur"
-              description={`Liczba rekordów: ${invoices.length}. Faktura powstaje po zaakceptowanej ofercie i prowadzi dalej do płatności.`}
-              action={
-                <StatusBadge
-                  status={invoices.length > 0 ? "ACCEPTED" : "PENDING"}
-                  label={invoices.length > 0 ? "Faktury aktywne" : "Brak faktur"}
+          <DashboardPanel
+            title="Lista faktur"
+            description={`Liczba rekordów: ${invoices.length}. Faktura powstaje po zaakceptowanej ofercie i prowadzi dalej do płatności.`}
+            action={
+              <StatusBadge
+                status={invoices.length > 0 ? "ACCEPTED" : "PENDING"}
+                label={invoices.length > 0 ? "Faktury aktywne" : "Brak faktur"}
+              />
+            }
+          >
+            <DashboardTable
+              columns={columns}
+              rows={invoices}
+              getRowKey={(invoice) => invoice.id}
+              empty={
+                <EmptyState
+                  title="Brak faktur w bazie"
+                  description="Pierwsza faktura pojawi się tutaj po utworzeniu jej z zaakceptowanej oferty."
+                  actionLabel="Przejdź do ofert"
+                  actionHref="/dashboard/quotes"
                 />
               }
-            >
-              <DashboardTable
-                columns={columns}
-                rows={invoices}
-                getRowKey={(invoice) => invoice.id}
-                empty={
-                  <EmptyState
-                    title="Brak faktur w bazie"
-                    description="Pierwsza faktura pojawi się tutaj po utworzeniu jej z zaakceptowanej oferty."
-                    actionLabel="Przejdź do ofert"
-                    actionHref="/dashboard/quotes"
-                  />
-                }
-              />
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Ostatnie faktury"
-              description="Szybki podgląd najnowszych dokumentów sprzedaży."
-            >
-              <ActivityTimeline
-                items={latestInvoices}
-                emptyTitle="Brak ostatnich faktur"
-                emptyDescription="Po utworzeniu faktur zobaczysz tutaj najnowszą aktywność."
-              />
-            </DashboardPanel>
-          </section>
+            />
+          </DashboardPanel>
         ) : null}
 
         {!loading && !errorMessage ? (
