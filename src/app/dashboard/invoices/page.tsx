@@ -1,472 +1,301 @@
-"use client";
+import Link from "next/link";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import DashboardPanel from "../../../components/dashboard/DashboardPanel";
-import DashboardTable, {
-  type DashboardTableColumn,
-} from "../../../components/dashboard/DashboardTable";
-import EmptyState from "../../../components/dashboard/EmptyState";
-import MetricCard from "../../../components/dashboard/MetricCard";
-import PageHeader from "../../../components/dashboard/PageHeader";
-import PremiumButton from "../../../components/dashboard/PremiumButton";
-import StatusBadge from "../../../components/dashboard/StatusBadge";
+export const dynamic = "force-dynamic";
 
-type Invoice = {
-  id: string;
-  invoiceNumber?: string | null;
-  number?: string | null;
-  status?: string | null;
-  subtotal?: string | number | null;
-  taxAmount?: string | number | null;
-  total?: string | number | null;
-  paidAmount?: string | number | null;
-  currency?: string | null;
-  dueDate?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-};
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
 
-type DashboardInvoicesResponse = {
-  layer: string;
-  message: string;
-  data: {
-    status: string;
-    message: string;
-    invoices: Invoice[];
-  };
-};
+const prisma = new PrismaClient({ adapter });
 
-function formatDate(value?: string | null) {
-  if (!value) return "—";
+function normalizeCurrency(value: string | null | undefined) {
+  const raw = String(value || "CHF").trim().toUpperCase();
 
-  const date = new Date(value);
+  if (/^[A-Z]{3}$/.test(raw)) return raw;
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (raw.startsWith("CHF")) return "CHF";
+  if (raw.startsWith("EUR")) return "EUR";
+  if (raw.startsWith("USD")) return "USD";
+  if (raw.startsWith("PLN")) return "PLN";
 
-  return date.toLocaleString("de-CH", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return "CHF";
 }
 
-function toNumber(value?: string | number | null) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  if (typeof value === "number") {
-    return Number.isNaN(value) ? null : value;
-  }
-
-  const parsed = Number(String(value).replace(",", "."));
-
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
-function formatMoney(value?: string | number | null, currency = "CHF") {
-  const numberValue = toNumber(value);
-
-  if (numberValue === null) {
-    return "—";
-  }
+function formatMoney(value: unknown, currency: string | null | undefined = "CHF") {
+  const number = Number(value ?? 0);
 
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(numberValue);
+    currency: normalizeCurrency(currency),
+  }).format(Number.isFinite(number) ? number : 0);
 }
 
-function getInvoiceNumber(invoice: Invoice) {
-  return invoice.invoiceNumber ?? invoice.number ?? invoice.id;
+function formatDate(value: Date | string | null | undefined) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("de-CH", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
-function normalizeStatus(status?: string | null) {
-  return status?.toUpperCase() ?? "UNKNOWN";
-}
-
-function getOutstandingAmount(invoice: Invoice) {
-  const total = toNumber(invoice.total);
-  const paid = toNumber(invoice.paidAmount) ?? 0;
-
-  if (total === null) {
-    return null;
+function statusLabel(status: string | null | undefined) {
+  switch (status) {
+    case "DRAFT":
+      return "Robocza";
+    case "SENT":
+      return "Wysłana";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIALLY_PAID":
+      return "Częściowo opłacona";
+    case "OVERDUE":
+      return "Po terminie";
+    case "CANCELLED":
+      return "Anulowana";
+    default:
+      return status || "Brak statusu";
   }
-
-  return Math.max(total - paid, 0);
 }
 
-function isOverdue(invoice: Invoice) {
-  if (!invoice.dueDate) return false;
-  if (normalizeStatus(invoice.status) === "PAID") return false;
-
-  const dueDate = new Date(invoice.dueDate);
-
-  if (Number.isNaN(dueDate.getTime())) {
-    return false;
+function statusClass(status: string | null | undefined) {
+  switch (status) {
+    case "PAID":
+      return "border-emerald-400/40 bg-emerald-400/10 text-emerald-200";
+    case "PARTIALLY_PAID":
+      return "border-amber-400/40 bg-amber-400/10 text-amber-200";
+    case "OVERDUE":
+      return "border-rose-400/40 bg-rose-400/10 text-rose-200";
+    case "SENT":
+      return "border-cyan-400/40 bg-cyan-400/10 text-cyan-200";
+    case "CANCELLED":
+      return "border-slate-500/40 bg-slate-500/10 text-slate-300";
+    default:
+      return "border-slate-600 bg-slate-800 text-slate-300";
   }
-
-  return dueDate.getTime() < Date.now();
 }
 
-function getDisplayStatus(invoice: Invoice) {
-  if (isOverdue(invoice)) {
-    return "OVERDUE";
-  }
+function customerName(customer: {
+  companyName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}) {
+  if (customer.companyName) return customer.companyName;
 
-  return invoice.status ?? "DRAFT";
+  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
+
+  return fullName || "Brak klienta";
 }
 
-export default function DashboardInvoicesPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const loadInvoices = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const response = await fetch("/api/dashboard/invoices", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error("Dashboard Invoices API returned an error");
-      }
-
-      const json: DashboardInvoicesResponse = await response.json();
-
-      setInvoices(json.data.invoices ?? []);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Unknown invoices error"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadInvoices();
-  }, [loadInvoices]);
-
-  const stats = useMemo(() => {
-    const draft = invoices.filter(
-      (invoice) => normalizeStatus(invoice.status) === "DRAFT"
-    ).length;
-
-    const sent = invoices.filter(
-      (invoice) => normalizeStatus(invoice.status) === "SENT"
-    ).length;
-
-    const paid = invoices.filter(
-      (invoice) => normalizeStatus(invoice.status) === "PAID"
-    ).length;
-
-    const overdue = invoices.filter((invoice) => isOverdue(invoice)).length;
-
-    const totalValue = invoices.reduce((sum, invoice) => {
-      const amount = toNumber(invoice.total);
-      return amount === null ? sum : sum + amount;
-    }, 0);
-
-    const paidValue = invoices.reduce((sum, invoice) => {
-      const amount = toNumber(invoice.paidAmount);
-      return amount === null ? sum : sum + amount;
-    }, 0);
-
-    const openValue = Math.max(totalValue - paidValue, 0);
-
-    return {
-      total: invoices.length,
-      draft,
-      sent,
-      paid,
-      overdue,
-      totalValue,
-      paidValue,
-      openValue,
-    };
-  }, [invoices]);
-
-  const columns: DashboardTableColumn<Invoice>[] = [
-    {
-      key: "invoice",
-      header: "Faktura",
-      render: (invoice) => (
-        <div>
-          <p className="font-black tracking-tight text-white">
-            {getInvoiceNumber(invoice)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">ID: {invoice.id}</p>
-        </div>
-      ),
+export default async function InvoicesPage() {
+  const invoices = await prisma.invoice.findMany({
+    orderBy: {
+      createdAt: "desc",
     },
-    {
-      key: "status",
-      header: "Status",
-      render: (invoice) => <StatusBadge status={getDisplayStatus(invoice)} />,
+    include: {
+      customer: true,
     },
-    {
-      key: "subtotal",
-      header: "Subtotal",
-      render: (invoice) => (
-        <p className="font-semibold text-zinc-200">
-          {formatMoney(invoice.subtotal, invoice.currency ?? "CHF")}
-        </p>
-      ),
-    },
-    {
-      key: "tax",
-      header: "Podatek",
-      render: (invoice) => (
-        <p className="font-semibold text-zinc-200">
-          {formatMoney(invoice.taxAmount, invoice.currency ?? "CHF")}
-        </p>
-      ),
-    },
-    {
-      key: "total",
-      header: "Total",
-      render: (invoice) => (
-        <p className="font-black text-emerald-100">
-          {formatMoney(invoice.total, invoice.currency ?? "CHF")}
-        </p>
-      ),
-    },
-    {
-      key: "paid",
-      header: "Zapłacono",
-      render: (invoice) => (
-        <div>
-          <p className="font-semibold text-zinc-200">
-            {formatMoney(invoice.paidAmount, invoice.currency ?? "CHF")}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Otwarte:{" "}
-            {formatMoney(getOutstandingAmount(invoice), invoice.currency ?? "CHF")}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "due",
-      header: "Termin",
-      render: (invoice) => (
-        <div>
-          <p className="text-sm font-medium text-zinc-400">
-            {formatDate(invoice.dueDate)}
-          </p>
-          {isOverdue(invoice) ? (
-            <p className="mt-1 text-xs font-bold text-red-200">
-              Po terminie
-            </p>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      key: "created",
-      header: "Dodano",
-      render: (invoice) => (
-        <p className="text-sm font-medium text-zinc-400">
-          {formatDate(invoice.createdAt)}
-        </p>
-      ),
-    },
-    {
-      key: "action",
-      header: "Akcje",
-      className: "text-right",
-      render: (invoice) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <PremiumButton
-            href={`/dashboard/invoices/${invoice.id}`}
-            variant="primary"
-            size="sm"
-          >
-            Szczegóły
-          </PremiumButton>
+  });
 
-          <PremiumButton
-            href={`/dashboard/invoices/${invoice.id}/edit`}
-            variant="secondary"
-            size="sm"
-          >
-            Edytuj
-          </PremiumButton>
+  const totalOpen = invoices.reduce((sum, invoice) => {
+    const total = Number(invoice.total ?? 0);
+    const paid = Number(invoice.paidAmount ?? 0);
 
-          <PremiumButton
-            href={`/dashboard/invoices/${invoice.id}/print`}
-            variant="ghost"
-            size="sm"
-          >
-            Drukuj
-          </PremiumButton>
-        </div>
-      ),
-    },
-  ];
+    return sum + Math.max(total - paid, 0);
+  }, 0);
+
+  const totalPaid = invoices.reduce((sum, invoice) => {
+    return sum + Number(invoice.paidAmount ?? 0);
+  }, 0);
+
+  const overdueCount = invoices.filter((invoice) => invoice.status === "OVERDUE").length;
+  const paidCount = invoices.filter((invoice) => invoice.status === "PAID").length;
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-7xl flex-col gap-6">
-        <PageHeader
-          eyebrow="HEXA OS CRM / Invoices"
-          title="Faktury"
-          description="Moduł faktur kontroluje dokumenty sprzedaży, status wysyłki, terminy płatności, kwoty opłacone i przejście do płatności."
-        >
-          <PremiumButton
-            type="button"
-            variant="secondary"
-            onClick={loadInvoices}
-            disabled={loading}
-          >
-            Odśwież
-          </PremiumButton>
-          <PremiumButton href="/dashboard/quotes" variant="ghost">
-            Oferty
-          </PremiumButton>
-        </PageHeader>
+    <main className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.3em] text-cyan-400">
+                Faktury
+              </p>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            title="Wszystkie faktury"
-            value={String(stats.total)}
-            description="Łączna liczba faktur zapisanych w bazie."
-            trend="Źródło: Invoices API"
-            tone="cyan"
-            icon={<span className="text-lg font-black">INV</span>}
-          />
+              <h1 className="mt-2 text-3xl font-bold text-white">Lista faktur</h1>
 
-          <MetricCard
-            title="Wysłane"
-            value={String(stats.sent)}
-            description="Faktury przekazane klientowi do zapłaty."
-            trend="Status SENT"
-            tone="violet"
-            icon={<span className="text-lg font-black">↗</span>}
-          />
-
-          <MetricCard
-            title="Opłacone"
-            value={String(stats.paid)}
-            description="Faktury oznaczone jako zapłacone."
-            trend={formatMoney(stats.paidValue, "CHF")}
-            tone="emerald"
-            icon={<span className="text-lg font-black">✓</span>}
-          />
-
-          <MetricCard
-            title="Otwarte saldo"
-            value={formatMoney(stats.openValue, "CHF")}
-            description={`Po terminie: ${stats.overdue}. Szkice: ${stats.draft}.`}
-            trend="Kontrola płatności"
-            tone={stats.overdue > 0 ? "red" : "amber"}
-            icon={<span className="text-lg font-black">CHF</span>}
-          />
-        </section>
-
-        {loading ? (
-          <DashboardPanel
-            title="Ładowanie faktur"
-            description="HEXA OS pobiera aktualne dane z modułu Invoices."
-          >
-            <div className="grid gap-3">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
-                />
-              ))}
-            </div>
-          </DashboardPanel>
-        ) : null}
-
-        {errorMessage ? (
-          <DashboardPanel
-            title="Błąd modułu Invoices"
-            description="Nie udało się pobrać listy faktur z API."
-          >
-            <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Błąd: {errorMessage}</p>
-              <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Sprawdź endpoint /api/dashboard/invoices oraz połączenie z
-                bazą.
+              <p className="mt-2 text-sm text-slate-400">
+                Przegląd faktur, płatności, zaległości i szybkich akcji.
               </p>
             </div>
-          </DashboardPanel>
-        ) : null}
 
-        {!loading && !errorMessage ? (
-          <DashboardPanel
-            title="Lista faktur"
-            description={`Liczba rekordów: ${invoices.length}. Faktura powstaje po zaakceptowanej ofercie i prowadzi dalej do płatności.`}
-            action={
-              <StatusBadge
-                status={invoices.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={invoices.length > 0 ? "Faktury aktywne" : "Brak faktur"}
-              />
-            }
-          >
-            <DashboardTable
-              columns={columns}
-              rows={invoices}
-              getRowKey={(invoice) => invoice.id}
-              empty={
-                <EmptyState
-                  title="Brak faktur w bazie"
-                  description="Pierwsza faktura pojawi się tutaj po utworzeniu jej z zaakceptowanej oferty."
-                  actionLabel="Przejdź do ofert"
-                  actionHref="/dashboard/quotes"
-                />
-              }
-            />
-          </DashboardPanel>
-        ) : null}
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/dashboard"
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
+              >
+                Dashboard
+              </Link>
 
-        {!loading && !errorMessage ? (
-          <DashboardPanel
-            title="Rola modułu Invoices"
-            description="Faktury będą docelowo generowane jako PDF z logo, danymi firmy, statusem DRAFT/SENT/PAID i pełnym zapisem w historii systemu."
-          >
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
-                <p className="text-sm font-black text-cyan-100">
-                  PDF z logo
-                </p>
-                <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  Faktura jako dokument PDF z brandingiem HEXA CLEAN.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-                <p className="text-sm font-black text-violet-100">
-                  Edycja przed wysyłką
-                </p>
-                <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Fakturę trzeba móc ręcznie poprawić przed wydrukiem albo
-                  wysyłką do klienta.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                <p className="text-sm font-black text-emerald-100">
-                  Kontrola płatności
-                </p>
-                <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Po płatności system oznacza fakturę jako PAID i zamyka etap
-                  finansowy workflow.
-                </p>
-              </div>
+              <Link
+                href="/dashboard/estimates"
+                className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+              >
+                Wyceny
+              </Link>
             </div>
-          </DashboardPanel>
-        ) : null}
-      </section>
+          </div>
+        </section>
+
+        <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Liczba faktur</p>
+            <p className="mt-2 text-3xl font-bold text-white">{invoices.length}</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Zapłacono razem</p>
+            <p className="mt-2 text-3xl font-bold text-emerald-300">
+              {formatMoney(totalPaid, "CHF")}
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Pozostało do zapłaty</p>
+            <p className="mt-2 text-3xl font-bold text-rose-300">
+              {formatMoney(totalOpen, "CHF")}
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Opłacone / po terminie</p>
+            <p className="mt-2 text-3xl font-bold text-white">
+              {paidCount} / {overdueCount}
+            </p>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+          <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white">Faktury</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Kliknij szczegóły, żeby wpisać wpłatę albo zmienić status.
+              </p>
+            </div>
+          </div>
+
+          {invoices.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-8 text-center">
+              <p className="text-sm text-slate-400">Brak faktur.</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Faktury powstaną po utworzeniu ich z zaakceptowanej wyceny.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-800">
+              <table className="w-full min-w-[1100px] text-left text-sm">
+                <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.2em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-4">Faktura</th>
+                    <th className="px-4 py-4">Klient</th>
+                    <th className="px-4 py-4">Status</th>
+                    <th className="px-4 py-4 text-right">Total</th>
+                    <th className="px-4 py-4 text-right">Zapłacono</th>
+                    <th className="px-4 py-4 text-right">Pozostało</th>
+                    <th className="px-4 py-4">Termin</th>
+                    <th className="px-4 py-4 text-right">Akcje</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-800">
+                  {invoices.map((invoice) => {
+                    const currency = normalizeCurrency(invoice.currency);
+                    const total = Number(invoice.total ?? 0);
+                    const paid = Number(invoice.paidAmount ?? 0);
+                    const remaining = Math.max(total - paid, 0);
+
+                    return (
+                      <tr key={invoice.id} className="bg-slate-900/40 hover:bg-slate-800/60">
+                        <td className="px-4 py-4 align-top">
+                          <div className="font-semibold text-white">
+                            {invoice.invoiceNumber || invoice.id}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            Data: {formatDate(invoice.issueDate)}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 align-top">
+                          <div className="font-medium text-slate-100">
+                            {customerName(invoice.customer)}
+                          </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {invoice.customer.email || "Brak e-maila"}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 align-top">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(
+                              invoice.status,
+                            )}`}
+                          >
+                            {statusLabel(invoice.status)}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-4 text-right align-top font-semibold text-white">
+                          {formatMoney(total, currency)}
+                        </td>
+
+                        <td className="px-4 py-4 text-right align-top font-semibold text-emerald-300">
+                          {formatMoney(paid, currency)}
+                        </td>
+
+                        <td className="px-4 py-4 text-right align-top font-semibold text-rose-300">
+                          {formatMoney(remaining, currency)}
+                        </td>
+
+                        <td className="px-4 py-4 align-top text-slate-300">
+                          {formatDate(invoice.dueDate)}
+                        </td>
+
+                        <td className="px-4 py-4 align-top">
+                          <div className="flex justify-end gap-2">
+                            <Link
+                              href={`/dashboard/invoices/${invoice.id}`}
+                              className="rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+                            >
+                              Szczegóły
+                            </Link>
+
+                            <Link
+                              href={`/dashboard/invoices/${invoice.id}/edit`}
+                              className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
+                            >
+                              Edytuj
+                            </Link>
+
+                            <Link
+                              href={`/dashboard/invoices/${invoice.id}/print`}
+                              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
+                            >
+                              Drukuj
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

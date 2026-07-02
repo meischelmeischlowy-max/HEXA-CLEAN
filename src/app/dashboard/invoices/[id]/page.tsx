@@ -1,449 +1,335 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import InvoicePaymentRecorder from "@/components/dashboard/InvoicePaymentRecorder";
+import InvoiceStatusQuickActions from "@/components/dashboard/InvoiceStatusQuickActions";
 
-import CreatePaymentFromInvoiceButton from "@/components/dashboard/CreatePaymentFromInvoiceButton";
-import MarkInvoiceAsSentButton from "@/components/dashboard/MarkInvoiceAsSentButton";
-import RecordLink from "@/components/dashboard/RecordLink";
-import { dashboardService } from "@/services/dashboardService";
+export const dynamic = "force-dynamic";
 
-function formatValue(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return "—";
-  }
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
 
-  if (value instanceof Date) {
-    return value.toLocaleString("de-CH");
-  }
+const prisma = new PrismaClient({ adapter });
 
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-
-  return String(value);
-}
-
-function formatMoney(value: unknown, currency = "CHF") {
-  if (value === null || value === undefined || value === "") {
-    return "—";
-  }
-
-  return `${String(value)} ${currency}`;
-}
-
-function InfoCard({ label, value }: { label: string; value: unknown }) {
-  return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-        {label}
-      </p>
-      <p className="mt-2 break-words text-sm font-semibold text-white">
-        {formatValue(value)}
-      </p>
-    </div>
-  );
-}
-
-function DataSection({
-  title,
-  items,
-  basePath,
-}: {
-  title: string;
-  items: Record<string, unknown>[];
-  basePath?: string;
-}) {
-  return (
-    <section className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">{title}</h2>
-
-        <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-400">
-          {items.length}
-        </span>
-      </div>
-
-      {items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Brak danych.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-              <tr>
-                <th className="border-b border-neutral-800 px-3 py-3">ID</th>
-                <th className="border-b border-neutral-800 px-3 py-3">
-                  Status / Typ
-                </th>
-                <th className="border-b border-neutral-800 px-3 py-3">
-                  Numer / Nazwa
-                </th>
-                <th className="border-b border-neutral-800 px-3 py-3">
-                  Data
-                </th>
-                <th className="border-b border-neutral-800 px-3 py-3">
-                  Akcja
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {items.map((item) => {
-                const itemId = item.id ? String(item.id) : "";
-
-                return (
-                  <tr
-                    key={itemId || JSON.stringify(item)}
-                    className="border-b border-neutral-800"
-                  >
-                    <td className="max-w-[220px] truncate px-3 py-3 text-neutral-400">
-                      {formatValue(item.id)}
-                    </td>
-
-                    <td className="px-3 py-3 text-neutral-300">
-                      {formatValue(item.status ?? item.type ?? item.channel)}
-                    </td>
-
-                    <td className="px-3 py-3 text-white">
-                      {formatValue(
-                        item.number ??
-                          item.orderNumber ??
-                          item.quoteNumber ??
-                          item.invoiceNumber ??
-                          item.paymentReference ??
-                          item.externalRef ??
-                          item.reference ??
-                          item.fileName ??
-                          item.subject ??
-                          item.action
-                      )}
-                    </td>
-
-                    <td className="px-3 py-3 text-neutral-400">
-                      {formatValue(item.createdAt)}
-                    </td>
-
-                    <td className="px-3 py-3">
-                      {basePath && itemId ? (
-                        <Link
-                          href={`${basePath}/${itemId}`}
-                          className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-400 transition hover:border-cyan-400 hover:bg-cyan-500/10"
-                        >
-                          Szczegóły
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-neutral-600">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}
-
-export default async function InvoiceDetailsPage({
-  params,
-}: {
+type PageProps = {
   params: Promise<{ id: string }>;
+};
+
+function normalizeCurrency(value: string | null | undefined) {
+  const raw = String(value || "CHF").trim().toUpperCase();
+
+  if (/^[A-Z]{3}$/.test(raw)) return raw;
+
+  if (raw.startsWith("CHF")) return "CHF";
+  if (raw.startsWith("EUR")) return "EUR";
+  if (raw.startsWith("USD")) return "USD";
+  if (raw.startsWith("PLN")) return "PLN";
+
+  return "CHF";
+}
+
+function formatMoney(value: unknown, currency: string | null | undefined = "CHF") {
+  const number = Number(value ?? 0);
+
+  return new Intl.NumberFormat("de-CH", {
+    style: "currency",
+    currency: normalizeCurrency(currency),
+  }).format(Number.isFinite(number) ? number : 0);
+}
+
+function formatDate(value: Date | string | null | undefined) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("de-CH", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function statusLabel(status: string | null | undefined) {
+  switch (status) {
+    case "DRAFT":
+      return "Robocza";
+    case "SENT":
+      return "Wysłana";
+    case "PAID":
+      return "Opłacona";
+    case "PARTIALLY_PAID":
+      return "Częściowo opłacona";
+    case "OVERDUE":
+      return "Po terminie";
+    case "CANCELLED":
+      return "Anulowana";
+    default:
+      return status || "Brak statusu";
+  }
+}
+
+function customerName(customer: {
+  companyName: string | null;
+  firstName: string | null;
+  lastName: string | null;
 }) {
+  if (customer.companyName) return customer.companyName;
+
+  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
+
+  return fullName || "Brak klienta";
+}
+
+function customerAddress(customer: {
+  street?: string | null;
+  postalCode?: string | null;
+  postCode?: string | null;
+  zipCode?: string | null;
+  zip?: string | null;
+  city?: string | null;
+  country?: string | null;
+}) {
+  const zipValue =
+    customer.postalCode || customer.postCode || customer.zipCode || customer.zip || null;
+
+  const line = [customer.street, zipValue, customer.city, customer.country]
+    .filter(Boolean)
+    .join(", ");
+
+  return line || "—";
+}
+
+export default async function InvoiceDetailsPage({ params }: PageProps) {
   const { id } = await params;
 
-  const result = (await dashboardService.getInvoiceDetails(id)) as any;
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    include: {
+      customer: true,
+    },
+  });
 
-  if (result.status !== "OK" || !result.details) {
+  if (!invoice) {
     notFound();
   }
 
-  const details = result.details;
-
-  const invoice = details.invoice;
-  const customer = details.customer;
-  const order = details.order;
-  const quote = details.quote;
-  const session = details.session;
-  const conversationMessages = details.conversationMessages ?? [];
-  const payments = details.payments ?? [];
-  const notifications = details.notifications ?? [];
-  const attachments = details.attachments ?? [];
-  const auditLogs = details.auditLogs ?? [];
-
-  const currency = invoice.currency ?? "CHF";
-  const firstPayment = payments[0] ?? null;
-
-  const isDraft = invoice.status === "DRAFT";
-  const isSent = invoice.status === "SENT";
-  const isPaid = invoice.status === "PAID";
+  const total = Number(invoice.total ?? 0);
+  const paidAmount = Number(invoice.paidAmount ?? 0);
+  const remainingAmount = total - paidAmount;
+  const currency = normalizeCurrency(invoice.currency);
 
   return (
-    <main className="min-h-screen p-6 lg:p-10">
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <Link
-            href="/dashboard/invoices"
-            className="text-sm text-cyan-400 transition hover:text-cyan-300"
-          >
-            ← Wróć do faktur
-          </Link>
+    <main className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.3em] text-cyan-400">
+                Faktura
+              </p>
 
-          <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
-            HEXA OS
-          </p>
+              <h1 className="mt-2 text-3xl font-bold text-white">
+                {invoice.invoiceNumber || invoice.id}
+              </h1>
 
-          <h1 className="mt-3 text-3xl font-bold">Szczegóły faktury</h1>
-
-          <p className="mt-2 text-sm text-neutral-500">
-            Pełne dane faktury oraz powiązany klient, zlecenie, oferta,
-            płatności, załączniki i historia systemu.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 lg:items-end">
-          {isPaid ? (
-            <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
-              Faktura opłacona
+              <p className="mt-2 text-sm text-slate-400">
+                Szczegóły faktury, kwoty, płatność i szybkie akcje.
+              </p>
             </div>
-          ) : isSent ? (
-            <div className="rounded-xl border border-sky-600 bg-sky-950/50 px-4 py-3 text-sm font-semibold text-sky-100">
-              Faktura wysłana
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/dashboard/invoices"
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
+              >
+                Wróć
+              </Link>
+
+              <Link
+                href={`/dashboard/invoices/${invoice.id}/edit`}
+                className="rounded-xl border border-amber-400/50 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/20"
+              >
+                Edytuj
+              </Link>
+
+              <Link
+                href={`/dashboard/invoices/${invoice.id}/print`}
+                className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+              >
+                Drukuj / PDF
+              </Link>
             </div>
-          ) : isDraft ? (
-            <MarkInvoiceAsSentButton invoiceId={invoice.id} />
-          ) : (
-            <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 px-4 py-3 text-sm font-semibold text-neutral-300">
-              Status faktury: {invoice.status}
-            </div>
-          )}
+          </div>
+        </section>
 
-          {firstPayment?.id ? (
-            <Link
-              href={`/dashboard/payments/${firstPayment.id}`}
-              className="rounded-xl border border-violet-600 bg-violet-950/50 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-300 hover:bg-violet-900/70"
-            >
-              Otwórz płatność
-            </Link>
-          ) : (
-            <CreatePaymentFromInvoiceButton invoiceId={invoice.id} />
-          )}
-        </div>
-      </div>
+        <section className="grid gap-6 xl:grid-cols-4">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Status</p>
+            <p className="mt-2 text-2xl font-bold text-white">{statusLabel(invoice.status)}</p>
+          </div>
 
-      <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-        <h2 className="mb-4 text-xl font-bold">Szybka nawigacja CRM</h2>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <RecordLink
-            label="Klient"
-            href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={
-              customer?.companyName ??
-              customer?.name ??
-              customer?.email ??
-              customer?.id
-            }
-          />
-
-          <RecordLink
-            label="Zlecenie"
-            href={order?.id ? `/dashboard/orders/${order.id}` : null}
-            value={order?.orderNumber ?? order?.number ?? order?.id}
-          />
-
-          <RecordLink
-            label="Oferta"
-            href={quote?.id ? `/dashboard/quotes/${quote.id}` : null}
-            value={quote?.quoteNumber ?? quote?.number ?? quote?.id}
-          />
-
-          <RecordLink
-            label="Pierwsza płatność"
-            href={
-              firstPayment?.id
-                ? `/dashboard/payments/${firstPayment.id}`
-                : null
-            }
-            value={
-              firstPayment?.paymentReference ??
-              firstPayment?.externalRef ??
-              firstPayment?.reference ??
-              firstPayment?.id
-            }
-          />
-        </div>
-      </section>
-
-      <section className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-        <h2 className="mb-4 text-xl font-bold">Faktura</h2>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="ID" value={invoice.id} />
-          <InfoCard
-            label="Numer"
-            value={invoice.invoiceNumber ?? invoice.number}
-          />
-          <InfoCard label="Status" value={invoice.status} />
-          <InfoCard label="Waluta" value={currency} />
-          <InfoCard
-            label="Subtotal"
-            value={formatMoney(invoice.subtotal, currency)}
-          />
-          <InfoCard label="Tax Rate" value={invoice.taxRate} />
-          <InfoCard
-            label="Tax Amount"
-            value={formatMoney(invoice.taxAmount, currency)}
-          />
-          <InfoCard label="Total" value={formatMoney(invoice.total, currency)} />
-          <InfoCard
-            label="Zapłacono"
-            value={formatMoney(invoice.paidAmount, currency)}
-          />
-          <InfoCard label="Data wystawienia" value={invoice.issueDate} />
-          <InfoCard label="Termin płatności" value={invoice.dueDate} />
-          <InfoCard label="Wysłano" value={invoice.sentAt} />
-          <InfoCard label="Opłacono" value={invoice.paidAt} />
-          <InfoCard label="Klient ID" value={invoice.customerId} />
-          <InfoCard label="Zlecenie ID" value={invoice.orderId} />
-          <InfoCard label="Oferta ID" value={invoice.quoteId} />
-          <InfoCard label="Utworzono" value={invoice.createdAt} />
-          <InfoCard label="Aktualizacja" value={invoice.updatedAt} />
-        </div>
-      </section>
-
-      <section className="mb-8 grid gap-6 xl:grid-cols-4">
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Klient</h2>
-
-          {customer ? (
-            <div className="grid gap-4">
-              <RecordLink
-                label="Otwórz klienta"
-                href={`/dashboard/customers/${customer.id}`}
-                value={
-                  customer.companyName ??
-                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim() ??
-                  customer.email ??
-                  customer.id
-                }
-              />
-              <InfoCard label="ID" value={customer.id} />
-              <InfoCard
-                label="Imię / nazwa"
-                value={
-                  customer.companyName ??
-                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim()
-                }
-              />
-              <InfoCard label="Email" value={customer.email} />
-              <InfoCard label="Telefon" value={customer.phone} />
-            </div>
-          ) : (
-            <p className="text-sm text-neutral-500">
-              Brak powiązanego klienta.
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Suma brutto</p>
+            <p className="mt-2 text-2xl font-bold text-white">
+              {formatMoney(invoice.total, currency)}
             </p>
-          )}
-        </div>
+          </div>
 
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Zlecenie</h2>
-
-          {order ? (
-            <div className="grid gap-4">
-              <RecordLink
-                label="Otwórz zlecenie"
-                href={`/dashboard/orders/${order.id}`}
-                value={order.orderNumber ?? order.number ?? order.id}
-              />
-              <InfoCard label="ID" value={order.id} />
-              <InfoCard
-                label="Numer"
-                value={order.orderNumber ?? order.number}
-              />
-              <InfoCard label="Status" value={order.status} />
-              <InfoCard
-                label="Usługa"
-                value={order.serviceType ?? order.service}
-              />
-            </div>
-          ) : (
-            <p className="text-sm text-neutral-500">
-              Brak powiązanego zlecenia.
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Zapłacono</p>
+            <p className="mt-2 text-2xl font-bold text-emerald-300">
+              {formatMoney(invoice.paidAmount, currency)}
             </p>
-          )}
-        </div>
+          </div>
 
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Oferta</h2>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <p className="text-sm text-slate-400">Pozostało</p>
+            <p className="mt-2 text-2xl font-bold text-rose-300">
+              {formatMoney(remainingAmount, currency)}
+            </p>
+          </div>
+        </section>
 
-          {quote ? (
-            <div className="grid gap-4">
-              <RecordLink
-                label="Otwórz ofertę"
-                href={`/dashboard/quotes/${quote.id}`}
-                value={quote.quoteNumber ?? quote.number ?? quote.id}
-              />
-              <InfoCard label="ID" value={quote.id} />
-              <InfoCard
-                label="Numer"
-                value={quote.quoteNumber ?? quote.number}
-              />
-              <InfoCard label="Status" value={quote.status} />
-              <InfoCard
-                label="Total"
-                value={formatMoney(quote.total, currency)}
-              />
+        <InvoiceStatusQuickActions
+          invoiceId={invoice.id}
+          currentStatus={invoice.status}
+          total={total}
+          paidAmount={paidAmount}
+        />
+
+        <InvoicePaymentRecorder
+          invoiceId={invoice.id}
+          total={total}
+          paidAmount={paidAmount}
+          currency={currency}
+        />
+
+        <section className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <h2 className="text-xl font-bold text-white">Dane faktury</h2>
+
+            <div className="mt-5 grid gap-4 text-sm">
+              <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                <span className="text-slate-400">Numer faktury</span>
+                <span className="font-medium text-white">{invoice.invoiceNumber || "—"}</span>
+              </div>
+
+              <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                <span className="text-slate-400">Data faktury</span>
+                <span className="font-medium text-white">{formatDate(invoice.issueDate)}</span>
+              </div>
+
+              <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                <span className="text-slate-400">Termin płatności</span>
+                <span className="font-medium text-white">{formatDate(invoice.dueDate)}</span>
+              </div>
+
+              <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                <span className="text-slate-400">Waluta</span>
+                <span className="font-medium text-white">{currency}</span>
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-400">ID faktury</span>
+                <span className="break-all text-right font-mono text-xs text-slate-300">
+                  {invoice.id}
+                </span>
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-neutral-500">Brak powiązanej oferty.</p>
-          )}
-        </div>
+          </div>
 
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Sesja</h2>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+            <h2 className="text-xl font-bold text-white">Klient</h2>
 
-          {session ? (
-            <div className="grid gap-4">
-              <InfoCard label="ID" value={session.id} />
-              <InfoCard label="Status" value={session.status} />
-              <InfoCard label="Utworzono" value={session.createdAt} />
-              <InfoCard label="Zakończono" value={session.endedAt} />
+            <div className="mt-5 grid gap-4 text-sm">
+              <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                <span className="text-slate-400">Nazwa</span>
+                <span className="font-medium text-white">{customerName(invoice.customer)}</span>
+              </div>
+
+              <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                <span className="text-slate-400">E-mail</span>
+                <span className="font-medium text-white">{invoice.customer.email || "—"}</span>
+              </div>
+
+              <div className="flex justify-between gap-4 border-b border-slate-800 pb-3">
+                <span className="text-slate-400">Telefon</span>
+                <span className="font-medium text-white">{invoice.customer.phone || "—"}</span>
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-slate-400">Adres</span>
+                <span className="max-w-sm text-right font-medium text-white">
+                  {customerAddress(invoice.customer)}
+                </span>
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-neutral-500">Brak powiązanej sesji.</p>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
 
-      <div className="grid gap-6">
-        <DataSection
-          title="Wiadomości rozmów"
-          items={conversationMessages as Record<string, unknown>[]}
-        />
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+          <h2 className="text-xl font-bold text-white">Kwoty</h2>
 
-        <DataSection
-          title="Płatności"
-          items={payments as Record<string, unknown>[]}
-          basePath="/dashboard/payments"
-        />
+          <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800">
+            <table className="w-full text-left text-sm">
+              <tbody className="divide-y divide-slate-800">
+                <tr>
+                  <td className="bg-slate-950/60 px-4 py-3 text-slate-400">Subtotal</td>
+                  <td className="px-4 py-3 text-right font-semibold text-white">
+                    {formatMoney(invoice.subtotal, currency)}
+                  </td>
+                </tr>
 
-        <DataSection
-          title="Powiadomienia"
-          items={notifications as Record<string, unknown>[]}
-          basePath="/dashboard/notifications"
-        />
+                <tr>
+                  <td className="bg-slate-950/60 px-4 py-3 text-slate-400">Podatek %</td>
+                  <td className="px-4 py-3 text-right font-semibold text-white">
+                    {Number(invoice.taxRate ?? 0).toFixed(2)}%
+                  </td>
+                </tr>
 
-        <DataSection
-          title="Załączniki"
-          items={attachments as Record<string, unknown>[]}
-          basePath="/dashboard/attachments"
-        />
+                <tr>
+                  <td className="bg-slate-950/60 px-4 py-3 text-slate-400">Kwota podatku</td>
+                  <td className="px-4 py-3 text-right font-semibold text-white">
+                    {formatMoney(invoice.taxAmount, currency)}
+                  </td>
+                </tr>
 
-        <DataSection
-          title="Audit Logi"
-          items={auditLogs as Record<string, unknown>[]}
-          basePath="/dashboard/audit-logs"
-        />
+                <tr>
+                  <td className="bg-slate-950/60 px-4 py-3 text-slate-400">Total</td>
+                  <td className="px-4 py-3 text-right text-lg font-bold text-cyan-200">
+                    {formatMoney(invoice.total, currency)}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="bg-slate-950/60 px-4 py-3 text-slate-400">Zapłacono</td>
+                  <td className="px-4 py-3 text-right font-semibold text-emerald-300">
+                    {formatMoney(invoice.paidAmount, currency)}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="bg-slate-950/60 px-4 py-3 text-slate-400">Pozostało</td>
+                  <td className="px-4 py-3 text-right font-semibold text-rose-300">
+                    {formatMoney(remainingAmount, currency)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+          <h2 className="text-xl font-bold text-white">Notatki / treść faktury</h2>
+
+          <div className="mt-4 min-h-32 rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm leading-6 text-slate-300">
+            {invoice.notes ? (
+              <p className="whitespace-pre-wrap">{invoice.notes}</p>
+            ) : (
+              <p className="text-slate-500">Brak notatek.</p>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   );
