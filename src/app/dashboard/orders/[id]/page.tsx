@@ -1,10 +1,72 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-import CreateQuoteFromOrderButton from "@/components/dashboard/CreateQuoteFromOrderButton";
 import MarkOrderAsCompletedButton from "@/components/dashboard/MarkOrderAsCompletedButton";
-import RecordLink from "@/components/dashboard/RecordLink";
-import { dashboardService } from "@/services/dashboardService";
+
+export const dynamic = "force-dynamic";
+
+const globalForPrisma = globalThis as unknown as {
+  hexaPrisma?: PrismaClient;
+};
+
+const prisma =
+  globalForPrisma.hexaPrisma ??
+  new PrismaClient({
+    adapter: new PrismaPg({
+      connectionString: process.env.DATABASE_URL ?? "",
+    }),
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.hexaPrisma = prisma;
+}
+
+type Row = Record<string, any>;
+
+type PrismaModel = {
+  findUnique?: (args: any) => Promise<unknown>;
+  findMany?: (args: any) => Promise<unknown>;
+};
+
+const prismaAny = prisma as unknown as Record<string, PrismaModel>;
+
+async function safeFindUnique<T = Row>(
+  modelName: string,
+  args: any
+): Promise<T | null> {
+  const model = prismaAny[modelName];
+
+  if (!model?.findUnique) {
+    return null;
+  }
+
+  try {
+    const result = await model.findUnique(args);
+    return (result ?? null) as T | null;
+  } catch {
+    return null;
+  }
+}
+
+async function safeFindMany<T = Row>(
+  modelName: string,
+  args: any
+): Promise<T[]> {
+  const model = prismaAny[modelName];
+
+  if (!model?.findMany) {
+    return [];
+  }
+
+  try {
+    const result = await model.findMany(args);
+    return Array.isArray(result) ? (result as T[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
@@ -15,16 +77,97 @@ function formatValue(value: unknown) {
     return value.toLocaleString("de-CH");
   }
 
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+
   if (typeof value === "object") {
+    const asObject = value as { toString?: () => string };
+    const stringValue = asObject.toString?.();
+
+    if (stringValue && stringValue !== "[object Object]") {
+      return stringValue;
+    }
+
     return JSON.stringify(value);
   }
 
   return String(value);
 }
 
-function InfoCard({ label, value }: { label: string; value: unknown }) {
+function formatMoney(value: unknown, currency = "CHF") {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  const amount = Number(value);
+
+  if (Number.isNaN(amount)) {
+    return formatValue(value);
+  }
+
+  return new Intl.NumberFormat("de-CH", {
+    style: "currency",
+    currency,
+  }).format(amount);
+}
+
+function customerName(customer: Row | null) {
+  if (!customer) {
+    return "—";
+  }
+
+  const fullName = `${customer.firstName ?? ""} ${
+    customer.lastName ?? ""
+  }`.trim();
+
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
+    customer.companyName ??
+    customer.name ??
+    fullName ??
+    customer.email ??
+    customer.phone ??
+    customer.id
+  );
+}
+
+function statusLabel(status: unknown) {
+  const value = String(status ?? "");
+
+  const labels: Record<string, string> = {
+    NEW: "Nowe",
+    OPEN: "Otwarte",
+    PENDING: "Oczekuje",
+    IN_PROGRESS: "W trakcie",
+    COMPLETED: "Zakończone",
+    CANCELLED: "Anulowane",
+    PAID: "Opłacone",
+    PARTIALLY_PAID: "Częściowo opłacone",
+    UNPAID: "Nieopłacone",
+    DRAFT: "Szkic",
+    SENT: "Wysłane",
+    ACCEPTED: "Zaakceptowane",
+    REJECTED: "Odrzucone",
+  };
+
+  return labels[value] ?? formatValue(status);
+}
+
+function InfoCard({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value: unknown;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border border-neutral-800 bg-neutral-950/50 p-4 ${
+        wide ? "md:col-span-2 xl:col-span-4" : ""
+      }`}
+    >
       <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
         {label}
       </p>
@@ -35,89 +178,147 @@ function InfoCard({ label, value }: { label: string; value: unknown }) {
   );
 }
 
-function DataSection({
+function StatCard({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: unknown;
+  href?: string | null;
+}) {
+  const content = (
+    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 transition hover:border-cyan-400/60 hover:bg-cyan-500/10">
+      <p className="text-xs uppercase tracking-[0.2em] text-cyan-400">
+        {label}
+      </p>
+      <p className="mt-2 break-words text-xl font-bold text-white">
+        {formatValue(value)}
+      </p>
+    </div>
+  );
+
+  if (!href) {
+    return content;
+  }
+
+  return <Link href={href}>{content}</Link>;
+}
+
+function ActionButton({
+  href,
+  children,
+  variant = "default",
+}: {
+  href: string;
+  children: React.ReactNode;
+  variant?: "default" | "primary";
+}) {
+  const classes =
+    variant === "primary"
+      ? "border-cyan-500 bg-cyan-500/10 text-cyan-100 hover:border-cyan-300 hover:bg-cyan-500/20"
+      : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-cyan-500/70 hover:text-cyan-200";
+
+  return (
+    <Link
+      href={href}
+      className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${classes}`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function Section({
   title,
-  items,
-  basePath,
+  children,
+  count,
 }: {
   title: string;
-  items: Record<string, unknown>[];
-  basePath?: string;
+  children: React.ReactNode;
+  count?: number;
 }) {
   return (
     <section className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">{title}</h2>
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <h2 className="text-xl font-bold text-white">{title}</h2>
 
-        <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-400">
-          {items.length}
-        </span>
+        {typeof count === "number" ? (
+          <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-400">
+            {count}
+          </span>
+        ) : null}
       </div>
 
+      {children}
+    </section>
+  );
+}
+
+function MiniTable({
+  title,
+  items,
+  basePath,
+  columns,
+}: {
+  title: string;
+  items: Row[];
+  basePath?: string;
+  columns: {
+    label: string;
+    value: (item: Row) => unknown;
+    money?: boolean;
+  }[];
+}) {
+  return (
+    <Section title={title} count={items.length}>
       {items.length === 0 ? (
         <p className="text-sm text-neutral-500">Brak danych.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
+          <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="text-xs uppercase tracking-[0.2em] text-neutral-500">
               <tr>
-                <th className="border-b border-neutral-800 px-3 py-3">ID</th>
+                {columns.map((column) => (
+                  <th
+                    key={column.label}
+                    className="border-b border-neutral-800 px-3 py-3"
+                  >
+                    {column.label}
+                  </th>
+                ))}
+
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Status / Typ
-                </th>
-                <th className="border-b border-neutral-800 px-3 py-3">
-                  Numer / Nazwa
-                </th>
-                <th className="border-b border-neutral-800 px-3 py-3">
-                  Data
-                </th>
-                <th className="border-b border-neutral-800 px-3 py-3">
-                  Akcja
+                  Akcje
                 </th>
               </tr>
             </thead>
 
             <tbody>
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const itemId = item.id ? String(item.id) : "";
 
                 return (
                   <tr
-                    key={itemId || JSON.stringify(item)}
+                    key={itemId || `${title}-${index}`}
                     className="border-b border-neutral-800"
                   >
-                    <td className="max-w-[220px] truncate px-3 py-3 text-neutral-400">
-                      {formatValue(item.id)}
-                    </td>
-
-                    <td className="px-3 py-3 text-neutral-300">
-                      {formatValue(item.status ?? item.type ?? item.channel)}
-                    </td>
-
-                    <td className="px-3 py-3 text-white">
-                      {formatValue(
-                        item.number ??
-                          item.orderNumber ??
-                          item.quoteNumber ??
-                          item.invoiceNumber ??
-                          item.paymentReference ??
-                          item.externalRef ??
-                          item.reference ??
-                          item.fileName ??
-                          item.subject ??
-                          item.action
-                      )}
-                    </td>
-
-                    <td className="px-3 py-3 text-neutral-400">
-                      {formatValue(item.createdAt)}
-                    </td>
+                    {columns.map((column) => (
+                      <td
+                        key={column.label}
+                        className="max-w-[280px] truncate px-3 py-3 text-neutral-300"
+                      >
+                        {column.money
+                          ? formatMoney(column.value(item), item.currency)
+                          : formatValue(column.value(item))}
+                      </td>
+                    ))}
 
                     <td className="px-3 py-3">
                       {basePath && itemId ? (
                         <Link
                           href={`${basePath}/${itemId}`}
-                          className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-400 transition hover:border-cyan-400 hover:bg-cyan-500/10"
+                          className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-300 transition hover:border-cyan-300 hover:bg-cyan-500/10"
                         >
                           Szczegóły
                         </Link>
@@ -132,7 +333,7 @@ function DataSection({
           </table>
         </div>
       )}
-    </section>
+    </Section>
   );
 }
 
@@ -143,33 +344,93 @@ export default async function OrderDetailsPage({
 }) {
   const { id } = await params;
 
-  const result = (await dashboardService.getOrderDetails(id)) as any;
+  const order = await safeFindUnique<Row>("order", {
+    where: { id },
+  });
 
-  if (result.status !== "OK" || !result.details) {
+  if (!order) {
     notFound();
   }
 
-  const details = result.details;
+  const [customer, session, estimates, invoices, notifications, attachments, auditLogs] =
+    await Promise.all([
+      order.customerId
+        ? safeFindUnique<Row>("customer", {
+            where: { id: order.customerId },
+          })
+        : Promise.resolve(null),
 
-  const order = details.order;
-  const customer = details.customer;
-  const session = details.session;
-  const conversationMessages = details.conversationMessages ?? [];
-  const quotes = details.quotes ?? [];
-  const invoices = details.invoices ?? [];
-  const payments = details.payments ?? [];
-  const notifications = details.notifications ?? [];
-  const attachments = details.attachments ?? [];
-  const auditLogs = details.auditLogs ?? [];
+      order.sessionId
+        ? safeFindUnique<Row>("session", {
+            where: { id: order.sessionId },
+          })
+        : Promise.resolve(null),
 
-  const firstQuote = quotes[0] ?? null;
-  const firstInvoice = invoices[0] ?? null;
-  const firstPayment = payments[0] ?? null;
-  const isCompleted = order.status === "COMPLETED";
+      safeFindMany<Row>("estimate", {
+        where: { orderId: order.id },
+        orderBy: { createdAt: "desc" },
+      }),
+
+      safeFindMany<Row>("invoice", {
+        where: { orderId: order.id },
+        orderBy: { createdAt: "desc" },
+      }),
+
+      safeFindMany<Row>("notification", {
+        where: { orderId: order.id },
+        orderBy: { createdAt: "desc" },
+      }),
+
+      safeFindMany<Row>("attachment", {
+        where: { orderId: order.id },
+        orderBy: { createdAt: "desc" },
+      }),
+
+      safeFindMany<Row>("auditLog", {
+        where: { orderId: order.id },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+  const invoiceIds = invoices
+    .map((invoice) => invoice.id)
+    .filter(Boolean)
+    .map(String);
+
+  const [payments, conversationMessages] = await Promise.all([
+    invoiceIds.length > 0
+      ? safeFindMany<Row>("payment", {
+          where: {
+            invoiceId: {
+              in: invoiceIds,
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
+
+    order.sessionId
+      ? safeFindMany<Row>("conversationMessage", {
+          where: { sessionId: order.sessionId },
+          orderBy: { createdAt: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const currency = String(order.currency ?? "CHF");
+  const completed = order.status === "COMPLETED";
+
+  const totalInvoices = invoices.reduce((sum, invoice) => {
+    return sum + Number(invoice.totalAmount ?? invoice.amount ?? 0);
+  }, 0);
+
+  const totalPaid = payments.reduce((sum, payment) => {
+    return sum + Number(payment.amount ?? payment.paidAmount ?? 0);
+  }, 0);
 
   return (
-    <main className="min-h-screen p-6 lg:p-10">
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <main className="min-h-screen p-6 text-white lg:p-10">
+      <div className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <Link
             href="/dashboard/orders"
@@ -179,212 +440,363 @@ export default async function OrderDetailsPage({
           </Link>
 
           <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
-            HEXA OS
+            HEXA OS CRM
           </p>
 
-          <h1 className="mt-3 text-3xl font-bold">Szczegóły zlecenia</h1>
+          <h1 className="mt-3 text-3xl font-bold">
+            Zlecenie {formatValue(order.orderNumber ?? order.number ?? order.id)}
+          </h1>
 
-          <p className="mt-2 text-sm text-neutral-500">
-            Pełne dane zlecenia oraz powiązany klient, sesja, oferty, faktury,
-            płatności, załączniki i historia systemu.
+          <p className="mt-2 max-w-3xl text-sm text-neutral-500">
+            Pełny widok zlecenia: klient, dane usługi, terminy, wyceny,
+            faktury, płatności, wiadomości, załączniki i historia zmian.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 lg:items-end">
-          {isCompleted ? (
+        <div className="flex flex-wrap gap-3 xl:justify-end">
+          <ActionButton href={`/dashboard/orders/${order.id}/edit`} variant="primary">
+            Edytuj zlecenie
+          </ActionButton>
+
+          <ActionButton href="/dashboard/orders">Lista zleceń</ActionButton>
+
+          {customer?.id ? (
+            <ActionButton href={`/dashboard/customers/${customer.id}`}>
+              Klient
+            </ActionButton>
+          ) : null}
+
+          <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
+            Wyceny
+          </ActionButton>
+
+          <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
+            Faktury
+          </ActionButton>
+
+          <ActionButton href={`/dashboard/payments?orderId=${order.id}`}>
+            Płatności
+          </ActionButton>
+
+          {completed ? (
             <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
               Zlecenie zakończone
             </div>
           ) : (
             <MarkOrderAsCompletedButton orderId={order.id} />
           )}
-
-          {firstQuote?.id ? (
-            <Link
-              href={`/dashboard/quotes/${firstQuote.id}`}
-              className="rounded-xl border border-cyan-600 bg-cyan-950/50 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-900/70"
-            >
-              Otwórz ofertę
-            </Link>
-          ) : (
-            <CreateQuoteFromOrderButton orderId={order.id} />
-          )}
         </div>
       </div>
 
-      <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-        <h2 className="mb-4 text-xl font-bold">Szybka nawigacja CRM</h2>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <RecordLink
-            label="Klient"
-            href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={customer?.name ?? customer?.email ?? customer?.id}
-          />
-
-          <RecordLink
-            label="Pierwsza oferta"
-            href={firstQuote?.id ? `/dashboard/quotes/${firstQuote.id}` : null}
-            value={
-              firstQuote?.quoteNumber ??
-              firstQuote?.number ??
-              firstQuote?.id
-            }
-          />
-
-          <RecordLink
-            label="Pierwsza faktura"
-            href={
-              firstInvoice?.id ? `/dashboard/invoices/${firstInvoice.id}` : null
-            }
-            value={
-              firstInvoice?.invoiceNumber ??
-              firstInvoice?.number ??
-              firstInvoice?.id
-            }
-          />
-
-          <RecordLink
-            label="Pierwsza płatność"
-            href={
-              firstPayment?.id
-                ? `/dashboard/payments/${firstPayment.id}`
-                : null
-            }
-            value={
-              firstPayment?.paymentReference ??
-              firstPayment?.externalRef ??
-              firstPayment?.reference ??
-              firstPayment?.id
-            }
-          />
-        </div>
+      <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Status" value={statusLabel(order.status)} />
+        <StatCard label="Klient" value={customerName(customer)} href={customer?.id ? `/dashboard/customers/${customer.id}` : null} />
+        <StatCard label="Wyceny" value={estimates.length} href={`/dashboard/estimates?orderId=${order.id}`} />
+        <StatCard label="Faktury" value={invoices.length} href={`/dashboard/invoices?orderId=${order.id}`} />
+        <StatCard label="Wpłaty" value={formatMoney(totalPaid, currency)} href={`/dashboard/payments?orderId=${order.id}`} />
       </section>
 
-      <section className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-        <h2 className="mb-4 text-xl font-bold">Zlecenie</h2>
+      <section className="mb-8 grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+        <Section title="Dane zlecenia">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <InfoCard label="ID" value={order.id} />
+            <InfoCard label="Numer" value={order.orderNumber ?? order.number} />
+            <InfoCard label="Status" value={statusLabel(order.status)} />
+            <InfoCard label="Typ usługi" value={order.serviceType ?? order.type} />
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="ID" value={order.id} />
-          <InfoCard label="Numer" value={order.orderNumber ?? order.number} />
-          <InfoCard label="Status" value={order.status} />
-          <InfoCard label="Typ usługi" value={order.serviceType ?? order.type} />
-          <InfoCard label="Tytuł" value={order.title} />
-          <InfoCard label="Opis" value={order.description} />
-          <InfoCard label="Cena szacowana" value={order.estimatedPrice} />
-          <InfoCard label="Cena końcowa" value={order.finalPrice} />
-          <InfoCard label="Waluta" value={order.currency} />
-          <InfoCard label="Klient ID" value={order.customerId} />
-          <InfoCard label="Sesja ID" value={order.sessionId} />
-          <InfoCard
-            label="Adres"
-            value={order.serviceStreet ?? order.address}
-          />
-          <InfoCard
-            label="Miasto"
-            value={order.serviceCity ?? order.city}
-          />
-          <InfoCard
-            label="Kod pocztowy"
-            value={order.serviceZipCode ?? order.postalCode}
-          />
-          <InfoCard
-            label="Data preferowana"
-            value={order.preferredDate ?? order.serviceDate}
-          />
-          <InfoCard label="Start" value={order.scheduledStart} />
-          <InfoCard label="Koniec" value={order.scheduledEnd} />
-          <InfoCard label="Utworzono" value={order.createdAt} />
-          <InfoCard label="Aktualizacja" value={order.updatedAt} />
+            <InfoCard label="Tytuł" value={order.title} />
+            <InfoCard label="Waluta" value={currency} />
+            <InfoCard
+              label="Cena szacowana"
+              value={formatMoney(order.estimatedPrice, currency)}
+            />
+            <InfoCard
+              label="Cena końcowa"
+              value={formatMoney(order.finalPrice, currency)}
+            />
+
+            <InfoCard label="Start" value={order.scheduledStart} />
+            <InfoCard label="Koniec" value={order.scheduledEnd} />
+            <InfoCard label="Utworzono" value={order.createdAt} />
+            <InfoCard label="Aktualizacja" value={order.updatedAt} />
+
+            <InfoCard label="Ulica / adres usługi" value={order.serviceStreet} />
+            <InfoCard label="Kod pocztowy" value={order.serviceZipCode} />
+            <InfoCard label="Miasto" value={order.serviceCity} />
+            <InfoCard label="Kraj" value={order.serviceCountry} />
+
+            <InfoCard label="Opis" value={order.description} wide />
+            <InfoCard label="Notatki" value={order.notes} wide />
+          </div>
+        </Section>
+
+        <div className="grid gap-6">
+          <Section title="Klient">
+            {customer ? (
+              <div className="grid gap-4">
+                <InfoCard label="Nazwa" value={customerName(customer)} />
+                <InfoCard label="Email" value={customer.email} />
+                <InfoCard label="Telefon" value={customer.phone} />
+                <InfoCard
+                  label="Adres"
+                  value={[
+                    customer.street,
+                    customer.zipCode,
+                    customer.city,
+                    customer.country,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                />
+
+                <Link
+                  href={`/dashboard/customers/${customer.id}`}
+                  className="rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-500/20"
+                >
+                  Otwórz kartę klienta
+                </Link>
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500">
+                Brak powiązanego klienta.
+              </p>
+            )}
+          </Section>
+
+          <Section title="Podsumowanie finansowe">
+            <div className="grid gap-4">
+              <InfoCard
+                label="Suma faktur"
+                value={formatMoney(totalInvoices, currency)}
+              />
+              <InfoCard
+                label="Suma wpłat"
+                value={formatMoney(totalPaid, currency)}
+              />
+              <InfoCard
+                label="Pozostało"
+                value={formatMoney(totalInvoices - totalPaid, currency)}
+              />
+            </div>
+          </Section>
         </div>
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-2">
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Klient</h2>
-
-          {customer ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <RecordLink
-                label="Otwórz klienta"
-                href={`/dashboard/customers/${customer.id}`}
-                value={customer.name ?? customer.email ?? customer.id}
-              />
-              <InfoCard label="ID" value={customer.id} />
-              <InfoCard
-                label="Imię / nazwa"
-                value={
-                  customer.companyName ??
-                  `${customer.firstName ?? ""} ${customer.lastName ?? ""}`.trim()
-                }
-              />
-              <InfoCard label="Email" value={customer.email} />
-              <InfoCard label="Telefon" value={customer.phone} />
-              <InfoCard label="Miasto" value={customer.city} />
-            </div>
-          ) : (
-            <p className="text-sm text-neutral-500">
-              Brak powiązanego klienta.
-            </p>
-          )}
-        </div>
-
-        <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Sesja</h2>
-
+        <Section title="Sesja / rozmowa">
           {session ? (
             <div className="grid gap-4 md:grid-cols-2">
-              <InfoCard label="ID" value={session.id} />
+              <InfoCard label="ID sesji" value={session.id} />
               <InfoCard label="Status" value={session.status} />
+              <InfoCard label="Kanał" value={session.channel} />
               <InfoCard label="Utworzono" value={session.createdAt} />
               <InfoCard label="Zakończono" value={session.endedAt} />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">Brak powiązanej sesji.</p>
           )}
-        </div>
+        </Section>
+
+        <Section title="Szybkie akcje">
+          <div className="grid gap-3 md:grid-cols-2">
+            <ActionButton href={`/dashboard/orders/${order.id}/edit`} variant="primary">
+              Popraw dane
+            </ActionButton>
+
+            <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
+              Przejdź do wycen
+            </ActionButton>
+
+            <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
+              Przejdź do faktur
+            </ActionButton>
+
+            <ActionButton href={`/dashboard/payments?orderId=${order.id}`}>
+              Przejdź do płatności
+            </ActionButton>
+          </div>
+        </Section>
       </section>
 
       <div className="grid gap-6">
-        <DataSection
-          title="Wiadomości rozmów"
-          items={conversationMessages as Record<string, unknown>[]}
+        <MiniTable
+          title="Wyceny"
+          items={estimates}
+          basePath="/dashboard/estimates"
+          columns={[
+            {
+              label: "Numer",
+              value: (item) => item.estimateNumber ?? item.number ?? item.id,
+            },
+            {
+              label: "Status",
+              value: (item) => statusLabel(item.status),
+            },
+            {
+              label: "Kwota",
+              value: (item) => item.totalAmount ?? item.amount,
+              money: true,
+            },
+            {
+              label: "Utworzono",
+              value: (item) => item.createdAt,
+            },
+          ]}
         />
 
-        <DataSection
-          title="Oferty"
-          items={quotes as Record<string, unknown>[]}
-          basePath="/dashboard/quotes"
-        />
-
-        <DataSection
+        <MiniTable
           title="Faktury"
-          items={invoices as Record<string, unknown>[]}
+          items={invoices}
           basePath="/dashboard/invoices"
+          columns={[
+            {
+              label: "Numer",
+              value: (item) => item.invoiceNumber ?? item.number ?? item.id,
+            },
+            {
+              label: "Status",
+              value: (item) => statusLabel(item.status),
+            },
+            {
+              label: "Suma",
+              value: (item) => item.totalAmount ?? item.amount,
+              money: true,
+            },
+            {
+              label: "Zapłacono",
+              value: (item) => item.paidAmount,
+              money: true,
+            },
+            {
+              label: "Termin",
+              value: (item) => item.dueDate,
+            },
+          ]}
         />
 
-        <DataSection
+        <MiniTable
           title="Płatności"
-          items={payments as Record<string, unknown>[]}
+          items={payments}
           basePath="/dashboard/payments"
+          columns={[
+            {
+              label: "Referencja",
+              value: (item) =>
+                item.paymentReference ??
+                item.externalRef ??
+                item.reference ??
+                item.id,
+            },
+            {
+              label: "Metoda",
+              value: (item) => item.method ?? item.paymentMethod,
+            },
+            {
+              label: "Status",
+              value: (item) => statusLabel(item.status),
+            },
+            {
+              label: "Kwota",
+              value: (item) => item.amount ?? item.paidAmount,
+              money: true,
+            },
+            {
+              label: "Data",
+              value: (item) => item.paidAt ?? item.createdAt,
+            },
+          ]}
         />
 
-        <DataSection
+        <MiniTable
+          title="Wiadomości rozmowy"
+          items={conversationMessages}
+          columns={[
+            {
+              label: "Rola",
+              value: (item) => item.role ?? item.sender ?? item.type,
+            },
+            {
+              label: "Treść",
+              value: (item) =>
+                item.content ?? item.message ?? item.text ?? item.body,
+            },
+            {
+              label: "Utworzono",
+              value: (item) => item.createdAt,
+            },
+          ]}
+        />
+
+        <MiniTable
           title="Powiadomienia"
-          items={notifications as Record<string, unknown>[]}
+          items={notifications}
           basePath="/dashboard/notifications"
+          columns={[
+            {
+              label: "Kanał",
+              value: (item) => item.channel ?? item.type,
+            },
+            {
+              label: "Status",
+              value: (item) => statusLabel(item.status),
+            },
+            {
+              label: "Temat",
+              value: (item) => item.subject ?? item.title ?? item.message,
+            },
+            {
+              label: "Utworzono",
+              value: (item) => item.createdAt,
+            },
+          ]}
         />
 
-        <DataSection
+        <MiniTable
           title="Załączniki"
-          items={attachments as Record<string, unknown>[]}
+          items={attachments}
           basePath="/dashboard/attachments"
+          columns={[
+            {
+              label: "Plik",
+              value: (item) => item.fileName ?? item.name ?? item.id,
+            },
+            {
+              label: "Typ",
+              value: (item) => item.mimeType ?? item.type,
+            },
+            {
+              label: "Rozmiar",
+              value: (item) => item.size ?? item.fileSize,
+            },
+            {
+              label: "Utworzono",
+              value: (item) => item.createdAt,
+            },
+          ]}
         />
 
-        <DataSection
-          title="Audit Logi"
-          items={auditLogs as Record<string, unknown>[]}
+        <MiniTable
+          title="Audit logi"
+          items={auditLogs}
           basePath="/dashboard/audit-logs"
+          columns={[
+            {
+              label: "Akcja",
+              value: (item) => item.action ?? item.event,
+            },
+            {
+              label: "Użytkownik",
+              value: (item) => item.userEmail ?? item.userId ?? item.actor,
+            },
+            {
+              label: "Opis",
+              value: (item) => item.description ?? item.message,
+            },
+            {
+              label: "Data",
+              value: (item) => item.createdAt,
+            },
+          ]}
         />
       </div>
     </main>

@@ -257,6 +257,14 @@ export default function DashboardCustomersPage() {
           </PremiumButton>
 
           <PremiumButton
+            href={`/dashboard/customers/${customer.id}/edit`}
+            variant="secondary"
+            size="sm"
+          >
+            Edytuj
+          </PremiumButton>
+
+          <PremiumButton
             href={`/dashboard/invoices?customerId=${customer.id}`}
             variant="secondary"
             size="sm"
@@ -284,6 +292,10 @@ export default function DashboardCustomersPage() {
           title="Baza klientów"
           description="Centralne miejsce dla klientów HEXA OS: dane kontaktowe, lokalizacje, historia zleceń, wyceny, faktury i płatności."
         >
+          <PremiumButton href="/dashboard/customers/new" variant="primary">
+            Dodaj klienta
+          </PremiumButton>
+
           <PremiumButton
             type="button"
             variant="secondary"
@@ -388,9 +400,9 @@ export default function DashboardCustomersPage() {
               empty={
                 <EmptyState
                   title="Brak klientów w bazie"
-                  description="Pierwszy klient pojawi się tutaj po dodaniu zlecenia telefonicznego, formularza kontaktowego albo zapytania z AI Concierge."
-                  actionLabel="Wróć do overview"
-                  actionHref="/dashboard"
+                  description="Dodaj klienta ręcznie albo utwórz go później z formularza kontaktowego, zlecenia lub AI Concierge."
+                  actionLabel="Dodaj klienta"
+                  actionHref="/dashboard/customers/new"
                 />
               }
             />
@@ -427,8 +439,8 @@ export default function DashboardCustomersPage() {
                   Szybkie akcje CRM
                 </p>
                 <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Z listy klienta można szybko przejść do szczegółów, faktur i
-                  zleceń.
+                  Z listy klienta można szybko przejść do edycji, szczegółów,
+                  faktur i zleceń.
                 </p>
               </div>
             </div>
