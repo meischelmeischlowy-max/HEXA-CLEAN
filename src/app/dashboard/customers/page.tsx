@@ -13,14 +13,19 @@ import StatusBadge from "../../../components/dashboard/StatusBadge";
 
 type Customer = {
   id: string;
+  type?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  companyName?: string | null;
   name?: string | null;
   email?: string | null;
   phone?: string | null;
+  street?: string | null;
   address?: string | null;
   city?: string | null;
+  zipCode?: string | null;
   postalCode?: string | null;
+  country?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -57,6 +62,7 @@ function getCustomerName(customer: Customer) {
     .trim();
 
   return (
+    customer.companyName ||
     customer.name ||
     fullName ||
     customer.email ||
@@ -66,11 +72,50 @@ function getCustomerName(customer: Customer) {
 }
 
 function getCustomerLocation(customer: Customer) {
-  return [customer.postalCode, customer.city].filter(Boolean).join(" ") || "—";
+  const zipValue = customer.zipCode || customer.postalCode;
+  return [zipValue, customer.city].filter(Boolean).join(" ") || "—";
+}
+
+function getCustomerAddress(customer: Customer) {
+  return customer.street || customer.address || "";
 }
 
 function hasContactData(customer: Customer) {
   return Boolean(customer.email || customer.phone);
+}
+
+function hasLocationData(customer: Customer) {
+  return Boolean(
+    customer.street ||
+      customer.address ||
+      customer.city ||
+      customer.zipCode ||
+      customer.postalCode,
+  );
+}
+
+function customerProfileLabel(customer: Customer) {
+  if (hasContactData(customer) && hasLocationData(customer)) {
+    return "Profil OK";
+  }
+
+  if (hasContactData(customer)) {
+    return "Brak adresu";
+  }
+
+  return "Uzupełnić";
+}
+
+function customerProfileStatus(customer: Customer) {
+  if (hasContactData(customer) && hasLocationData(customer)) {
+    return "ACCEPTED";
+  }
+
+  if (hasContactData(customer)) {
+    return "PENDING";
+  }
+
+  return "REJECTED";
 }
 
 export default function DashboardCustomersPage() {
@@ -97,7 +142,7 @@ export default function DashboardCustomersPage() {
       setCustomers(json.data.customers ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unknown customers error"
+        error instanceof Error ? error.message : "Unknown customers error",
       );
     } finally {
       setLoading(false);
@@ -112,9 +157,11 @@ export default function DashboardCustomersPage() {
     const withEmail = customers.filter((customer) => customer.email).length;
     const withPhone = customers.filter((customer) => customer.phone).length;
     const completeProfiles = customers.filter(
-      (customer) =>
-        hasContactData(customer) &&
-        (customer.address || customer.city || customer.postalCode)
+      (customer) => hasContactData(customer) && hasLocationData(customer),
+    ).length;
+
+    const companies = customers.filter(
+      (customer) => customer.type === "COMPANY" || customer.companyName,
     ).length;
 
     return {
@@ -122,6 +169,7 @@ export default function DashboardCustomersPage() {
       withEmail,
       withPhone,
       completeProfiles,
+      companies,
     };
   }, [customers]);
 
@@ -135,6 +183,11 @@ export default function DashboardCustomersPage() {
             {getCustomerName(customer)}
           </p>
           <p className="mt-1 text-xs text-zinc-500">ID: {customer.id}</p>
+          {customer.type ? (
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70">
+              {customer.type === "COMPANY" ? "Firma" : "Prywatny"}
+            </p>
+          ) : null}
         </div>
       ),
     },
@@ -154,17 +207,19 @@ export default function DashboardCustomersPage() {
     },
     {
       key: "location",
-      header: "Miasto",
+      header: "Miasto / adres",
       render: (customer) => (
         <div>
           <p className="font-semibold text-zinc-200">
             {getCustomerLocation(customer)}
           </p>
-          {customer.address ? (
+          {getCustomerAddress(customer) ? (
             <p className="mt-1 max-w-xs text-sm text-zinc-500">
-              {customer.address}
+              {getCustomerAddress(customer)}
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-1 text-sm text-zinc-600">Brak adresu</p>
+          )}
         </div>
       ),
     },
@@ -173,8 +228,8 @@ export default function DashboardCustomersPage() {
       header: "Profil",
       render: (customer) => (
         <StatusBadge
-          status={hasContactData(customer) ? "ACCEPTED" : "PENDING"}
-          label={hasContactData(customer) ? "Kontakt OK" : "Uzupełnić"}
+          status={customerProfileStatus(customer)}
+          label={customerProfileLabel(customer)}
         />
       ),
     },
@@ -189,16 +244,32 @@ export default function DashboardCustomersPage() {
     },
     {
       key: "action",
-      header: "Akcja",
+      header: "Akcje",
       className: "text-right",
       render: (customer) => (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
           <PremiumButton
             href={`/dashboard/customers/${customer.id}`}
             variant="primary"
             size="sm"
           >
             Szczegóły
+          </PremiumButton>
+
+          <PremiumButton
+            href={`/dashboard/invoices?customerId=${customer.id}`}
+            variant="secondary"
+            size="sm"
+          >
+            Faktury
+          </PremiumButton>
+
+          <PremiumButton
+            href={`/dashboard/orders?customerId=${customer.id}`}
+            variant="ghost"
+            size="sm"
+          >
+            Zlecenia
           </PremiumButton>
         </div>
       ),
@@ -211,7 +282,7 @@ export default function DashboardCustomersPage() {
         <PageHeader
           eyebrow="HEXA OS CRM / Customers"
           title="Baza klientów"
-          description="Centralne miejsce dla klientów HEXA OS: dane kontaktowe, lokalizacje, historia zleceń i przyszłe powiązanie z wycenami, ofertami oraz fakturami."
+          description="Centralne miejsce dla klientów HEXA OS: dane kontaktowe, lokalizacje, historia zleceń, wyceny, faktury i płatności."
         >
           <PremiumButton
             type="button"
@@ -221,8 +292,13 @@ export default function DashboardCustomersPage() {
           >
             Odśwież
           </PremiumButton>
+
           <PremiumButton href="/dashboard/orders" variant="ghost">
             Zlecenia
+          </PremiumButton>
+
+          <PremiumButton href="/dashboard/invoices" variant="ghost">
+            Faktury
           </PremiumButton>
         </PageHeader>
 
@@ -231,7 +307,7 @@ export default function DashboardCustomersPage() {
             title="Wszyscy klienci"
             value={String(stats.total)}
             description="Łączna liczba klientów zapisanych w bazie."
-            trend="Źródło: Customers API"
+            trend={`${stats.companies} firm`}
             tone="cyan"
             icon={<span className="text-lg font-black">CRM</span>}
           />
@@ -288,8 +364,7 @@ export default function DashboardCustomersPage() {
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
               <p className="font-bold">Błąd: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Sprawdź endpoint /api/dashboard/customers oraz połączenie z
-                bazą.
+                Sprawdź endpoint /api/dashboard/customers oraz połączenie z bazą.
               </p>
             </div>
           </DashboardPanel>
@@ -325,7 +400,7 @@ export default function DashboardCustomersPage() {
         {!loading && !errorMessage ? (
           <DashboardPanel
             title="Rola modułu Customers"
-            description="Ten moduł będzie później łączył dane z telefonu, formularza, AI Concierge, wycen, ofert, faktur i płatności."
+            description="Ten moduł łączy dane z telefonu, formularza, AI Concierge, wycen, ofert, faktur i płatności."
           >
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
@@ -343,18 +418,17 @@ export default function DashboardCustomersPage() {
                   Historia klienta
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Klient będzie miał powiązane zlecenia, wyceny, oferty,
-                  faktury i płatności.
+                  Klient ma mieć powiązane zlecenia, wyceny, faktury i płatności.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
                 <p className="text-sm font-black text-emerald-100">
-                  Silnik MM Digital Core
+                  Szybkie akcje CRM
                 </p>
                 <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Ten sam model klientów będzie później działał dla innych firm
-                  jako tenant SaaS.
+                  Z listy klienta można szybko przejść do szczegółów, faktur i
+                  zleceń.
                 </p>
               </div>
             </div>
