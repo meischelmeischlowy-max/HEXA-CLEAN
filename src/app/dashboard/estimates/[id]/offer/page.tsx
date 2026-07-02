@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-
+import EstimateOfferPrintButton from "../../../../../components/dashboard/EstimateOfferPrintButton";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -200,17 +200,7 @@ export default async function DashboardEstimateOfferPage({
             ← Wróć do szczegółów
           </Link>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.print();
-              }
-            }}
-            className="rounded-2xl bg-cyan-500 px-5 py-3 text-sm font-black text-white shadow-lg hover:bg-cyan-400"
-          >
-            Drukuj / zapisz PDF
-          </button>
+          <EstimateOfferPrintButton />
         </div>
 
         <article className="rounded-3xl bg-white p-8 shadow-2xl shadow-neutral-400/40 print:rounded-none print:p-10 print:shadow-none">
