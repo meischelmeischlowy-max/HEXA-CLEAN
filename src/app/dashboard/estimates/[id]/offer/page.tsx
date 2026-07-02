@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import EstimateOfferPrintButton from "../../../../../components/dashboard/EstimateOfferPrintButton";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -82,15 +83,15 @@ function customerName(customer: {
 
 function statusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
-    DRAFT: "Robocza",
-    AI_REVIEW: "AI sprawdza",
-    NEEDS_PHOTOS: "Potrzebne zdjęcia",
-    NEEDS_HUMAN_REVIEW: "Do kontroli właściciela",
-    READY_TO_SEND: "Gotowa do wysłania",
-    SENT: "Wysłana",
-    ACCEPTED: "Zaakceptowana",
-    REJECTED: "Odrzucona",
-    EXPIRED: "Wygasła",
+    DRAFT: "Entwurf",
+    AI_REVIEW: "KI-Prüfung",
+    NEEDS_PHOTOS: "Fotos erforderlich",
+    NEEDS_HUMAN_REVIEW: "Interne Prüfung erforderlich",
+    READY_TO_SEND: "Bereit zum Versand",
+    SENT: "Gesendet",
+    ACCEPTED: "Angenommen",
+    REJECTED: "Abgelehnt",
+    EXPIRED: "Abgelaufen",
   };
 
   if (!status) {
@@ -130,14 +131,14 @@ function unitLabel(value: unknown, metadata: unknown) {
   }
 
   const labels: Record<string, string> = {
-    HOUR: "h",
-    HOURS: "h",
-    PIECE: "szt.",
-    PIECES: "szt.",
+    HOUR: "Std.",
+    HOURS: "Std.",
+    PIECE: "Stk.",
+    PIECES: "Stk.",
     M2: "m²",
     SQM: "m²",
-    FLAT: "ryczałt",
-    FIXED: "ryczałt",
+    FLAT: "Pauschal",
+    FIXED: "Pauschal",
     KM: "km",
   };
 
@@ -215,14 +216,14 @@ export default async function DashboardEstimateOfferPage({
               </h1>
 
               <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500">
-                Oferta / wycena usługi sprzątania. Cena jest ważna po
-                potwierdzeniu zakresu przez właściciela.
+                Angebot für Reinigungsdienstleistungen. Der endgültige Preis gilt
+                nach Bestätigung des Leistungsumfangs durch HEXA CLEAN.
               </p>
             </div>
 
             <div className="text-left md:text-right">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-400">
-                Wycena
+                Angebot
               </p>
 
               <h2 className="mt-2 text-2xl font-black">
@@ -230,7 +231,7 @@ export default async function DashboardEstimateOfferPage({
               </h2>
 
               <p className="mt-3 text-sm text-neutral-500">
-                Data: {formatDate(estimate.createdAt)}
+                Datum: {formatDate(estimate.createdAt)}
               </p>
 
               <p className="mt-1 text-sm text-neutral-500">
@@ -242,7 +243,7 @@ export default async function DashboardEstimateOfferPage({
           <section className="grid gap-6 border-b border-neutral-200 py-8 md:grid-cols-2">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-                Klient
+                Kunde
               </p>
 
               <p className="mt-3 text-xl font-bold">
@@ -252,23 +253,23 @@ export default async function DashboardEstimateOfferPage({
               <p className="mt-2 text-sm leading-6 text-neutral-600">
                 {estimate.customer?.email ? (
                   <>
-                    Email: {estimate.customer.email}
+                    E-Mail: {estimate.customer.email}
                     <br />
                   </>
                 ) : null}
                 {estimate.customer?.phone ? (
                   <>
-                    Tel.: {estimate.customer.phone}
+                    Telefon: {estimate.customer.phone}
                     <br />
                   </>
                 ) : null}
-                {customerAddress || "Brak adresu klienta"}
+                {customerAddress || "Keine Kundenadresse angegeben"}
               </p>
             </div>
 
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-                Miejsce usługi
+                Leistungsort
               </p>
 
               <p className="mt-3 text-xl font-bold">
@@ -276,24 +277,24 @@ export default async function DashboardEstimateOfferPage({
               </p>
 
               <p className="mt-2 text-sm leading-6 text-neutral-600">
-                {serviceAddress || customerAddress || "Brak adresu usługi"}
+                {serviceAddress || customerAddress || "Kein Leistungsort angegeben"}
               </p>
             </div>
           </section>
 
           <section className="border-b border-neutral-200 py-8">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-              Zakres
+              Leistungsumfang
             </p>
 
             <h2 className="mt-3 text-2xl font-black">
-              {estimate.title ?? "Wycena usługi HEXA CLEAN"}
+              {estimate.title ?? "Angebot für Reinigungsdienstleistungen"}
             </h2>
 
             <p className="mt-3 text-sm leading-6 text-neutral-600">
               {estimate.description ??
                 estimate.notesCustomer ??
-                "Zakres usługi zostanie potwierdzony przed wykonaniem zlecenia."}
+                "Der genaue Leistungsumfang wird vor der Ausführung der Dienstleistung bestätigt."}
             </p>
           </section>
 
@@ -302,10 +303,10 @@ export default async function DashboardEstimateOfferPage({
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="bg-neutral-100 text-xs uppercase tracking-[0.18em] text-neutral-500">
                   <tr>
-                    <th className="px-4 py-4">Pozycja</th>
-                    <th className="px-4 py-4">Ilość</th>
-                    <th className="px-4 py-4">Cena</th>
-                    <th className="px-4 py-4 text-right">Razem</th>
+                    <th className="px-4 py-4">Position</th>
+                    <th className="px-4 py-4">Menge</th>
+                    <th className="px-4 py-4">Preis</th>
+                    <th className="px-4 py-4 text-right">Gesamt</th>
                   </tr>
                 </thead>
 
@@ -339,7 +340,7 @@ export default async function DashboardEstimateOfferPage({
 
             {estimate.items.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-neutral-300 p-8 text-center text-neutral-500">
-                Brak pozycji wyceny.
+                Keine Angebotspositionen vorhanden.
               </div>
             ) : null}
           </section>
@@ -347,58 +348,58 @@ export default async function DashboardEstimateOfferPage({
           <section className="grid gap-6 border-t border-neutral-200 pt-8 md:grid-cols-[1fr_340px]">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-                Informacja dla klienta
+                Hinweis für den Kunden
               </p>
 
               <p className="mt-3 text-sm leading-6 text-neutral-600">
                 {estimate.notesCustomer ??
-                  "Cena orientacyjna. Ostateczna oferta po potwierdzeniu zakresu, terminu i ewentualnych zdjęć."}
+                  "Dieses Angebot ist eine unverbindliche Preisübersicht. Der endgültige Preis wird nach Bestätigung des Leistungsumfangs, des Termins und gegebenenfalls der Fotos bestätigt."}
               </p>
 
               <p className="mt-5 text-xs leading-5 text-neutral-400">
-                Oferta została przygotowana w systemie HEXA OS CRM. Ten dokument
-                nie jest fakturą.
+                Dieses Dokument wurde mit HEXA OS CRM erstellt. Es handelt sich
+                nicht um eine Rechnung.
               </p>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
               <div className="flex justify-between gap-4 border-b border-neutral-200 pb-3 text-sm">
-                <span className="text-neutral-500">Subtotal</span>
+                <span className="text-neutral-500">Zwischensumme</span>
                 <span className="font-semibold">
                   {formatMoney(estimate.subtotal, estimate.currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
-                <span className="text-neutral-500">Ryzyko / trudność</span>
+                <span className="text-neutral-500">Aufwand / Erschwernis</span>
                 <span className="font-semibold">
                   {formatMoney(estimate.riskAmount, estimate.currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
-                <span className="text-neutral-500">Dojazd</span>
+                <span className="text-neutral-500">Anfahrt</span>
                 <span className="font-semibold">
                   {formatMoney(estimate.travelFee, estimate.currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
-                <span className="text-neutral-500">Materiały</span>
+                <span className="text-neutral-500">Material</span>
                 <span className="font-semibold">
                   {formatMoney(estimate.materialFee, estimate.currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
-                <span className="text-neutral-500">Rabat</span>
+                <span className="text-neutral-500">Rabatt</span>
                 <span className="font-semibold">
                   - {formatMoney(estimate.discountAmount, estimate.currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 pt-5">
-                <span className="text-lg font-black">Razem</span>
+                <span className="text-lg font-black">Gesamtbetrag</span>
                 <span className="text-2xl font-black text-cyan-700">
                   {formatMoney(estimate.total, estimate.currency)}
                 </span>
@@ -407,7 +408,7 @@ export default async function DashboardEstimateOfferPage({
           </section>
 
           <footer className="mt-10 border-t border-neutral-200 pt-6 text-xs leading-5 text-neutral-400">
-            HEXA CLEAN · Oferta robocza · Wygenerowano z HEXA OS CRM ·{" "}
+            HEXA CLEAN · Angebot · Erstellt mit HEXA OS CRM ·{" "}
             {formatDate(new Date())}
           </footer>
         </article>
