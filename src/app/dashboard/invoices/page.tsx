@@ -280,16 +280,32 @@ export default function DashboardInvoicesPage() {
     },
     {
       key: "action",
-      header: "Akcja",
+      header: "Akcje",
       className: "text-right",
       render: (invoice) => (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
           <PremiumButton
             href={`/dashboard/invoices/${invoice.id}`}
             variant="primary"
             size="sm"
           >
             Szczegóły
+          </PremiumButton>
+
+          <PremiumButton
+            href={`/dashboard/invoices/${invoice.id}/edit`}
+            variant="secondary"
+            size="sm"
+          >
+            Edytuj
+          </PremiumButton>
+
+          <PremiumButton
+            href={`/dashboard/invoices/${invoice.id}/print`}
+            variant="ghost"
+            size="sm"
+          >
+            Drukuj
           </PremiumButton>
         </div>
       ),
@@ -424,18 +440,17 @@ export default function DashboardInvoicesPage() {
                   PDF z logo
                 </p>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  Kolejny etap to faktura demo jako dokument PDF z brandingiem
-                  HEXA CLEAN.
+                  Faktura jako dokument PDF z brandingiem HEXA CLEAN.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
                 <p className="text-sm font-black text-violet-100">
-                  Wysyłka email
+                  Edycja przed wysyłką
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Faktura DRAFT będzie wysyłana dopiero po kliknięciu i zapisana
-                  w EmailLog oraz AuditLog.
+                  Fakturę trzeba móc ręcznie poprawić przed wydrukiem albo
+                  wysyłką do klienta.
                 </p>
               </div>
 
