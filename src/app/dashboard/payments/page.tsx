@@ -130,7 +130,9 @@ function customerName(customer?: Customer | null) {
   if (!customer) return "Brak klienta";
   if (customer.companyName) return customer.companyName;
 
-  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
+  const fullName = [customer.firstName, customer.lastName]
+    .filter(Boolean)
+    .join(" ");
 
   return fullName || "Brak klienta";
 }
@@ -210,7 +212,9 @@ export default function DashboardPaymentsPage() {
     ).length;
 
     const failed = payments.filter((payment) =>
-      ["FAILED", "CANCELLED", "CANCELED"].includes(normalizeStatus(payment.status)),
+      ["FAILED", "CANCELLED", "CANCELED"].includes(
+        normalizeStatus(payment.status),
+      ),
     ).length;
 
     const totalValue = payments.reduce((sum, payment) => {
@@ -275,7 +279,9 @@ export default function DashboardPaymentsPage() {
       await loadPayments();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Nie udało się zapisać płatności.",
+        error instanceof Error
+          ? error.message
+          : "Nie udało się zapisać płatności.",
       );
     } finally {
       setSaving(false);
@@ -367,10 +373,18 @@ export default function DashboardPaymentsPage() {
       className: "text-right",
       render: (payment) => (
         <div className="flex justify-end gap-2">
+          <PremiumButton
+            href={`/dashboard/payments/${payment.id}`}
+            variant="primary"
+            size="sm"
+          >
+            Szczegóły
+          </PremiumButton>
+
           {payment.invoiceId ? (
             <PremiumButton
               href={`/dashboard/invoices/${payment.invoiceId}`}
-              variant="primary"
+              variant="secondary"
               size="sm"
             >
               Faktura
@@ -459,7 +473,10 @@ export default function DashboardPaymentsPage() {
                   <option key={invoice.id} value={invoice.id}>
                     {invoiceLabel(invoice)} · pozostało{" "}
                     {formatMoney(
-                      Math.max(toNumber(invoice.total) - toNumber(invoice.paidAmount), 0),
+                      Math.max(
+                        toNumber(invoice.total) - toNumber(invoice.paidAmount),
+                        0,
+                      ),
                       invoice.currency ?? "CHF",
                     )}
                   </option>
@@ -547,10 +564,14 @@ export default function DashboardPaymentsPage() {
             <div className="mt-4 rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-100">
               <p className="font-bold">{invoiceLabel(selectedInvoice)}</p>
               <p className="mt-1 text-cyan-100/75">
-                Total: {formatMoney(selectedInvoice.total, selectedInvoice.currency ?? "CHF")} ·
+                Total:{" "}
+                {formatMoney(selectedInvoice.total, selectedInvoice.currency ?? "CHF")} ·
                 Zapłacono:{" "}
-                {formatMoney(selectedInvoice.paidAmount, selectedInvoice.currency ?? "CHF")} ·
-                Pozostało:{" "}
+                {formatMoney(
+                  selectedInvoice.paidAmount,
+                  selectedInvoice.currency ?? "CHF",
+                )}{" "}
+                · Pozostało:{" "}
                 {formatMoney(selectedRemaining, selectedInvoice.currency ?? "CHF")}
               </p>
             </div>
@@ -620,21 +641,27 @@ export default function DashboardPaymentsPage() {
         >
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
-              <p className="text-sm font-black text-cyan-100">1. Wybierz fakturę</p>
+              <p className="text-sm font-black text-cyan-100">
+                1. Wybierz fakturę
+              </p>
               <p className="mt-2 text-sm leading-6 text-cyan-100/70">
                 System pokazuje total, zapłacono i kwotę pozostałą.
               </p>
             </div>
 
             <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-              <p className="text-sm font-black text-violet-100">2. Wpisz wpłatę</p>
+              <p className="text-sm font-black text-violet-100">
+                2. Wpisz wpłatę
+              </p>
               <p className="mt-2 text-sm leading-6 text-violet-100/70">
                 Możesz dodać przelew, gotówkę, TWINT, kartę albo inną metodę.
               </p>
             </div>
 
             <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-              <p className="text-sm font-black text-emerald-100">3. Faktura się aktualizuje</p>
+              <p className="text-sm font-black text-emerald-100">
+                3. Faktura się aktualizuje
+              </p>
               <p className="mt-2 text-sm leading-6 text-emerald-100/70">
                 Po pełnej wpłacie status faktury przechodzi na PAID.
               </p>
