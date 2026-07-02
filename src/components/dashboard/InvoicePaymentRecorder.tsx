@@ -10,6 +10,19 @@ type InvoicePaymentRecorderProps = {
   currency: string;
 };
 
+type PaymentMethod = {
+  value: string;
+  label: string;
+};
+
+const paymentMethods: PaymentMethod[] = [
+  { value: "BANK_TRANSFER", label: "Przelew" },
+  { value: "CASH", label: "Gotówka" },
+  { value: "TWINT", label: "TWINT" },
+  { value: "CARD", label: "Karta" },
+  { value: "OTHER", label: "Inna" },
+];
+
 function normalizeCurrency(value: string) {
   const raw = String(value || "CHF").trim().toUpperCase();
 
@@ -105,86 +118,111 @@ export default function InvoicePaymentRecorder({
   }
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
+    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/10">
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-white">Wpłata / rozliczenie</h2>
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
+              Rozliczenie faktury
+            </p>
 
-            <div className="mt-3 grid gap-2 text-sm text-slate-300 sm:grid-cols-3">
-              <p>
-                Total:{" "}
-                <span className="font-semibold text-white">
+            <h2 className="mt-2 text-xl font-bold text-white">
+              Wpłata / rozliczenie
+            </h2>
+
+            <div className="mt-3 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Total
+                </p>
+                <p className="mt-1 font-bold text-white">
                   {formatMoney(total, safeCurrency)}
-                </span>
-              </p>
+                </p>
+              </div>
 
-              <p>
-                Zapłacono:{" "}
-                <span className="font-semibold text-emerald-300">
+              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/70">
+                  Zapłacono
+                </p>
+                <p className="mt-1 font-bold text-emerald-300">
                   {formatMoney(currentPaid, safeCurrency)}
-                </span>
-              </p>
+                </p>
+              </div>
 
-              <p>
-                Pozostało:{" "}
-                <span className="font-semibold text-rose-300">
+              <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-300/70">
+                  Pozostało
+                </p>
+                <p className="mt-1 font-bold text-rose-300">
                   {formatMoney(remaining, safeCurrency)}
-                </span>
-              </p>
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-            <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Kwota
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                placeholder="np. 100.00"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400 lg:w-40"
-              />
-            </div>
+          <div className="flex flex-col gap-3 xl:min-w-[690px]">
+            <div className="grid gap-3 lg:grid-cols-[160px_1fr_auto_auto] lg:items-end">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Kwota
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="np. 100.00"
+                  className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+                />
+              </div>
 
-            <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Metoda
-              </label>
-              <select
-                value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-400 lg:w-52"
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Metoda
+                </label>
+
+                <div className="flex flex-wrap gap-2">
+                  {paymentMethods.map((paymentMethod) => {
+                    const active = method === paymentMethod.value;
+
+                    return (
+                      <button
+                        key={paymentMethod.value}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => setMethod(paymentMethod.value)}
+                        className={
+                          active
+                            ? "rounded-xl border border-cyan-400/50 bg-cyan-400/15 px-3 py-2 text-xs font-bold text-cyan-100 transition disabled:opacity-60"
+                            : "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-cyan-100 disabled:opacity-60"
+                        }
+                      >
+                        {paymentMethod.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={savePayment}
+                className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <option value="BANK_TRANSFER">Przelew bankowy</option>
-                <option value="CASH">Gotówka</option>
-                <option value="TWINT">TWINT</option>
-                <option value="CARD">Karta</option>
-                <option value="OTHER">Inna metoda</option>
-              </select>
+                {loading ? "Zapisywanie..." : "Zapisz wpłatę"}
+              </button>
+
+              <button
+                type="button"
+                disabled={loading || remaining <= 0}
+                onClick={markAsFullyPaid}
+                className="rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Opłacona w całości
+              </button>
             </div>
-
-            <button
-              type="button"
-              disabled={loading}
-              onClick={savePayment}
-              className="rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Zapisywanie..." : "Zapisz wpłatę"}
-            </button>
-
-            <button
-              type="button"
-              disabled={loading || remaining <= 0}
-              onClick={markAsFullyPaid}
-              className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Opłacona w całości
-            </button>
           </div>
         </div>
 
@@ -193,26 +231,26 @@ export default function InvoicePaymentRecorder({
             value={externalRef}
             onChange={(event) => setExternalRef(event.target.value)}
             placeholder="Referencja / numer transakcji"
-            className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+            className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
           />
 
           <input
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="Notatka do płatności"
-            className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+            className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
           />
         </div>
       </div>
 
       {message ? (
-        <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+        <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-200">
           {message}
         </p>
       ) : null}
 
       {error ? (
-        <p className="mt-4 rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+        <p className="mt-4 rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200">
           {error}
         </p>
       ) : null}
