@@ -12,6 +12,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 type CreateEstimateItemBody = {
+  serviceCatalogItemId?: string;
   itemName?: string;
   itemDescription?: string;
   itemCategory?: string;
@@ -36,19 +37,17 @@ type CreateEstimateBody = {
   serviceZipCode?: string;
   serviceCity?: string;
   serviceCountry?: string;
-  itemName?: string;
-  itemDescription?: string;
-  itemCategory?: string;
-  itemUnit?: string;
-  quantity?: string | number;
-  unitPrice?: string | number;
-  riskMultiplier?: string | number;
   travelFee?: string | number;
   materialFee?: string | number;
   discountAmount?: string | number;
   notesCustomer?: string;
   notesInternal?: string;
   items?: CreateEstimateItemBody[];
+};
+
+type ReadBodyResult = {
+  body: CreateEstimateBody | null;
+  invalidJson: boolean;
 };
 
 function getPrisma() {
@@ -59,12 +58,10 @@ function getPrisma() {
       throw new Error("DATABASE_URL is missing");
     }
 
-    const adapter = new PrismaPg({
-      connectionString: databaseUrl,
-    });
-
     globalForPrisma.hexaPrisma = new PrismaClient({
-      adapter,
+      adapter: new PrismaPg({
+        connectionString: databaseUrl,
+      }),
     });
   }
 
@@ -80,17 +77,13 @@ function money(value: number) {
 }
 
 function decimalToNumber(value: unknown) {
-  if (value === null || value === undefined) {
-    return 0;
-  }
+  if (value === null || value === undefined) return 0;
 
-  if (typeof value === "number") {
-    return value;
-  }
+  if (typeof value === "number") return value;
 
   if (typeof value === "string") {
-    const normalizedValue = value.replace(",", ".");
-    return Number(normalizedValue);
+    const normalized = value.trim().replace(",", ".");
+    return Number(normalized);
   }
 
   if (
@@ -105,10 +98,20 @@ function decimalToNumber(value: unknown) {
   return 0;
 }
 
-function positiveNumber(value: unknown, fallback = 0) {
+function nonNegativeNumber(value: unknown, fallback = 0) {
   const number = decimalToNumber(value);
 
   if (!Number.isFinite(number) || number < 0) {
+    return fallback;
+  }
+
+  return number;
+}
+
+function positiveNumber(value: unknown, fallback = 1) {
+  const number = decimalToNumber(value);
+
+  if (!Number.isFinite(number) || number <= 0) {
     return fallback;
   }
 
@@ -142,63 +145,47 @@ function createEstimateNumber() {
   return `EST-${date}-${random}`;
 }
 
-async function readBody(request: Request) {
+async function readBody(request: Request): Promise<ReadBodyResult> {
   const text = await request.text();
 
   if (!text.trim()) {
-    return null;
+    return {
+      body: null,
+      invalidJson: false,
+    };
   }
 
   try {
-    return JSON.parse(text) as CreateEstimateBody;
+    return {
+      body: JSON.parse(text) as CreateEstimateBody,
+      invalidJson: false,
+    };
   } catch {
-    return null;
+    return {
+      body: null,
+      invalidJson: true,
+    };
   }
 }
 
 function isManualEstimateBody(
   body: CreateEstimateBody | null
 ): body is CreateEstimateBody {
-  if (!body) {
-    return false;
-  }
+  if (!body) return false;
 
-  if (body.mode === "manual") {
-    return true;
-  }
-
-  if (Array.isArray(body.items) && body.items.length > 0) {
-    return true;
-  }
-
-  return Boolean(
-    body.firstName ||
-      body.lastName ||
-      body.companyName ||
-      body.email ||
-      body.phone ||
-      body.title ||
-      body.serviceCity ||
-      body.itemName
+  return (
+    body.mode === "manual" ||
+    Boolean(
+      body.firstName ||
+        body.lastName ||
+        body.companyName ||
+        body.email ||
+        body.phone ||
+        body.title ||
+        body.serviceCity ||
+        body.items?.length
+    )
   );
-}
-
-function getManualItemsFromBody(body: CreateEstimateBody) {
-  if (Array.isArray(body.items) && body.items.length > 0) {
-    return body.items;
-  }
-
-  return [
-    {
-      itemName: body.itemName,
-      itemDescription: body.itemDescription,
-      itemCategory: body.itemCategory,
-      itemUnit: body.itemUnit,
-      quantity: body.quantity,
-      unitPrice: body.unitPrice,
-      riskMultiplier: body.riskMultiplier,
-    },
-  ];
 }
 
 async function getOrCreateDemoCustomer(prisma: PrismaClient) {
@@ -237,26 +224,18 @@ async function getOrCreateManualCustomer(
 
   if (email) {
     const existingByEmail = await prisma.customer.findFirst({
-      where: {
-        email,
-      },
+      where: { email },
     });
 
-    if (existingByEmail) {
-      return existingByEmail;
-    }
+    if (existingByEmail) return existingByEmail;
   }
 
   if (phone) {
     const existingByPhone = await prisma.customer.findFirst({
-      where: {
-        phone,
-      },
+      where: { phone },
     });
 
-    if (existingByPhone) {
-      return existingByPhone;
-    }
+    if (existingByPhone) return existingByPhone;
   }
 
   return prisma.customer.create({
@@ -366,7 +345,7 @@ async function createDemoEstimate(prisma: PrismaClient) {
         data: {
           status: "error",
           message:
-            "Brak pozycji w cenniku. Najpierw kliknij „Dodaj przykładowy cennik” w module Cennik.",
+            "Brak pozycji w cenniku. Najpierw dodaj usługi w module Cennik.",
           estimate: null,
         },
       },
@@ -383,19 +362,17 @@ async function createDemoEstimate(prisma: PrismaClient) {
   };
 
   const estimateItems = services.map((service, index) => {
-    const quantity =
-      quantityBySlug[service.slug] ??
-      decimalToNumber(service.defaultQuantity) ??
-      1;
+    const quantity = positiveNumber(
+      quantityBySlug[service.slug],
+      decimalToNumber(service.defaultQuantity) || 1
+    );
 
-    const unitPrice = decimalToNumber(service.basePrice);
-    const minPrice = decimalToNumber(service.minPrice);
-    const riskMultiplier = decimalToNumber(service.riskMultiplier) || 1;
+    const unitPrice = nonNegativeNumber(service.basePrice, 0);
+    const minPrice = nonNegativeNumber(service.minPrice, 0);
+    const riskMultiplier = positiveMultiplier(service.riskMultiplier, 1);
 
     const subtotal = quantity * unitPrice;
     const totalBeforeDiscount = Math.max(subtotal * riskMultiplier, minPrice);
-    const discountAmount = 0;
-    const total = Math.max(totalBeforeDiscount - discountAmount, 0);
     const riskAmount = Math.max(totalBeforeDiscount - subtotal, 0);
 
     return {
@@ -409,8 +386,8 @@ async function createDemoEstimate(prisma: PrismaClient) {
       subtotal: money(subtotal),
       riskMultiplier: money(riskMultiplier),
       riskAmount: money(riskAmount),
-      discountAmount: money(discountAmount),
-      total: money(total),
+      discountAmount: "0.00",
+      total: money(totalBeforeDiscount),
       sortOrder: (index + 1) * 10,
       metadata: {
         serviceSlug: service.slug,
@@ -423,18 +400,13 @@ async function createDemoEstimate(prisma: PrismaClient) {
     (sum, item) => sum + Number(item.subtotal),
     0
   );
+
   const riskAmount = estimateItems.reduce(
     (sum, item) => sum + Number(item.riskAmount),
     0
   );
-  const discountAmount = estimateItems.reduce(
-    (sum, item) => sum + Number(item.discountAmount),
-    0
-  );
-  const total = estimateItems.reduce(
-    (sum, item) => sum + Number(item.total),
-    0
-  );
+
+  const total = estimateItems.reduce((sum, item) => sum + Number(item.total), 0);
 
   const estimate = await prisma.estimate.create({
     data: {
@@ -455,7 +427,7 @@ async function createDemoEstimate(prisma: PrismaClient) {
       riskAmount: money(riskAmount),
       travelFee: "0.00",
       materialFee: "0.00",
-      discountAmount: money(discountAmount),
+      discountAmount: "0.00",
       total: money(total),
       currency: "CHF",
       aiMinTotal: money(total * 0.9),
@@ -468,39 +440,6 @@ async function createDemoEstimate(prisma: PrismaClient) {
         "Demo wyceny z katalogu usług. Następny etap: formularz tworzenia wyceny.",
       items: {
         create: estimateItems,
-      },
-      notifications: {
-        create: {
-          customerId: customer.id,
-          channel: "SYSTEM",
-          status: "PENDING",
-          recipient: "owner",
-          subject: "Nowa demo-wycena HEXA CLEAN",
-          message: `Nowa wycena demo: Endreinigung + okna. Suma: ${money(
-            total
-          )} CHF. Wymaga zatwierdzenia właściciela.`,
-          metadata: {
-            source: "demo-estimate-api",
-          },
-        },
-      },
-      auditLogs: {
-        create: {
-          customerId: customer.id,
-          action: "CREATE",
-          entityType: "Estimate",
-          actorType: "system",
-          message: "Demo estimate created from service catalog.",
-          after: {
-            subtotal: money(subtotal),
-            riskAmount: money(riskAmount),
-            discountAmount: money(discountAmount),
-            total: money(total),
-          },
-          metadata: {
-            source: "demo-estimate-api",
-          },
-        },
       },
     },
     include: {
@@ -515,8 +454,6 @@ async function createDemoEstimate(prisma: PrismaClient) {
           sortOrder: "asc",
         },
       },
-      notifications: true,
-      auditLogs: true,
     },
   });
 
@@ -536,32 +473,96 @@ async function createManualEstimate(
   body: CreateEstimateBody
 ) {
   const customer = await getOrCreateManualCustomer(prisma, body);
+  const manualItems = Array.isArray(body.items) ? body.items : [];
 
-  const manualItems = getManualItemsFromBody(body);
+  if (manualItems.length === 0) {
+    return NextResponse.json(
+      {
+        layer: "estimates-api",
+        message: "No estimate items",
+        data: {
+          status: "error",
+          message: "Dodaj przynajmniej jedną pozycję wyceny.",
+          estimate: null,
+        },
+      },
+      {
+        status: 400,
+      }
+    );
+  }
+
+  const serviceIds = manualItems
+    .map((item) => cleanText(item.serviceCatalogItemId))
+    .filter(Boolean) as string[];
+
+  const catalogItems =
+    serviceIds.length > 0
+      ? await prisma.serviceCatalogItem.findMany({
+          where: {
+            tenantKey: TENANT_KEY,
+            id: {
+              in: serviceIds,
+            },
+          },
+        })
+      : [];
+
+  const catalogById = new Map(catalogItems.map((item) => [item.id, item]));
 
   const estimateItems = manualItems.map((item, index) => {
-    const quantity = positiveNumber(item.quantity, 1);
-    const unitPrice = positiveNumber(item.unitPrice, 0);
-    const riskMultiplier = positiveMultiplier(item.riskMultiplier, 1);
+    const catalogItemId = cleanText(item.serviceCatalogItemId);
+    const catalogItem = catalogItemId ? catalogById.get(catalogItemId) : null;
 
-    const itemSubtotal = quantity * unitPrice;
-    const itemTotalBeforeDiscount = itemSubtotal * riskMultiplier;
-    const itemRiskAmount = Math.max(itemTotalBeforeDiscount - itemSubtotal, 0);
+    const quantity = positiveNumber(
+      item.quantity,
+      decimalToNumber(catalogItem?.defaultQuantity) || 1
+    );
+
+    const unitPrice = nonNegativeNumber(
+      item.unitPrice,
+      decimalToNumber(catalogItem?.basePrice) || 0
+    );
+
+    const riskMultiplier = positiveMultiplier(
+      item.riskMultiplier,
+      decimalToNumber(catalogItem?.riskMultiplier) || 1
+    );
+
+    const minPrice = nonNegativeNumber(catalogItem?.minPrice, 0);
+    const subtotal = quantity * unitPrice;
+    const itemTotalBeforeMin = subtotal * riskMultiplier;
+    const itemTotal = Math.max(itemTotalBeforeMin, minPrice);
+    const itemRiskAmount = Math.max(itemTotal - subtotal, 0);
 
     return {
-      name: cleanText(item.itemName) ?? `Pozycja ${index + 1}`,
-      description: cleanText(item.itemDescription),
-      category: null,
+      serviceCatalogItemId: catalogItem?.id ?? null,
+      name:
+        cleanText(item.itemName) ??
+        catalogItem?.name ??
+        `Pozycja ${index + 1}`,
+      description:
+        cleanText(item.itemDescription) ?? catalogItem?.description ?? null,
+
+      // WAŻNE:
+      // category i unit w Prisma są enumami.
+      // Nie wolno tu wrzucać zwykłego tekstu z formularza,
+      // bo TypeScript wywala błąd ServiceCatalogCategory.
+      // Ręczne itemCategory/itemUnit zapisujemy niżej w metadata.
+     category: catalogItem?.category ?? null,
+unit: catalogItem?.unit ?? undefined,
+
       quantity: money(quantity),
       unitPrice: money(unitPrice),
-      subtotal: money(itemSubtotal),
+      subtotal: money(subtotal),
       riskMultiplier: money(riskMultiplier),
       riskAmount: money(itemRiskAmount),
       discountAmount: "0.00",
-      total: money(itemTotalBeforeDiscount),
+      total: money(itemTotal),
       sortOrder: (index + 1) * 10,
       metadata: {
-        source: "manual-estimate-api",
+        source: catalogItem ? "service-catalog-estimate" : "manual-estimate-api",
+        serviceSlug: catalogItem?.slug ?? null,
         manualCategory: cleanText(item.itemCategory),
         manualUnit: cleanText(item.itemUnit),
       },
@@ -572,16 +573,19 @@ async function createManualEstimate(
     (sum, item) => sum + Number(item.subtotal),
     0
   );
+
   const riskAmount = estimateItems.reduce(
     (sum, item) => sum + Number(item.riskAmount),
     0
   );
-  const travelFee = positiveNumber(body.travelFee, 0);
-  const materialFee = positiveNumber(body.materialFee, 0);
-  const discountAmount = positiveNumber(body.discountAmount, 0);
+
+  const travelFee = nonNegativeNumber(body.travelFee, 0);
+  const materialFee = nonNegativeNumber(body.materialFee, 0);
+  const discountAmount = nonNegativeNumber(body.discountAmount, 0);
 
   const totalBeforeDiscount = subtotal + riskAmount + travelFee + materialFee;
   const total = Math.max(totalBeforeDiscount - discountAmount, 0);
+
   const averageRiskMultiplier =
     subtotal > 0 ? (subtotal + riskAmount) / subtotal : 1;
 
@@ -655,7 +659,24 @@ async function createManualEstimate(
 export async function POST(request: Request) {
   try {
     const prisma = getPrisma();
-    const body = await readBody(request);
+    const { body, invalidJson } = await readBody(request);
+
+    if (invalidJson) {
+      return NextResponse.json(
+        {
+          layer: "estimates-api",
+          message: "Invalid JSON body",
+          data: {
+            status: "error",
+            message: "Nieprawidłowy JSON w żądaniu.",
+            estimate: null,
+          },
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
     if (isManualEstimateBody(body)) {
       return createManualEstimate(prisma, body);

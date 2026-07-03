@@ -7,6 +7,14 @@ import EstimateOfferPrintButton from "../../../../../components/dashboard/Estima
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const DEFAULT_SCOPE_TEXT =
+  "Der genaue Leistungsumfang wird vor der Ausführung der Dienstleistung bestätigt.";
+
+const DEFAULT_CUSTOMER_NOTE =
+  "Dieses Angebot ist eine unverbindliche Preisübersicht. Der endgültige Preis wird nach Bestätigung des Leistungsumfangs, des Termins und gegebenenfalls der Fotos bestätigt.";
+
+const DEFAULT_ITEM_DESCRIPTION = "Leistung gemäss vereinbartem Umfang.";
+
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
 };
@@ -123,7 +131,23 @@ function unitLabel(value: unknown, metadata: unknown) {
   const manualUnit = metadataText(metadata, "manualUnit");
 
   if (manualUnit) {
-    return manualUnit;
+    const normalizedManualUnit = manualUnit.toLowerCase();
+
+    const manualLabels: Record<string, string> = {
+      h: "Std.",
+      hour: "Std.",
+      hours: "Std.",
+      m2: "m²",
+      "m²": "m²",
+      szt: "Stk.",
+      sztuka: "Stk.",
+      stück: "Stk.",
+      flat: "Pauschal",
+      ryczalt: "Pauschal",
+      ryczałt: "Pauschal",
+    };
+
+    return manualLabels[normalizedManualUnit] ?? manualUnit;
   }
 
   if (typeof value !== "string") {
@@ -140,9 +164,110 @@ function unitLabel(value: unknown, metadata: unknown) {
     FLAT: "Pauschal",
     FIXED: "Pauschal",
     KM: "km",
+    WINDOW: "Fenster",
+    CUSTOM: "Individuell",
   };
 
   return labels[value] ?? value;
+}
+
+function hasPolishText(value: string) {
+  const lower = value.toLowerCase();
+
+  const polishMarkers = [
+    "cena",
+    "orientacyjna",
+    "ostateczna",
+    "wycena",
+    "wyceny",
+    "oferta",
+    "klienta",
+    "zakresu",
+    "sprzątanie",
+    "sprzatanie",
+    "mieszkania",
+    "oddanie",
+    "mycie",
+    "okien",
+    "dojazd",
+    "małe",
+    "male",
+    "naprawy",
+    "czyszczenie",
+    "specjalne",
+    "po potwierdzeniu",
+    "utworzona",
+    "ręcznie",
+    "recznie",
+    "panelu",
+  ];
+
+  return (
+    /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(value) ||
+    polishMarkers.some((marker) => lower.includes(marker))
+  );
+}
+
+function knownGermanTranslation(value: string) {
+  const normalized = value.trim().toLowerCase();
+
+  const translations: Record<string, string> = {
+    "sprzątanie mieszkania": "Wohnungsreinigung",
+    "sprzatanie mieszkania": "Wohnungsreinigung",
+    "endreinigung / oddanie mieszkania": "Endreinigung / Wohnungsabgabe",
+    "mycie okien": "Fensterreinigung",
+    "sprzątanie biura": "Büroreinigung",
+    "sprzatanie biura": "Büroreinigung",
+    "hauswartung / utrzymanie obiektu": "Hauswartung / Objektbetreuung",
+    "małe naprawy": "Kleinreparaturen",
+    "male naprawy": "Kleinreparaturen",
+    dojazd: "Anfahrt",
+    "czyszczenie specjalne": "Spezialreinigung",
+    "nowa pozycja wyceny": "Neue Angebotsposition",
+    "pozycja 1": "Position 1",
+    "pozycja 2": "Position 2",
+    "pozycja 3": "Position 3",
+    "demo wyceny: endreinigung + okna":
+      "Demo-Angebot: Endreinigung und Fensterreinigung",
+  };
+
+  if (translations[normalized]) {
+    return translations[normalized];
+  }
+
+  if (normalized.startsWith("wycena:")) {
+    return "Angebot für Reinigungsdienstleistungen";
+  }
+
+  return null;
+}
+
+function germanText(
+  value: string | null | undefined,
+  fallback: string,
+  allowKnownTranslation = true
+) {
+  if (!value) {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return fallback;
+  }
+
+  const translated = allowKnownTranslation ? knownGermanTranslation(trimmed) : null;
+
+  if (translated) {
+    return translated;
+  }
+
+  if (hasPolishText(trimmed)) {
+    return fallback;
+  }
+
+  return trimmed;
 }
 
 export default async function DashboardEstimateOfferPage({
@@ -190,6 +315,22 @@ export default async function DashboardEstimateOfferPage({
     .filter(Boolean)
     .join(", ");
 
+  const offerTitle = germanText(
+    estimate.title,
+    "Angebot für Reinigungsdienstleistungen"
+  );
+
+  const offerDescription = germanText(
+    estimate.description ?? estimate.notesCustomer,
+    DEFAULT_SCOPE_TEXT
+  );
+
+  const customerNote = germanText(
+    estimate.notesCustomer,
+    DEFAULT_CUSTOMER_NOTE,
+    false
+  );
+
   return (
     <main className="min-h-screen bg-neutral-200 px-4 py-8 text-neutral-950 print:bg-white print:px-0 print:py-0">
       <div className="mx-auto max-w-5xl">
@@ -198,7 +339,7 @@ export default async function DashboardEstimateOfferPage({
             href={`/dashboard/estimates/${estimate.id}`}
             className="rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
           >
-            ← Wróć do szczegółów
+            ← Zurück zu den Details
           </Link>
 
           <EstimateOfferPrintButton />
@@ -287,14 +428,10 @@ export default async function DashboardEstimateOfferPage({
               Leistungsumfang
             </p>
 
-            <h2 className="mt-3 text-2xl font-black">
-              {estimate.title ?? "Angebot für Reinigungsdienstleistungen"}
-            </h2>
+            <h2 className="mt-3 text-2xl font-black">{offerTitle}</h2>
 
             <p className="mt-3 text-sm leading-6 text-neutral-600">
-              {estimate.description ??
-                estimate.notesCustomer ??
-                "Der genaue Leistungsumfang wird vor der Ausführung der Dienstleistung bestätigt."}
+              {offerDescription}
             </p>
           </section>
 
@@ -311,29 +448,41 @@ export default async function DashboardEstimateOfferPage({
                 </thead>
 
                 <tbody className="divide-y divide-neutral-200">
-                  {estimate.items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-4 align-top">
-                        <p className="font-bold">{item.name}</p>
-                        <p className="mt-1 text-xs leading-5 text-neutral-500">
-                          {item.description ?? "—"}
-                        </p>
-                      </td>
+                  {estimate.items.map((item) => {
+                    const itemName = germanText(
+                      item.name,
+                      "Reinigungsdienstleistung"
+                    );
 
-                      <td className="px-4 py-4 align-top text-neutral-700">
-                        {formatNumber(item.quantity)}{" "}
-                        {unitLabel(item.unit, item.metadata)}
-                      </td>
+                    const itemDescription = germanText(
+                      item.description,
+                      DEFAULT_ITEM_DESCRIPTION
+                    );
 
-                      <td className="px-4 py-4 align-top text-neutral-700">
-                        {formatMoney(item.unitPrice, estimate.currency)}
-                      </td>
+                    return (
+                      <tr key={item.id}>
+                        <td className="px-4 py-4 align-top">
+                          <p className="font-bold">{itemName}</p>
+                          <p className="mt-1 text-xs leading-5 text-neutral-500">
+                            {itemDescription}
+                          </p>
+                        </td>
 
-                      <td className="px-4 py-4 text-right align-top font-bold">
-                        {formatMoney(item.total, estimate.currency)}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-4 py-4 align-top text-neutral-700">
+                          {formatNumber(item.quantity)}{" "}
+                          {unitLabel(item.unit, item.metadata)}
+                        </td>
+
+                        <td className="px-4 py-4 align-top text-neutral-700">
+                          {formatMoney(item.unitPrice, estimate.currency)}
+                        </td>
+
+                        <td className="px-4 py-4 text-right align-top font-bold">
+                          {formatMoney(item.total, estimate.currency)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -352,8 +501,7 @@ export default async function DashboardEstimateOfferPage({
               </p>
 
               <p className="mt-3 text-sm leading-6 text-neutral-600">
-                {estimate.notesCustomer ??
-                  "Dieses Angebot ist eine unverbindliche Preisübersicht. Der endgültige Preis wird nach Bestätigung des Leistungsumfangs, des Termins und gegebenenfalls der Fotos bestätigt."}
+                {customerNote}
               </p>
 
               <p className="mt-5 text-xs leading-5 text-neutral-400">

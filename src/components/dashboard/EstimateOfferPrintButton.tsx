@@ -5,9 +5,9 @@ export default function EstimateOfferPrintButton() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="rounded-2xl bg-cyan-500 px-5 py-3 text-sm font-black text-white shadow-lg hover:bg-cyan-400"
+      className="rounded-2xl border border-cyan-600 bg-cyan-600 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-700"
     >
-      Drukuj / zapisz PDF
+      Drucken / PDF
     </button>
   );
 }

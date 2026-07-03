@@ -233,7 +233,28 @@ export default async function DashboardEstimateDetailsPage({
           estimateId={estimate.id}
           currentStatus={estimate.status}
         />
+<section className="grid gap-3 md:grid-cols-3">
+  <Link
+    href={`/dashboard/estimates/${estimate.id}/offer`}
+    className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20"
+  >
+    Otwórz ofertę DE
+  </Link>
 
+  <Link
+    href={`/dashboard/estimates/${estimate.id}/offer`}
+    className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20"
+  >
+    Drukuj / PDF
+  </Link>
+
+  <Link
+    href="/dashboard/estimates/new"
+    className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-neutral-200 transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
+  >
+    Nowa wycena
+  </Link>
+</section>
         <section className="grid gap-4 lg:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-sm text-neutral-400">Klient</p>
