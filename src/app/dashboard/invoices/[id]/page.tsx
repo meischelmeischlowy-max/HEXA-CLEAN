@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import AddInvoicePaymentForm from "../../../../components/dashboard/AddInvoicePaymentForm";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -60,7 +61,7 @@ function formatMoney(value: unknown, currency = "CHF") {
 
 function formatDate(value: Date | null | undefined) {
   if (!value) {
-    return "â€”";
+    return "—";
   }
 
   return value.toLocaleDateString("de-CH", {
@@ -74,28 +75,28 @@ function customerName(customer: {
   companyName: string | null;
 } | null) {
   if (!customer) {
-    return "â€”";
+    return "—";
   }
 
   if (customer.companyName) {
     return customer.companyName;
   }
 
-  return [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "â€”";
+  return [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "—";
 }
 
 function invoiceStatusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
     DRAFT: "Robocza",
-    SENT: "WysĹ‚ana",
-    PARTIALLY_PAID: "CzÄ™Ĺ›ciowo opĹ‚acona",
-    PAID: "OpĹ‚acona",
+    SENT: "Wysłana",
+    PARTIALLY_PAID: "Częściowo opłacona",
+    PAID: "Opłacona",
     OVERDUE: "Po terminie",
     CANCELLED: "Anulowana",
   };
 
   if (!status) {
-    return "â€”";
+    return "—";
   }
 
   return labels[status] ?? status;
@@ -104,14 +105,14 @@ function invoiceStatusLabel(status: string | null | undefined) {
 function paymentStatusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
     PENDING: "Oczekuje",
-    PAID: "OpĹ‚acona",
-    FAILED: "BĹ‚Ä…d",
-    REFUNDED: "ZwrĂłcona",
+    PAID: "Opłacona",
+    FAILED: "Błąd",
+    REFUNDED: "Zwrócona",
     CANCELLED: "Anulowana",
   };
 
   if (!status) {
-    return "â€”";
+    return "—";
   }
 
   return labels[status] ?? status;
@@ -119,7 +120,7 @@ function paymentStatusLabel(status: string | null | undefined) {
 
 function paymentMethodLabel(method: string | null | undefined) {
   const labels: Record<string, string> = {
-    CASH: "GotĂłwka",
+    CASH: "Gotówka",
     BANK_TRANSFER: "Przelew",
     TWINT: "TWINT",
     CARD: "Karta",
@@ -127,7 +128,7 @@ function paymentMethodLabel(method: string | null | undefined) {
   };
 
   if (!method) {
-    return "â€”";
+    return "—";
   }
 
   return labels[method] ?? method;
@@ -195,7 +196,7 @@ export default async function DashboardInvoiceDetailsPage({
                 href="/dashboard/invoices"
                 className="text-sm font-semibold text-cyan-300 hover:text-cyan-200"
               >
-                â† WrĂłÄ‡ do faktur
+                ← Wróć do faktur
               </Link>
 
               <p className="mt-5 text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
@@ -227,7 +228,7 @@ export default async function DashboardInvoiceDetailsPage({
             href={`/documents/invoices/${invoice.id}/print`}
             className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20"
           >
-            OtwĂłrz fakturÄ™ DE
+            Otwórz fakturę DE
           </Link>
 
           <Link
@@ -269,17 +270,17 @@ export default async function DashboardInvoiceDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">ZapĹ‚acono</p>
+            <p className="text-sm text-neutral-400">Zapłacono</p>
             <p className="mt-2 text-xl font-semibold">
               {formatMoney(invoice.paidAmount, invoice.currency)}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              WpĹ‚at: {invoice.payments.length}
+              Wpłat: {invoice.payments.length}
             </p>
           </div>
 
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
-            <p className="text-sm text-amber-100/70">PozostaĹ‚o</p>
+            <p className="text-sm text-amber-100/70">Pozostało</p>
             <p className="mt-2 text-xl font-black text-amber-100">
               {formatMoney(openAmount, invoice.currency)}
             </p>
@@ -307,21 +308,21 @@ export default async function DashboardInvoiceDetailsPage({
               </p>
               <p>
                 <span className="text-neutral-500">Adres: </span>
-                {customerAddress || "â€”"}
+                {customerAddress || "—"}
               </p>
               <p>
                 <span className="text-neutral-500">Email: </span>
-                {invoice.customer?.email ?? "â€”"}
+                {invoice.customer?.email ?? "—"}
               </p>
               <p>
                 <span className="text-neutral-500">Telefon: </span>
-                {invoice.customer?.phone ?? "â€”"}
+                {invoice.customer?.phone ?? "—"}
               </p>
             </div>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">PowiÄ…zanie ze zleceniem</h2>
+            <h2 className="text-xl font-semibold">Powiązanie ze zleceniem</h2>
 
             <div className="mt-4 space-y-3 text-sm text-neutral-300">
               <p>
@@ -331,15 +332,15 @@ export default async function DashboardInvoiceDetailsPage({
                     href={`/dashboard/orders/${invoice.orderId}`}
                     className="font-semibold text-cyan-300 hover:text-cyan-200"
                   >
-                    OtwĂłrz zlecenie
+                    Otwórz zlecenie
                   </Link>
                 ) : (
-                  "â€”"
+                  "—"
                 )}
               </p>
               <p>
-                <span className="text-neutral-500">Adres usĹ‚ugi: </span>
-                {serviceAddress || "â€”"}
+                <span className="text-neutral-500">Adres usługi: </span>
+                {serviceAddress || "—"}
               </p>
             </div>
           </div>
@@ -371,7 +372,7 @@ export default async function DashboardInvoiceDetailsPage({
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <p className="text-sm text-neutral-400">ZapĹ‚acono</p>
+              <p className="text-sm text-neutral-400">Zapłacono</p>
               <p className="mt-2 text-xl font-semibold">
                 {formatMoney(invoice.paidAmount, invoice.currency)}
               </p>
@@ -390,17 +391,23 @@ export default async function DashboardInvoiceDetailsPage({
               Notatka
             </p>
             <p className="mt-2 text-sm leading-6 text-neutral-300">
-              {invoice.notes ?? "â€”"}
+              {invoice.notes ?? "—"}
             </p>
           </div>
         </section>
 
+        <AddInvoicePaymentForm
+          invoiceId={invoice.id}
+          openAmount={openAmount}
+          currency={invoice.currency}
+        />
+
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-xl font-semibold">PĹ‚atnoĹ›ci</h2>
+          <h2 className="text-xl font-semibold">Płatności</h2>
 
           {invoice.payments.length === 0 ? (
             <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-              Brak pĹ‚atnoĹ›ci dla tej faktury.
+              Brak płatności dla tej faktury.
             </div>
           ) : (
             <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
@@ -439,19 +446,19 @@ export default async function DashboardInvoiceDetailsPage({
 
         <section className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-lg font-semibold">ZaĹ‚Ä…czniki</h2>
+            <h2 className="text-lg font-semibold">Załączniki</h2>
             <p className="mt-2 text-3xl font-black">
               {invoice.attachments.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              PĂłĹşniej PDF, zdjÄ™cia i potwierdzenia.
+              Później PDF, zdjęcia i potwierdzenia.
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
             <h2 className="text-lg font-semibold">PDF</h2>
             <p className="mt-2 text-sm text-neutral-400">
-              {invoice.pdfUrl ?? "PDF nie zostaĹ‚ jeszcze zapisany jako plik."}
+              {invoice.pdfUrl ?? "PDF nie został jeszcze zapisany jako plik."}
             </p>
           </div>
 
@@ -461,7 +468,7 @@ export default async function DashboardInvoiceDetailsPage({
               {invoiceStatusLabel(invoice.status)}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              PĂłĹşniej: wysyĹ‚ka email i oznaczanie pĹ‚atnoĹ›ci.
+              Później: wysyłka email i oznaczanie płatności.
             </p>
           </div>
         </section>
@@ -469,4 +476,3 @@ export default async function DashboardInvoiceDetailsPage({
     </main>
   );
 }
-
