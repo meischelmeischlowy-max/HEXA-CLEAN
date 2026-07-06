@@ -37,6 +37,24 @@ const PAYMENT_METHODS = [
 
 type PaymentMethodInput = (typeof PAYMENT_METHODS)[number];
 
+function normalizeInvoiceCurrency(value: unknown) {
+  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
+
+  if (raw === "CHF" || raw.startsWith("CHF")) {
+    return "CHF";
+  }
+
+  if (raw === "EUR" || raw.startsWith("EUR")) {
+    return "EUR";
+  }
+
+  if (raw === "USD" || raw.startsWith("USD")) {
+    return "USD";
+  }
+
+  return "CHF";
+}
+
 function decimalToNumber(value: unknown) {
   if (value === null || value === undefined) {
     return 0;
@@ -80,7 +98,9 @@ export async function PATCH(
     const prisma = getPrisma();
     const body = await request.json();
 
-    const action = typeof body.action === "string" ? body.action : "";
+    const action =
+      typeof body.action === "string" ? body.action.trim() : "";
+
     const method = isPaymentMethod(body.method)
       ? body.method
       : "BANK_TRANSFER";
@@ -103,6 +123,8 @@ export async function PATCH(
         throw new Error("INVOICE_NOT_FOUND");
       }
 
+      const invoiceCurrency = normalizeInvoiceCurrency(invoice.currency);
+
       if (action === "mark_sent") {
         if (invoice.status === "CANCELLED") {
           throw new Error("INVOICE_CANCELLED");
@@ -115,6 +137,7 @@ export async function PATCH(
           data: {
             status: invoice.status === "DRAFT" ? "SENT" : invoice.status,
             sentAt: invoice.sentAt ?? new Date(),
+            currency: invoiceCurrency,
           },
         });
 
@@ -141,7 +164,7 @@ export async function PATCH(
               invoiceId: invoice.id,
               orderId: invoice.orderId,
               amount: openAmount.toFixed(2),
-              currency: invoice.currency || "CHF",
+              currency: invoiceCurrency,
               status: "PAID",
               method,
               externalRef: null,
@@ -159,6 +182,7 @@ export async function PATCH(
             paidAmount: total.toFixed(2),
             status: "PAID",
             paidAt: new Date(),
+            currency: invoiceCurrency,
           },
         });
 
@@ -181,6 +205,7 @@ export async function PATCH(
           },
           data: {
             status: "CANCELLED",
+            currency: invoiceCurrency,
           },
         });
 

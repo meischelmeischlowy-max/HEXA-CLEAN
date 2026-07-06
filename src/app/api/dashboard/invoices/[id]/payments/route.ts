@@ -37,6 +37,24 @@ const PAYMENT_METHODS = [
 
 type PaymentMethodInput = (typeof PAYMENT_METHODS)[number];
 
+function normalizeInvoiceCurrency(value: unknown) {
+  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
+
+  if (raw === "CHF" || raw.startsWith("CHF")) {
+    return "CHF";
+  }
+
+  if (raw === "EUR" || raw.startsWith("EUR")) {
+    return "EUR";
+  }
+
+  if (raw === "USD" || raw.startsWith("USD")) {
+    return "USD";
+  }
+
+  return "CHF";
+}
+
 function decimalToNumber(value: unknown) {
   if (value === null || value === undefined) {
     return 0;
@@ -165,12 +183,14 @@ export async function POST(
         throw new Error("INVOICE_CANCELLED");
       }
 
+      const invoiceCurrency = normalizeInvoiceCurrency(invoice.currency);
+
       const payment = await tx.payment.create({
         data: {
           invoiceId: invoice.id,
           orderId: invoice.orderId,
           amount: amount.toFixed(2),
-          currency: invoice.currency || "CHF",
+          currency: invoiceCurrency,
           status: "PAID",
           method,
           externalRef,
@@ -197,6 +217,7 @@ export async function POST(
           paidAmount: nextPaidAmount.toFixed(2),
           status: nextStatus,
           paidAt: nextStatus === "PAID" ? new Date() : invoice.paidAt,
+          currency: invoiceCurrency,
         },
       });
 

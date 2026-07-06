@@ -27,6 +27,24 @@ function getPrisma() {
   return globalForPrisma.hexaPrisma;
 }
 
+function normalizeInvoiceCurrency(value: unknown) {
+  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
+
+  if (raw === "CHF" || raw.startsWith("CHF")) {
+    return "CHF";
+  }
+
+  if (raw === "EUR" || raw.startsWith("EUR")) {
+    return "EUR";
+  }
+
+  if (raw === "USD" || raw.startsWith("USD")) {
+    return "USD";
+  }
+
+  return "CHF";
+}
+
 function decimalToNumber(value: unknown) {
   if (value === null || value === undefined) {
     return 0;
@@ -260,7 +278,7 @@ export async function POST(request: NextRequest) {
         taxAmount: "0.00",
         total: money(total),
         paidAmount: "0.00",
-        currency: estimate.currency ?? "CHF",
+        currency: normalizeInvoiceCurrency(estimate.currency),
         notes:
           `Erstellt aus Angebot ${estimateReference}. ` +
           "Leistungsumfang gemäss Angebot. Diese Rechnung wurde mit HEXA OS CRM erstellt.",
