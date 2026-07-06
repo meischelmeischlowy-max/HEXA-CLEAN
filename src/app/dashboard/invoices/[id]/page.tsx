@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import AddInvoicePaymentForm from "../../../../components/dashboard/AddInvoicePaymentForm";
+import InvoiceStatusActions from "../../../../components/dashboard/InvoiceStatusActions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,7 +53,23 @@ function decimalToNumber(value: unknown) {
   return Number.isFinite(number) ? number : 0;
 }
 
-function formatMoney(value: unknown, currency = "CHF") {
+function safeCurrency(value: unknown) {
+  if (typeof value !== "string") {
+    return "CHF";
+  }
+
+  const cleaned = value.trim().toUpperCase();
+
+  if (cleaned === "CHF" || cleaned === "EUR" || cleaned === "USD") {
+    return cleaned;
+  }
+
+  return "CHF";
+}
+
+function formatMoney(value: unknown, currencyInput: unknown = "CHF") {
+  const currency = safeCurrency(currencyInput);
+
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
     currency,
@@ -162,6 +179,7 @@ export default async function DashboardInvoiceDetailsPage({
     notFound();
   }
 
+  const currency = safeCurrency(invoice.currency);
   const total = decimalToNumber(invoice.total);
   const paidAmount = decimalToNumber(invoice.paidAmount);
   const openAmount = Math.max(total - paidAmount, 0);
@@ -246,6 +264,13 @@ export default async function DashboardInvoiceDetailsPage({
           </Link>
         </section>
 
+        <InvoiceStatusActions
+          invoiceId={invoice.id}
+          status={invoice.status}
+          openAmount={openAmount}
+          currency={currency}
+        />
+
         <section className="grid gap-4 lg:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-sm text-neutral-400">Klient</p>
@@ -272,7 +297,7 @@ export default async function DashboardInvoiceDetailsPage({
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-sm text-neutral-400">Zapłacono</p>
             <p className="mt-2 text-xl font-semibold">
-              {formatMoney(invoice.paidAmount, invoice.currency)}
+              {formatMoney(invoice.paidAmount, currency)}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
               Wpłat: {invoice.payments.length}
@@ -282,17 +307,15 @@ export default async function DashboardInvoiceDetailsPage({
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
             <p className="text-sm text-amber-100/70">Pozostało</p>
             <p className="mt-2 text-xl font-black text-amber-100">
-              {formatMoney(openAmount, invoice.currency)}
+              {formatMoney(openAmount, currency)}
             </p>
-            <p className="mt-1 text-sm text-amber-100/60">
-              Do rozliczenia
-            </p>
+            <p className="mt-1 text-sm text-amber-100/60">Do rozliczenia</p>
           </div>
 
           <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300 p-5 text-neutral-950">
             <p className="text-sm font-semibold opacity-70">Suma</p>
             <p className="mt-2 text-2xl font-black">
-              {formatMoney(invoice.total, invoice.currency)}
+              {formatMoney(invoice.total, currency)}
             </p>
           </div>
         </section>
@@ -353,35 +376,35 @@ export default async function DashboardInvoiceDetailsPage({
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-sm text-neutral-400">Subtotal</p>
               <p className="mt-2 text-xl font-semibold">
-                {formatMoney(invoice.subtotal, invoice.currency)}
+                {formatMoney(invoice.subtotal, currency)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-sm text-neutral-400">VAT / MWST</p>
               <p className="mt-2 text-xl font-semibold">
-                {formatMoney(invoice.taxAmount, invoice.currency)}
+                {formatMoney(invoice.taxAmount, currency)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-sm text-neutral-400">Total</p>
               <p className="mt-2 text-xl font-semibold">
-                {formatMoney(invoice.total, invoice.currency)}
+                {formatMoney(invoice.total, currency)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               <p className="text-sm text-neutral-400">Zapłacono</p>
               <p className="mt-2 text-xl font-semibold">
-                {formatMoney(invoice.paidAmount, invoice.currency)}
+                {formatMoney(invoice.paidAmount, currency)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
               <p className="text-sm text-cyan-100/70">Otwarte</p>
               <p className="mt-2 text-xl font-black text-cyan-100">
-                {formatMoney(openAmount, invoice.currency)}
+                {formatMoney(openAmount, currency)}
               </p>
             </div>
           </div>
@@ -399,7 +422,7 @@ export default async function DashboardInvoiceDetailsPage({
         <AddInvoicePaymentForm
           invoiceId={invoice.id}
           openAmount={openAmount}
-          currency={invoice.currency}
+          currency={currency}
         />
 
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
@@ -434,7 +457,7 @@ export default async function DashboardInvoiceDetailsPage({
                         {paymentStatusLabel(payment.status)}
                       </td>
                       <td className="px-4 py-4 text-right font-semibold">
-                        {formatMoney(payment.amount, payment.currency)}
+                        {formatMoney(payment.amount, currency)}
                       </td>
                     </tr>
                   ))}
