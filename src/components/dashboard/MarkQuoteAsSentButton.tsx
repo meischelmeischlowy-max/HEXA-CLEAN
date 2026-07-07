@@ -7,6 +7,16 @@ type MarkQuoteAsSentButtonProps = {
   quoteId: string;
 };
 
+type ApiResponse = {
+  status?: string;
+  message?: string;
+  updated?: boolean;
+  quote?: {
+    id: string;
+    status: string;
+  } | null;
+};
+
 export default function MarkQuoteAsSentButton({
   quoteId,
 }: MarkQuoteAsSentButtonProps) {
@@ -16,7 +26,7 @@ export default function MarkQuoteAsSentButton({
 
   async function handleMarkAsSent() {
     const confirmed = window.confirm(
-      "Dieses Angebot wirklich als gesendet markieren?",
+      "Dieses Angebot wirklich als gesendet markieren?"
     );
 
     if (!confirmed) {
@@ -27,17 +37,24 @@ export default function MarkQuoteAsSentButton({
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/dashboard/quotes/${quoteId}/mark-sent`,
-        {
-          method: "POST",
+      const response = await fetch(`/api/dashboard/quotes/${quoteId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        credentials: "same-origin",
+        body: JSON.stringify({
+          status: "SENT",
+        }),
+      });
 
-      const result = await response.json();
+      const result = (await response.json()) as ApiResponse;
 
       if (!response.ok || result.status !== "OK") {
-        setError("Das Angebot konnte nicht als gesendet markiert werden.");
+        setError(
+          result.message ??
+            "Das Angebot konnte nicht als gesendet markiert werden."
+        );
         return;
       }
 

@@ -7,6 +7,23 @@ type MarkInvoiceAsSentButtonProps = {
   invoiceId: string;
 };
 
+type ApiResponse = {
+  status?: string;
+  message?: string;
+  invoice?: {
+    id: string;
+    status: string;
+  } | null;
+  data?: {
+    status?: string;
+    message?: string;
+    invoice?: {
+      id: string;
+      status: string;
+    } | null;
+  };
+};
+
 export default function MarkInvoiceAsSentButton({
   invoiceId,
 }: MarkInvoiceAsSentButtonProps) {
@@ -27,17 +44,29 @@ export default function MarkInvoiceAsSentButton({
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/dashboard/invoices/${invoiceId}/mark-sent`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`/api/dashboard/invoices/${invoiceId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          status: "SENT",
+        }),
+      });
 
-      const result = await response.json();
+      const result = (await response.json()) as ApiResponse;
 
-      if (!response.ok || result.status !== "OK") {
-        setError("Die Rechnung konnte nicht als versendet markiert werden.");
+      if (
+        !response.ok ||
+        result.status === "ERROR" ||
+        result.data?.status === "error"
+      ) {
+        setError(
+          result.data?.message ??
+            result.message ??
+            "Die Rechnung konnte nicht als versendet markiert werden."
+        );
         return;
       }
 
@@ -60,7 +89,7 @@ export default function MarkInvoiceAsSentButton({
         {isLoading ? "Wird markiert..." : "Als versendet markieren"}
       </button>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error ? <p className="text-xs text-red-400">{error}</p> : null}
     </div>
   );
 }

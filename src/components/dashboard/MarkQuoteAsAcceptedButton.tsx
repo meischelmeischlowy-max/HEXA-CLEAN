@@ -7,6 +7,16 @@ type MarkQuoteAsAcceptedButtonProps = {
   quoteId: string;
 };
 
+type ApiResponse = {
+  status?: string;
+  message?: string;
+  updated?: boolean;
+  quote?: {
+    id: string;
+    status: string;
+  } | null;
+};
+
 export default function MarkQuoteAsAcceptedButton({
   quoteId,
 }: MarkQuoteAsAcceptedButtonProps) {
@@ -16,7 +26,7 @@ export default function MarkQuoteAsAcceptedButton({
 
   async function handleMarkAsAccepted() {
     const confirmed = window.confirm(
-      "Dieses Angebot wirklich als angenommen markieren?",
+      "Dieses Angebot wirklich als angenommen markieren?"
     );
 
     if (!confirmed) {
@@ -27,17 +37,24 @@ export default function MarkQuoteAsAcceptedButton({
     setError("");
 
     try {
-      const response = await fetch(
-        `/api/dashboard/quotes/${quoteId}/mark-accepted`,
-        {
-          method: "POST",
+      const response = await fetch(`/api/dashboard/quotes/${quoteId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        credentials: "same-origin",
+        body: JSON.stringify({
+          status: "ACCEPTED",
+        }),
+      });
 
-      const result = await response.json();
+      const result = (await response.json()) as ApiResponse;
 
       if (!response.ok || result.status !== "OK") {
-        setError("Das Angebot konnte nicht als angenommen markiert werden.");
+        setError(
+          result.message ??
+            "Das Angebot konnte nicht als angenommen markiert werden."
+        );
         return;
       }
 
