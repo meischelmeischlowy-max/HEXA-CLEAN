@@ -81,6 +81,35 @@ function getLinkStatus(link: PublicOfferLink) {
   };
 }
 
+function buildOfferEmailSubject() {
+  return "Ihre Offerte von HEXA CLEAN";
+}
+
+function buildOfferEmailBody(publicUrl: string) {
+  return [
+    "Guten Tag",
+    "",
+    "vielen Dank für Ihre Anfrage.",
+    "",
+    "Ihre Offerte ist unter folgendem geschützten Link verfügbar:",
+    publicUrl,
+    "",
+    "Sie können die Offerte direkt über den Link prüfen und akzeptieren.",
+    "",
+    "Bitte leiten Sie diesen Link nicht weiter, da er für Ihre Offerte bestimmt ist.",
+    "",
+    "Freundliche Grüsse",
+    "HEXA CLEAN",
+  ].join("\n");
+}
+
+function buildMailToHref(publicUrl: string) {
+  const subject = buildOfferEmailSubject();
+  const body = buildOfferEmailBody(publicUrl);
+
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 export default function GeneratePublicOfferLinkButton({
   quoteId,
   quoteStatus,
@@ -93,6 +122,7 @@ export default function GeneratePublicOfferLinkButton({
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
 
   const canGenerate = quoteStatus === "SENT";
 
@@ -100,6 +130,10 @@ export default function GeneratePublicOfferLinkButton({
     () => links.filter((link) => link.isActive && !link.acceptedAt && !link.revokedAt),
     [links],
   );
+
+  const emailSubject = buildOfferEmailSubject();
+  const emailBody = publicUrl ? buildOfferEmailBody(publicUrl) : "";
+  const mailToHref = publicUrl ? buildMailToHref(publicUrl) : "#";
 
   async function loadLinks() {
     setIsLoadingLinks(true);
@@ -148,6 +182,7 @@ export default function GeneratePublicOfferLinkButton({
     setMessage(null);
     setErrorMessage(null);
     setCopied(false);
+    setEmailCopied(false);
 
     try {
       const response = await fetch(`/api/dashboard/quotes/${quoteId}/public-link`, {
@@ -235,6 +270,20 @@ export default function GeneratePublicOfferLinkButton({
     }
   }
 
+  async function copyEmailText() {
+    if (!publicUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(`Betreff: ${emailSubject}\n\n${emailBody}`);
+      setEmailCopied(true);
+    } catch {
+      setEmailCopied(false);
+      setErrorMessage("E-Mail Text konnte nicht automatisch kopiert werden.");
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.05] p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -274,22 +323,60 @@ export default function GeneratePublicOfferLinkButton({
       ) : null}
 
       {publicUrl ? (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
-            Link nur jetzt kopieren
-          </p>
+        <div className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+              Link nur jetzt kopieren
+            </p>
 
-          <div className="mt-3 break-all rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-slate-100">
-            {publicUrl}
+            <div className="mt-3 break-all rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-slate-100">
+              {publicUrl}
+            </div>
+
+            <button
+              type="button"
+              onClick={copyLink}
+              className="mt-3 rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+            >
+              {copied ? "Kopiert" : "Link kopieren"}
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={copyLink}
-            className="mt-3 rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
-          >
-            {copied ? "Kopiert" : "Link kopieren"}
-          </button>
+          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.05] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+              E-Mail Entwurf
+            </p>
+
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-xs leading-6 text-slate-200">
+              <p className="font-bold text-slate-100">Betreff: {emailSubject}</p>
+              <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-6 text-slate-300">
+                {emailBody}
+              </pre>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={copyEmailText}
+                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+              >
+                {emailCopied ? "E-Mail kopiert" : "E-Mail Text kopieren"}
+              </button>
+
+              <a
+                href={mailToHref}
+                className="rounded-xl border border-cyan-400/30 px-4 py-2 text-center text-xs font-bold text-cyan-200 transition hover:bg-cyan-500/10"
+              >
+                Im Mailprogramm öffnen
+              </a>
+            </div>
+
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              Sicherheitsregel: Der vollständige Token wird nicht in der Datenbank
+              gespeichert. Deshalb kann dieser E-Mail Text nur direkt nach dem Generieren
+              des Links erstellt werden.
+            </p>
+          </div>
         </div>
       ) : null}
 
