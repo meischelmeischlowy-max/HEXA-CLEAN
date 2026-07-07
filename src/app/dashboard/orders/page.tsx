@@ -195,13 +195,31 @@ function isQuickOfferOrder(order: Order) {
   );
 }
 
-function needsQuickOfferReview(order: Order) {
+function isChatbotOrder(order: Order) {
+  const title = String(order.title ?? "").toUpperCase();
+  const description = String(order.description ?? "").toUpperCase();
+  const estimateSource = getLatestEstimate(order)?.source?.toUpperCase();
+
+  return (
+    title.includes("AI CHATBOX") ||
+    title.includes("CHATBOT") ||
+    description.includes("AI CHATBOX") ||
+    description.includes("CHATBOT") ||
+    estimateSource === "CHATBOT"
+  );
+}
+
+function isPublicLeadOrder(order: Order) {
+  return isQuickOfferOrder(order) || isChatbotOrder(order);
+}
+
+function needsPublicLeadReview(order: Order) {
   const latestEstimate = getLatestEstimate(order);
   const orderStatus = normalizeStatus(order.status);
   const estimateStatus = normalizeStatus(latestEstimate?.status);
 
   return (
-    isQuickOfferOrder(order) &&
+    isPublicLeadOrder(order) &&
     (orderStatus === "NEW" ||
       orderStatus === "OPEN" ||
       orderStatus === "PENDING" ||
@@ -213,6 +231,10 @@ function needsQuickOfferReview(order: Order) {
 function sourceLabel(order: Order) {
   if (isQuickOfferOrder(order)) {
     return "QuickOffer";
+  }
+
+  if (isChatbotOrder(order)) {
+    return "Chatbot";
   }
 
   if (order.sessionId) {
@@ -227,11 +249,39 @@ function sourceBadgeClass(order: Order) {
     return "border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100";
   }
 
-  if (order.sessionId) {
+  if (isChatbotOrder(order)) {
     return "border-violet-300/25 bg-violet-300/10 text-violet-100";
   }
 
+  if (order.sessionId) {
+    return "border-sky-300/25 bg-sky-300/10 text-sky-100";
+  }
+
   return "border-white/10 bg-white/[0.04] text-zinc-200";
+}
+
+function leadPanelClass(order: Order) {
+  if (isQuickOfferOrder(order)) {
+    return "rounded-3xl border border-fuchsia-300/20 bg-fuchsia-300/10 p-5";
+  }
+
+  if (isChatbotOrder(order)) {
+    return "rounded-3xl border border-violet-300/20 bg-violet-300/10 p-5";
+  }
+
+  return "rounded-3xl border border-white/10 bg-white/[0.04] p-5";
+}
+
+function leadLabel(order: Order) {
+  if (isQuickOfferOrder(order)) {
+    return "QuickOffer Lead";
+  }
+
+  if (isChatbotOrder(order)) {
+    return "Chatbot Lead";
+  }
+
+  return "Website Lead";
 }
 
 export default function DashboardOrdersPage() {
@@ -292,7 +342,8 @@ export default function DashboardOrdersPage() {
     ).length;
 
     const quickOffer = orders.filter(isQuickOfferOrder).length;
-    const quickOfferReview = orders.filter(needsQuickOfferReview).length;
+    const chatbot = orders.filter(isChatbotOrder).length;
+    const publicLeadReview = orders.filter(needsPublicLeadReview).length;
 
     const estimatedValue = orders.reduce((sum, order) => {
       const amount = getOrderAmount(order);
@@ -315,7 +366,8 @@ export default function DashboardOrdersPage() {
       completed,
       quoted,
       quickOffer,
-      quickOfferReview,
+      chatbot,
+      publicLeadReview,
       estimatedValue,
     };
   }, [orders]);
@@ -326,6 +378,8 @@ export default function DashboardOrdersPage() {
       header: "Auftrag",
       render: (order) => {
         const quickOffer = isQuickOfferOrder(order);
+        const chatbot = isChatbotOrder(order);
+        const publicLead = isPublicLeadOrder(order);
 
         return (
           <div>
@@ -340,7 +394,13 @@ export default function DashboardOrdersPage() {
                 </span>
               ) : null}
 
-              {needsQuickOfferReview(order) ? (
+              {chatbot ? (
+                <span className="rounded-full border border-violet-300/25 bg-violet-300/10 px-2 py-1 text-[11px] font-bold text-violet-100">
+                  Chatbot Lead
+                </span>
+              ) : null}
+
+              {publicLead && needsPublicLeadReview(order) ? (
                 <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-1 text-[11px] font-bold text-amber-100">
                   Prüfung erforderlich
                 </span>
@@ -420,7 +480,7 @@ export default function DashboardOrdersPage() {
           <div>
             <PremiumButton
               href={`/dashboard/estimates/${latestEstimate.id}`}
-              variant={isQuickOfferOrder(order) ? "secondary" : "ghost"}
+              variant={isPublicLeadOrder(order) ? "secondary" : "ghost"}
               size="sm"
             >
               {latestEstimate.estimateNumber ?? "Kalkulation öffnen"}
@@ -468,6 +528,7 @@ export default function DashboardOrdersPage() {
       className: "text-right",
       render: (order) => {
         const latestEstimate = getLatestEstimate(order);
+        const publicLead = isPublicLeadOrder(order);
 
         return (
           <div className="flex flex-wrap justify-end gap-2">
@@ -476,7 +537,7 @@ export default function DashboardOrdersPage() {
               variant="primary"
               size="sm"
             >
-              {isQuickOfferOrder(order) ? "Lead öffnen" : "Details"}
+              {publicLead ? "Lead öffnen" : "Details"}
             </PremiumButton>
 
             <PremiumButton
@@ -493,7 +554,7 @@ export default function DashboardOrdersPage() {
                 variant="secondary"
                 size="sm"
               >
-                Kalkulation
+                {publicLead ? "Lead prüfen" : "Kalkulation"}
               </PremiumButton>
             ) : (
               <PremiumButton
@@ -518,13 +579,15 @@ export default function DashboardOrdersPage() {
     },
   ];
 
+  const ordersForReview = orders.filter(needsPublicLeadReview);
+
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
           eyebrow="HEXA OS CRM / Aufträge"
           title="Operative Aufträge"
-          description="Zentrales Arbeitscenter für Kundenaufträge: Status, Orte, Beträge, Workflow und der Übergang zu Kunden, Kalkulationen, Rechnungen und Zahlungen. QuickOffer-Leads aus der Website werden hier direkt als neue Aufträge sichtbar."
+          description="Zentrales Arbeitscenter für Kundenaufträge: Status, Orte, Beträge, Workflow und der Übergang zu Kunden, Kalkulationen, Rechnungen und Zahlungen. QuickOffer- und Chatbot-Leads aus der Website werden hier direkt als neue Aufträge sichtbar."
         >
           <PremiumButton href="/dashboard/orders/new" variant="primary">
             Auftrag erstellen
@@ -566,27 +629,27 @@ export default function DashboardOrdersPage() {
             title="QuickOffer"
             value={String(stats.quickOffer)}
             description="Website-Leads aus dem QuickOffer Formular."
-            trend={`${stats.quickOfferReview} do kontroli`}
+            trend="Public Website"
             tone="violet"
             icon={<span className="text-lg font-black">QO</span>}
           />
 
           <MetricCard
-            title="Do kontroli"
-            value={String(stats.quickOfferReview)}
-            description="QuickOffer-Leads, die noch geprüft werden müssen."
-            trend="Vor Versand prüfen"
-            tone="amber"
-            icon={<span className="text-lg font-black">!</span>}
+            title="Chatbot"
+            value={String(stats.chatbot)}
+            description="Website-Leads aus dem AI Chatbox Workflow."
+            trend="Public Website"
+            tone="cyan"
+            icon={<span className="text-lg font-black">AI</span>}
           />
 
           <MetricCard
-            title="Abgeschlossen"
-            value={String(stats.completed)}
-            description="Aufträge, die in HEXA OS als abgeschlossen markiert sind."
-            trend="Status ABGESCHLOSSEN"
-            tone="emerald"
-            icon={<span className="text-lg font-black">✓</span>}
+            title="Do kontroli"
+            value={String(stats.publicLeadReview)}
+            description="Public-Leads, die noch geprüft werden müssen."
+            trend="Vor Versand prüfen"
+            tone="amber"
+            icon={<span className="text-lg font-black">!</span>}
           />
 
           <MetricCard
@@ -599,22 +662,19 @@ export default function DashboardOrdersPage() {
           />
         </section>
 
-        {stats.quickOfferReview > 0 ? (
+        {ordersForReview.length > 0 ? (
           <DashboardPanel
-            title="QuickOffer-Leads warten auf Prüfung"
-            description="Diese Aufträge wurden automatisch aus dem öffentlichen Formular erstellt. Vor einem offiziellen Angebot müssen Umfang, Risiko, Preis, Fotos und Kundendaten geprüft werden."
+            title="Website-Leads warten auf Prüfung"
+            description="Diese Aufträge wurden automatisch aus QuickOffer oder AI Chatbox erstellt. Vor einem offiziellen Angebot müssen Umfang, Risiko, Preis, Fotos und Kundendaten geprüft werden."
           >
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {orders.filter(needsQuickOfferReview).map((order) => {
+              {ordersForReview.map((order) => {
                 const latestEstimate = getLatestEstimate(order);
 
                 return (
-                  <div
-                    key={order.id}
-                    className="rounded-3xl border border-fuchsia-300/20 bg-fuchsia-300/10 p-5"
-                  >
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-fuchsia-100/80">
-                      QuickOffer Lead
+                  <div key={order.id} className={leadPanelClass(order)}>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">
+                      {leadLabel(order)}
                     </p>
 
                     <p className="mt-2 text-lg font-black text-white">
@@ -689,7 +749,7 @@ export default function DashboardOrdersPage() {
         {!loading && !errorMessage ? (
           <DashboardPanel
             title="Auftragsliste"
-            description={`Anzahl Datensätze: ${orders.length}. QuickOffer-Leads sind markiert und können direkt über Auftrag oder Kalkulation geprüft werden.`}
+            description={`Anzahl Datensätze: ${orders.length}. QuickOffer- und Chatbot-Leads sind markiert und können direkt über Auftrag oder Kalkulation geprüft werden.`}
             action={
               <StatusBadge
                 status={orders.length > 0 ? "ACCEPTED" : "PENDING"}
@@ -704,7 +764,7 @@ export default function DashboardOrdersPage() {
               empty={
                 <EmptyState
                   title="Keine Aufträge in der Datenbank"
-                  description="Erstellen Sie einen Auftrag manuell oder senden Sie testweise eine Anfrage über QuickOffer auf der Website."
+                  description="Erstellen Sie einen Auftrag manuell oder senden Sie testweise eine Anfrage über QuickOffer oder Chatbot auf der Website."
                   actionLabel="Auftrag erstellen"
                   actionHref="/dashboard/orders/new"
                 />

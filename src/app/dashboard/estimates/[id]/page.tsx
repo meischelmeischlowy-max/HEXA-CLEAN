@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
@@ -168,8 +169,8 @@ function statusBadgeClass(status: string | null | undefined) {
 function sourceLabel(source: string | null | undefined) {
   const labels: Record<string, string> = {
     QUICK_OFFER: "QuickOffer Website",
+    CHATBOT: "AI Chatbox",
     ADMIN: "Dashboard",
-    CHATBOT: "Chatbot",
     PUBLIC_FORM: "Public Form",
     IMPORT: "Import",
   };
@@ -201,6 +202,14 @@ function isQuickOfferSource(source: string | null | undefined) {
   return String(source ?? "").toUpperCase() === "QUICK_OFFER";
 }
 
+function isChatbotSource(source: string | null | undefined) {
+  return String(source ?? "").toUpperCase() === "CHATBOT";
+}
+
+function isPublicLeadSource(source: string | null | undefined) {
+  return isQuickOfferSource(source) || isChatbotSource(source);
+}
+
 function metadataText(metadata: unknown, key: string) {
   if (!metadata || typeof metadata !== "object") {
     return null;
@@ -229,6 +238,28 @@ function metadataValue(metadata: unknown, key: string) {
   }
 
   return (metadata as Record<string, unknown>)[key];
+}
+
+function metadataObject(metadata: unknown, key: string) {
+  const value = metadataValue(metadata, key);
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function yesNoLabel(value: unknown) {
+  if (value === true) {
+    return "Ja";
+  }
+
+  if (value === false) {
+    return "Nein";
+  }
+
+  return "—";
 }
 
 function unitLabel(value: unknown) {
@@ -297,7 +328,7 @@ function InfoLine({
   value,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -309,21 +340,34 @@ function InfoLine({
   );
 }
 
-function ReviewChecklist({ isQuickOffer }: { isQuickOffer: boolean }) {
-  const items = isQuickOffer
-    ? [
-        "Kontakt prüfen: Telefon oder E-Mail ist erreichbar.",
-        "Leistungsumfang prüfen: m², Zusatzleistungen und Termin plausibel.",
-        "Anfahrt, Material, Risiko und Zeitaufwand ergänzen.",
-        "Bei Unsicherheit Fotos oder Rückfrage beim Kunden anfordern.",
-        "Erst danach Status auf READY_TO_SEND setzen und Angebot vorbereiten.",
-      ]
-    : [
-        "Positionen prüfen.",
-        "Preis, Risiko, Rabatt und Anfahrt kontrollieren.",
-        "Kundennotiz und interne Notiz prüfen.",
-        "Status erst nach Kontrolle auf READY_TO_SEND setzen.",
-      ];
+function ReviewChecklist({
+  leadType,
+}: {
+  leadType: "quick_offer" | "chatbot" | "manual";
+}) {
+  const items =
+    leadType === "quick_offer"
+      ? [
+          "Kontakt prüfen: Telefon oder E-Mail ist erreichbar.",
+          "Leistungsumfang prüfen: m², Zusatzleistungen und Termin plausibel.",
+          "Anfahrt, Material, Risiko und Zeitaufwand ergänzen.",
+          "Bei Unsicherheit Fotos oder Rückfrage beim Kunden anfordern.",
+          "Erst danach Status auf READY_TO_SEND setzen und Angebot vorbereiten.",
+        ]
+      : leadType === "chatbot"
+        ? [
+            "Chatverlauf prüfen: Hat der Kunde wirklich eine Anfrage gestellt?",
+            "Kontakt prüfen: Telefon oder E-Mail ist erreichbar.",
+            "Angaben aus dem Chat prüfen: Leistung, Fläche, Fenster, Etage, Termin und Beschreibung.",
+            "Preis ist nur AI-/Website-Schätzung: Risiko, Anfahrt, Material und Zeitaufwand manuell prüfen.",
+            "Erst danach Status auf READY_TO_SEND setzen und Angebot vorbereiten.",
+          ]
+        : [
+            "Positionen prüfen.",
+            "Preis, Risiko, Rabatt und Anfahrt kontrollieren.",
+            "Kundennotiz und interne Notiz prüfen.",
+            "Status erst nach Kontrolle auf READY_TO_SEND setzen.",
+          ];
 
   return (
     <section className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-6">
@@ -401,12 +445,14 @@ export default async function DashboardEstimateDetailsPage({
         orderBy: {
           createdAt: "asc",
         },
-        take: 30,
+        take: 50,
       })
     : [];
 
   const latestAuditLog = estimate.auditLogs[0];
   const isQuickOffer = isQuickOfferSource(estimate.source);
+  const isChatbot = isChatbotSource(estimate.source);
+  const isPublicLead = isPublicLeadSource(estimate.source);
   const firstMessage = conversationMessages[0] ?? null;
 
   const quickOfferMetadata =
@@ -424,6 +470,33 @@ export default async function DashboardEstimateDetailsPage({
     estimate.customer?.phone ??
     "—";
 
+  const chatMetadata = estimate.session?.metadata ?? null;
+  const chatAnswers = metadataObject(chatMetadata, "answers");
+
+  const chatbotService =
+    metadataValue(chatMetadata, "serviceLabel") ??
+    metadataValue(chatAnswers, "serviceLabel") ??
+    estimate.title ??
+    "—";
+  const chatbotArea = metadataValue(chatAnswers, "area");
+  const chatbotWindows = metadataValue(chatAnswers, "windows");
+  const chatbotFloor = metadataValue(chatAnswers, "floor");
+  const chatbotElevator = metadataValue(chatAnswers, "elevator");
+  const chatbotOven = metadataValue(chatAnswers, "oven");
+  const chatbotBalcony = metadataValue(chatAnswers, "balcony");
+  const chatbotFrequency = metadataValue(chatAnswers, "frequency");
+  const chatbotDescription = metadataValue(chatAnswers, "description");
+  const chatbotDate = metadataValue(chatAnswers, "date");
+  const chatbotPriceRange =
+    metadataValue(chatMetadata, "priceRange") ??
+    `${formatMoney(estimate.aiMinTotal, estimate.currency)} – ${formatMoney(
+      estimate.aiMaxTotal,
+      estimate.currency,
+    )}`;
+  const chatbotPageUrl = metadataValue(chatMetadata, "pageUrl");
+  const chatbotContact =
+    estimate.customer?.email ?? estimate.customer?.phone ?? "—";
+
   const serviceAddress = [
     estimate.serviceStreet,
     [estimate.serviceZipCode, estimate.serviceCity].filter(Boolean).join(" "),
@@ -437,6 +510,12 @@ export default async function DashboardEstimateDetailsPage({
 
   const manualAiRangeExists =
     estimate.aiMinTotal !== null || estimate.aiMaxTotal !== null;
+
+  const reviewLeadType = isQuickOffer
+    ? "quick_offer"
+    : isChatbot
+      ? "chatbot"
+      : "manual";
 
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-8 text-white">
@@ -470,7 +549,13 @@ export default async function DashboardEstimateDetailsPage({
 
                 {isQuickOffer ? (
                   <span className="rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-1 text-xs font-bold text-fuchsia-100">
-                    Website Lead
+                    QuickOffer Website Lead
+                  </span>
+                ) : null}
+
+                {isChatbot ? (
+                  <span className="rounded-full border border-violet-300/30 bg-violet-300/10 px-3 py-1 text-xs font-bold text-violet-100">
+                    Chatbot Website Lead
                   </span>
                 ) : null}
 
@@ -553,6 +638,82 @@ export default async function DashboardEstimateDetailsPage({
                         estimate.currency,
                       )}`
                 }
+              />
+            </div>
+          </section>
+        ) : null}
+
+        {isChatbot ? (
+          <section className="rounded-3xl border border-violet-300/25 bg-violet-300/10 p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-violet-100/80">
+                  Chatbot Lead
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-violet-50">
+                  Anfrage aus der AI Chatbox
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-violet-50/80">
+                  Diese Kalkulation wurde automatisch aus dem öffentlichen
+                  Chatbot erstellt. Der Chatverlauf ist gespeichert und muss vor
+                  einer offiziellen Offerte manuell geprüft werden.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-violet-300/20 bg-black/20 px-5 py-4 text-sm text-violet-50">
+                <p className="font-black">Nächster Schritt</p>
+                <p className="mt-2 leading-6">
+                  Chat prüfen → Rückfrage/Fotos falls nötig → Angebot vorbereiten.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <InfoLine label="Leistung" value={String(chatbotService)} />
+              <InfoLine
+                label="Fläche"
+                value={chatbotArea ? `${String(chatbotArea)} m²` : "—"}
+              />
+              <InfoLine
+                label="Fenster"
+                value={chatbotWindows ? String(chatbotWindows) : "—"}
+              />
+              <InfoLine
+                label="Kontakt"
+                value={String(chatbotContact)}
+              />
+              <InfoLine
+                label="AI-Spanne"
+                value={String(chatbotPriceRange)}
+              />
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <InfoLine
+                label="Etage"
+                value={chatbotFloor ? String(chatbotFloor) : "—"}
+              />
+              <InfoLine label="Lift" value={yesNoLabel(chatbotElevator)} />
+              <InfoLine label="Backofen" value={yesNoLabel(chatbotOven)} />
+              <InfoLine
+                label="Balkon/Terrasse"
+                value={yesNoLabel(chatbotBalcony)}
+              />
+              <InfoLine
+                label="Rhythmus"
+                value={chatbotFrequency ? String(chatbotFrequency) : "—"}
+              />
+              <InfoLine
+                label="Wunschtermin"
+                value={chatbotDate ? String(chatbotDate) : "—"}
+              />
+              <InfoLine
+                label="Seite"
+                value={chatbotPageUrl ? String(chatbotPageUrl) : "—"}
+              />
+              <InfoLine
+                label="Beschreibung"
+                value={chatbotDescription ? String(chatbotDescription) : "—"}
               />
             </div>
           </section>
@@ -656,13 +817,13 @@ export default async function DashboardEstimateDetailsPage({
           </div>
         </section>
 
-        <ReviewChecklist isQuickOffer={isQuickOffer} />
+        <ReviewChecklist leadType={reviewLeadType} />
 
         <section className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
             <h2 className="text-xl font-semibold">CRM-Verknüpfung</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-400">
-              Verbindung zwischen Formular, Kunde, Session, Auftrag und
+              Verbindung zwischen Website, Kunde, Session, Auftrag und
               Kalkulation.
             </p>
 
@@ -681,6 +842,20 @@ export default async function DashboardEstimateDetailsPage({
               <InfoLine
                 label="Session Source"
                 value={estimate.session?.source ?? "—"}
+              />
+              <InfoLine
+                label="Lead Typ"
+                value={
+                  isPublicLead
+                    ? isQuickOffer
+                      ? "QuickOffer"
+                      : "Chatbot"
+                    : "Manuell / Dashboard"
+                }
+              />
+              <InfoLine
+                label="Nachrichten"
+                value={String(conversationMessages.length)}
               />
             </div>
           </div>
@@ -727,7 +902,7 @@ export default async function DashboardEstimateDetailsPage({
               <h2 className="text-xl font-semibold">Kalkulationspositionen</h2>
               <p className="mt-1 text-sm text-neutral-400">
                 Positionen aus dem Leistungskatalog, aus dem manuellen Formular
-                oder automatisch aus QuickOffer.
+                oder automatisch aus QuickOffer / Chatbot.
               </p>
             </div>
 

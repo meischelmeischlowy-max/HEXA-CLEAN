@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
@@ -140,6 +141,9 @@ function statusLabel(status: unknown) {
     OPEN: "Otwarte",
     PENDING: "Oczekuje",
     IN_PROGRESS: "W trakcie",
+    WAITING_FOR_CUSTOMER: "Czeka na klienta",
+    CONFIRMED: "Potwierdzone",
+    SCHEDULED: "Zaplanowane",
     COMPLETED: "Abgeschlossen",
     CANCELLED: "Anulowane",
     PAID: "Bezahlt",
@@ -169,6 +173,16 @@ function metadataValue(metadata: unknown, key: string) {
   }
 
   return (metadata as Record<string, unknown>)[key];
+}
+
+function metadataObject(metadata: unknown, key: string) {
+  const value = metadataValue(metadata, key);
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
 }
 
 function metadataString(metadata: unknown, key: string) {
@@ -209,6 +223,8 @@ function isQuickOfferOrder({
     title.includes("QUICKOFFER") ||
     description.includes("QUICKOFFER") ||
     sessionSource === "QUICK_OFFER" ||
+    sessionSource === "QUICKOFFER" ||
+    sessionSource === "PUBLIC_QUICK_OFFER" ||
     sessionSource === "QUICK_OFFER_CONTACT" ||
     sessionSource === "QUICK_OFFER_FORM" ||
     sessionSource === "QUICK_OFFER_WEBSITE" ||
@@ -216,24 +232,75 @@ function isQuickOfferOrder({
     sessionSource === "QUICK_OFFER_PUBLIC" ||
     sessionSource === "QUICK_OFFER_CRM" ||
     sessionSource === "QUICK_OFFER_API" ||
-    sessionSource === "QUICKOFFER" ||
     sessionSource === "QUICK_OFFER_FORMULAR" ||
     sessionSource === "QUICK_OFFER_FORMULARZ" ||
-    sessionSource === "PUBLIC_QUICK_OFFER" ||
-    sessionSource === "PUBLIC_WEBSITE" ||
-    sessionSource === "quick_offer".toUpperCase() ||
     hasQuickOfferEstimate
   );
 }
 
-function needsReview(order: Row, estimates: Row[]) {
+function isChatbotOrder({
+  order,
+  session,
+  estimates,
+}: {
+  order: Row;
+  session: Row | null;
+  estimates: Row[];
+}) {
+  const title = String(order.title ?? "").toUpperCase();
+  const description = String(order.description ?? "").toUpperCase();
+  const sessionSource = String(session?.source ?? "").toUpperCase();
+  const hasChatbotEstimate = estimates.some(
+    (estimate) => String(estimate.source ?? "").toUpperCase() === "CHATBOT",
+  );
+
+  return (
+    title.includes("AI CHATBOX") ||
+    title.includes("CHATBOT") ||
+    description.includes("AI CHATBOX") ||
+    description.includes("CHATBOT") ||
+    sessionSource === "AI_CHAT" ||
+    sessionSource === "CHATBOT" ||
+    sessionSource === "PUBLIC_AI_CHAT" ||
+    sessionSource === "PUBLIC_CHATBOT" ||
+    hasChatbotEstimate
+  );
+}
+
+function isPublicLeadOrder({
+  order,
+  session,
+  estimates,
+}: {
+  order: Row;
+  session: Row | null;
+  estimates: Row[];
+}) {
+  return (
+    isQuickOfferOrder({ order, session, estimates }) ||
+    isChatbotOrder({ order, session, estimates })
+  );
+}
+
+function needsReview({
+  order,
+  estimates,
+  isPublicLead,
+}: {
+  order: Row;
+  estimates: Row[];
+  isPublicLead: boolean;
+}) {
   const orderStatus = normalizeStatus(order.status);
   const latestEstimate = estimates[0] ?? null;
   const estimateStatus = normalizeStatus(latestEstimate?.status);
 
   return (
-    ["NEW", "OPEN", "PENDING", "IN_PROGRESS"].includes(orderStatus) ||
-    ["AI_REVIEW", "NEEDS_HUMAN_REVIEW", "NEEDS_PHOTOS"].includes(estimateStatus)
+    isPublicLead &&
+    (["NEW", "OPEN", "PENDING", "IN_PROGRESS"].includes(orderStatus) ||
+      ["AI_REVIEW", "NEEDS_HUMAN_REVIEW", "NEEDS_PHOTOS"].includes(
+        estimateStatus,
+      ))
   );
 }
 
@@ -245,7 +312,7 @@ function firstMessage(conversationMessages: Row[]) {
   return conversationMessages[0] ?? null;
 }
 
-function quickOfferMetadata({
+function leadMetadata({
   session,
   message,
 }: {
@@ -253,6 +320,26 @@ function quickOfferMetadata({
   message: Row | null;
 }) {
   return message?.metadata ?? session?.metadata ?? null;
+}
+
+function yesNoLabel(value: unknown) {
+  if (value === true) {
+    return "Ja";
+  }
+
+  if (value === false) {
+    return "Nein";
+  }
+
+  if (value === "true") {
+    return "Ja";
+  }
+
+  if (value === "false") {
+    return "Nein";
+  }
+
+  return "—";
 }
 
 function InfoCard({
@@ -313,8 +400,8 @@ function ActionButton({
   variant = "default",
 }: {
   href: string;
-  children: React.ReactNode;
-  variant?: "default" | "primary" | "warning" | "quick";
+  children: ReactNode;
+  variant?: "default" | "primary" | "warning" | "quick" | "chat";
 }) {
   const classes =
     variant === "primary"
@@ -323,7 +410,9 @@ function ActionButton({
         ? "border-amber-400/50 bg-amber-400/10 text-amber-100 hover:border-amber-300 hover:bg-amber-400/20"
         : variant === "quick"
           ? "border-fuchsia-400/50 bg-fuchsia-400/10 text-fuchsia-100 hover:border-fuchsia-300 hover:bg-fuchsia-400/20"
-          : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-cyan-500/70 hover:text-cyan-200";
+          : variant === "chat"
+            ? "border-violet-400/50 bg-violet-400/10 text-violet-100 hover:border-violet-300 hover:bg-violet-400/20"
+            : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-cyan-500/70 hover:text-cyan-200";
 
   return (
     <Link
@@ -341,7 +430,7 @@ function Section({
   count,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   count?: number;
 }) {
   return (
@@ -361,20 +450,33 @@ function Section({
   );
 }
 
-function ReviewChecklist({ isQuickOffer }: { isQuickOffer: boolean }) {
-  const items = isQuickOffer
-    ? [
-        "Sprawdź kontakt klienta: telefon albo e-mail.",
-        "Sprawdź zakres: usługa, m², dodatki i termin.",
-        "Sprawdź orientacyjną cenę z formularza.",
-        "Uzupełnij ryzyko, dojazd, materiały i ewentualne zdjęcia.",
-        "Otwórz powiązaną wycenę i ustaw właściwy status przed wysłaniem oferty.",
-      ]
-    : [
-        "Sprawdź dane zlecenia.",
-        "Sprawdź powiązane wyceny i faktury.",
-        "Uzupełnij brakujące dane klienta.",
-      ];
+function ReviewChecklist({
+  leadType,
+}: {
+  leadType: "quick_offer" | "chatbot" | "manual";
+}) {
+  const items =
+    leadType === "quick_offer"
+      ? [
+          "Sprawdź kontakt klienta: telefon albo e-mail.",
+          "Sprawdź zakres: usługa, m², dodatki i termin.",
+          "Sprawdź orientacyjną cenę z formularza.",
+          "Uzupełnij ryzyko, dojazd, materiały i ewentualne zdjęcia.",
+          "Otwórz powiązaną wycenę i ustaw właściwy status przed wysłaniem oferty.",
+        ]
+      : leadType === "chatbot"
+        ? [
+            "Sprawdź rozmowę z klientem i upewnij się, że to realna Anfrage.",
+            "Sprawdź kontakt: telefon albo e-mail.",
+            "Zweryfikuj dane z chatu: usługa, metraż, okna, piętro, termin i opis.",
+            "Cena z chatu jest tylko orientacyjna — sprawdź ryzyko, dojazd, materiał i czas.",
+            "Otwórz powiązaną wycenę i ustaw właściwy status przed wysłaniem oferty.",
+          ]
+        : [
+            "Sprawdź dane zlecenia.",
+            "Sprawdź powiązane wyceny i faktury.",
+            "Uzupełnij brakujące dane klienta.",
+          ];
 
   return (
     <Section title="Kontrola przed dalszą obsługą">
@@ -561,7 +663,7 @@ export default async function OrderDetailsPage({
   const completed = order.status === "COMPLETED";
   const latestEstimate = firstEstimate(estimates);
   const leadMessage = firstMessage(conversationMessages);
-  const leadMetadata = quickOfferMetadata({
+  const metadata = leadMetadata({
     session,
     message: leadMessage,
   });
@@ -572,22 +674,74 @@ export default async function OrderDetailsPage({
     estimates,
   });
 
-  const reviewRequired = needsReview(order, estimates);
+  const chatbot = isChatbotOrder({
+    order,
+    session,
+    estimates,
+  });
+
+  const publicLead = isPublicLeadOrder({
+    order,
+    session,
+    estimates,
+  });
+
+  const reviewRequired = needsReview({
+    order,
+    estimates,
+    isPublicLead: publicLead,
+  });
+
+  const reviewLeadType = quickOffer
+    ? "quick_offer"
+    : chatbot
+      ? "chatbot"
+      : "manual";
 
   const quickOfferService =
-    metadataString(leadMetadata, "service") ?? order.serviceType ?? order.title ?? "—";
-  const quickOfferSize = metadataString(leadMetadata, "size");
-  const quickOfferTime = metadataString(leadMetadata, "time");
-  const quickOfferMin = metadataString(leadMetadata, "calculatedMinPrice");
-  const quickOfferMax = metadataString(leadMetadata, "calculatedMaxPrice");
+    metadataString(metadata, "service") ?? order.serviceType ?? order.title ?? "—";
+  const quickOfferSize = metadataString(metadata, "size");
+  const quickOfferTime = metadataString(metadata, "time");
+  const quickOfferMin = metadataString(metadata, "calculatedMinPrice");
+  const quickOfferMax = metadataString(metadata, "calculatedMaxPrice");
   const quickOfferContact =
-    metadataString(leadMetadata, "contact") ??
+    metadataString(metadata, "contact") ??
     customer?.email ??
     customer?.phone ??
     "—";
 
+  const chatAnswers = metadataObject(session?.metadata, "answers");
+  const chatbotService =
+    metadataString(session?.metadata, "serviceLabel") ??
+    metadataString(chatAnswers, "serviceLabel") ??
+    order.serviceType ??
+    order.title ??
+    "—";
+  const chatbotArea = metadataString(chatAnswers, "area");
+  const chatbotWindows = metadataString(chatAnswers, "windows");
+  const chatbotFloor = metadataString(chatAnswers, "floor");
+  const chatbotElevator = metadataValue(chatAnswers, "elevator");
+  const chatbotOven = metadataValue(chatAnswers, "oven");
+  const chatbotBalcony = metadataValue(chatAnswers, "balcony");
+  const chatbotFrequency = metadataString(chatAnswers, "frequency");
+  const chatbotDescription = metadataString(chatAnswers, "description");
+  const chatbotDate = metadataString(chatAnswers, "date");
+  const chatbotPriceRange =
+    metadataString(session?.metadata, "priceRange") ??
+    (latestEstimate
+      ? `${formatMoney(
+          latestEstimate.aiMinTotal,
+          latestEstimate.currency ?? currency,
+        )} – ${formatMoney(
+          latestEstimate.aiMaxTotal,
+          latestEstimate.currency ?? currency,
+        )}`
+      : "—");
+  const chatbotContact = customer?.email ?? customer?.phone ?? "—";
+  const chatbotPageUrl = metadataString(session?.metadata, "pageUrl");
+
   const totalInvoices = invoices.reduce((sum, invoice) => {
-    return sum + Number(invoice.totalAmount ?? invoice.amount ?? 0);
+    return sum + Number(invoice.totalAmount ?? invoice.total ?? invoice.amount ?? 0);
   }, 0);
 
   const totalPaid = payments.reduce((sum, payment) => {
@@ -617,6 +771,12 @@ export default async function OrderDetailsPage({
             {quickOffer ? (
               <span className="rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-1 text-xs font-bold text-fuchsia-100">
                 QuickOffer Website Lead
+              </span>
+            ) : null}
+
+            {chatbot ? (
+              <span className="rounded-full border border-violet-300/30 bg-violet-300/10 px-3 py-1 text-xs font-bold text-violet-100">
+                Chatbot Website Lead
               </span>
             ) : null}
 
@@ -654,9 +814,9 @@ export default async function OrderDetailsPage({
           {latestEstimate?.id ? (
             <ActionButton
               href={`/dashboard/estimates/${latestEstimate.id}`}
-              variant={quickOffer ? "quick" : "default"}
+              variant={quickOffer ? "quick" : chatbot ? "chat" : "default"}
             >
-              {quickOffer ? "Lead prüfen" : "Kalkulation öffnen"}
+              {publicLead ? "Lead prüfen" : "Kalkulation öffnen"}
             </ActionButton>
           ) : (
             <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
@@ -733,6 +893,57 @@ export default async function OrderDetailsPage({
                     : "—"
               }
             />
+          </div>
+        </section>
+      ) : null}
+
+      {chatbot ? (
+        <section className="mb-8 rounded-3xl border border-violet-300/25 bg-violet-300/10 p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-violet-100/80">
+                Chatbot Lead
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-violet-50">
+                Anfrage aus der AI Chatbox
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-violet-50/80">
+                Dieses Zlecenie wurde automatisch aus dem öffentlichen Chatbot
+                erstellt. Chatverlauf und Kundendaten sind im CRM gespeichert.
+                Vor einer offiziellen Offerte muss alles manuell geprüft werden.
+              </p>
+            </div>
+
+            {latestEstimate?.id ? (
+              <ActionButton
+                href={`/dashboard/estimates/${latestEstimate.id}`}
+                variant="chat"
+              >
+                Chatbot-Wycena öffnen
+              </ActionButton>
+            ) : null}
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <InfoCard label="Leistung" value={chatbotService} />
+            <InfoCard
+              label="Fläche"
+              value={chatbotArea ? `${chatbotArea} m²` : "—"}
+            />
+            <InfoCard label="Fenster" value={chatbotWindows ?? "—"} />
+            <InfoCard label="Kontakt" value={chatbotContact} />
+            <InfoCard label="AI-Spanne" value={chatbotPriceRange} />
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <InfoCard label="Etage" value={chatbotFloor ?? "—"} />
+            <InfoCard label="Lift" value={yesNoLabel(chatbotElevator)} />
+            <InfoCard label="Backofen" value={yesNoLabel(chatbotOven)} />
+            <InfoCard label="Balkon/Terrasse" value={yesNoLabel(chatbotBalcony)} />
+            <InfoCard label="Rhythmus" value={chatbotFrequency ?? "—"} />
+            <InfoCard label="Wunschtermin" value={chatbotDate ?? "—"} />
+            <InfoCard label="Seite" value={chatbotPageUrl ?? "—"} />
+            <InfoCard label="Beschreibung" value={chatbotDescription ?? "—"} />
           </div>
         </section>
       ) : null}
@@ -867,11 +1078,11 @@ export default async function OrderDetailsPage({
           )}
         </Section>
 
-        <ReviewChecklist isQuickOffer={quickOffer} />
+        <ReviewChecklist leadType={reviewLeadType} />
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-2">
-        <Section title="Wiadomość klienta / Formularz">
+        <Section title="Wiadomość klienta / Formularz / Chat">
           {conversationMessages.length === 0 ? (
             <p className="text-sm text-neutral-500">
               Keine gespeicherten Nachrichten.
@@ -915,9 +1126,9 @@ export default async function OrderDetailsPage({
             {latestEstimate?.id ? (
               <ActionButton
                 href={`/dashboard/estimates/${latestEstimate.id}`}
-                variant={quickOffer ? "quick" : "default"}
+                variant={quickOffer ? "quick" : chatbot ? "chat" : "default"}
               >
-                Kalkulation prüfen
+                {publicLead ? "Lead prüfen" : "Kalkulation prüfen"}
               </ActionButton>
             ) : (
               <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
@@ -982,7 +1193,7 @@ export default async function OrderDetailsPage({
             },
             {
               label: "Gesamt",
-              value: (item) => item.totalAmount ?? item.amount,
+              value: (item) => item.totalAmount ?? item.total ?? item.amount,
               money: true,
             },
             {

@@ -110,8 +110,8 @@ function statusLabel(status?: string | null) {
 function sourceLabel(source?: string | null) {
   const labels: Record<string, string> = {
     QUICK_OFFER: "QuickOffer",
-    ADMIN: "Dashboard",
     CHATBOT: "Chatbot",
+    ADMIN: "Dashboard",
     PUBLIC_FORM: "Public Form",
     IMPORT: "Import",
   };
@@ -125,6 +125,14 @@ function sourceLabel(source?: string | null) {
 
 function isQuickOfferEstimate(estimate: Estimate) {
   return String(estimate.source ?? "").toUpperCase() === "QUICK_OFFER";
+}
+
+function isChatbotEstimate(estimate: Estimate) {
+  return String(estimate.source ?? "").toUpperCase() === "CHATBOT";
+}
+
+function isPublicLeadEstimate(estimate: Estimate) {
+  return isQuickOfferEstimate(estimate) || isChatbotEstimate(estimate);
 }
 
 function isAiReviewEstimate(estimate: Estimate) {
@@ -175,6 +183,30 @@ function sourceBadgeClass(source?: string | null) {
   return "border-slate-300/20 bg-slate-300/10 text-slate-200";
 }
 
+function leadRowClass(estimate: Estimate) {
+  if (isQuickOfferEstimate(estimate)) {
+    return "bg-fuchsia-300/[0.035] hover:bg-fuchsia-300/[0.07]";
+  }
+
+  if (isChatbotEstimate(estimate)) {
+    return "bg-violet-300/[0.035] hover:bg-violet-300/[0.07]";
+  }
+
+  return "hover:bg-white/[0.03]";
+}
+
+function leadActionClass(estimate: Estimate) {
+  if (isQuickOfferEstimate(estimate)) {
+    return "rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 hover:bg-fuchsia-300/20";
+  }
+
+  if (isChatbotEstimate(estimate)) {
+    return "rounded-xl border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-300/20";
+  }
+
+  return "rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-neutral-100 hover:bg-white/[0.08]";
+}
+
 function getEstimatesFromResponse(response: EstimatesResponse): Estimate[] {
   if (Array.isArray(response.data?.estimates)) {
     return response.data.estimates;
@@ -200,17 +232,19 @@ export default function DashboardEstimatesPage() {
     }, 0);
 
     const quickOfferCount = estimates.filter(isQuickOfferEstimate).length;
+    const chatbotCount = estimates.filter(isChatbotEstimate).length;
     const aiReviewCount = estimates.filter(isAiReviewEstimate).length;
-    const quickOfferAiReviewCount = estimates.filter(
-      (estimate) => isQuickOfferEstimate(estimate) && isAiReviewEstimate(estimate),
+    const publicLeadAiReviewCount = estimates.filter(
+      (estimate) => isPublicLeadEstimate(estimate) && isAiReviewEstimate(estimate),
     ).length;
 
     return {
       count: estimates.length,
       totalValue,
       quickOfferCount,
+      chatbotCount,
       aiReviewCount,
-      quickOfferAiReviewCount,
+      publicLeadAiReviewCount,
     };
   }, [estimates]);
 
@@ -299,10 +333,9 @@ export default function DashboardEstimatesPage() {
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-                Liste von manuellen Kalkulationen, QuickOffer-Leads und
-                versendeten Angeboten. Einträge aus dem öffentlichen Formular
-                werden als QuickOffer markiert und müssen vor Versand geprüft
-                werden.
+                Liste von manuellen Kalkulationen, QuickOffer-Leads,
+                Chatbot-Leads und versendeten Angeboten. Öffentliche Leads
+                müssen vor Versand manuell geprüft werden.
               </p>
             </div>
 
@@ -326,7 +359,7 @@ export default function DashboardEstimatesPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-5">
+        <section className="grid gap-4 lg:grid-cols-6">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-sm text-neutral-400">Anzahl Kalkulationen</p>
             <p className="mt-2 text-3xl font-black">{totals.count}</p>
@@ -346,6 +379,13 @@ export default function DashboardEstimatesPage() {
             </p>
           </div>
 
+          <div className="rounded-3xl border border-violet-300/20 bg-violet-300/10 p-5">
+            <p className="text-sm text-violet-100/70">Chatbot Leads</p>
+            <p className="mt-2 text-3xl font-black text-violet-100">
+              {totals.chatbotCount}
+            </p>
+          </div>
+
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
             <p className="text-sm text-amber-100/70">Wymaga Prüfung</p>
             <p className="mt-2 text-3xl font-black text-amber-100">
@@ -354,9 +394,9 @@ export default function DashboardEstimatesPage() {
           </div>
 
           <div className="rounded-3xl border border-red-300/20 bg-red-300/10 p-5">
-            <p className="text-sm text-red-100/70">QuickOffer do kontroli</p>
+            <p className="text-sm text-red-100/70">Leady do kontroli</p>
             <p className="mt-2 text-3xl font-black text-red-100">
-              {totals.quickOfferAiReviewCount}
+              {totals.publicLeadAiReviewCount}
             </p>
           </div>
         </section>
@@ -366,9 +406,9 @@ export default function DashboardEstimatesPage() {
             Hinweis
           </p>
           <p className="mt-2 text-sm leading-6 text-amber-100">
-            QuickOffer ist nur eine orientierende Anfrage. Preise aus dem
-            Formular dürfen nicht automatisch als verbindliche Kundenofferte
-            gelten. Der Inhaber prüft den Umfang, Fotos, Risiko, Anfahrt und
+            QuickOffer und Chatbot sind nur orientierende Anfragen. Preise aus
+            der Website dürfen nicht automatisch als verbindliche Kundenofferte
+            gelten. Der Inhaber prüft Umfang, Fotos, Risiko, Anfahrt und
             Material, bevor ein Angebot versendet wird.
           </p>
         </section>
@@ -384,8 +424,9 @@ export default function DashboardEstimatesPage() {
             <div>
               <h2 className="text-xl font-semibold">Kalkulationsliste</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                QuickOffer-Leads sind farblich markiert. Öffnen Sie Details, um
-                den Umfang zu prüfen und daraus eine fertige Offerte zu machen.
+                QuickOffer- und Chatbot-Leads sind farblich markiert. Öffnen
+                Sie Details, um den Umfang zu prüfen und daraus eine fertige
+                Offerte zu machen.
               </p>
             </div>
 
@@ -418,7 +459,8 @@ export default function DashboardEstimatesPage() {
             <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
               Keine Kalkulationen vorhanden. Klicken Sie auf „Neue Kalkulation“,
               um die erste manuelle Kalkulation zu erstellen, oder senden Sie
-              testweise eine Anfrage über QuickOffer auf der Website.
+              testweise eine Anfrage über QuickOffer oder Chatbot auf der
+              Website.
             </div>
           ) : null}
 
@@ -441,16 +483,14 @@ export default function DashboardEstimatesPage() {
                 <tbody className="divide-y divide-white/10">
                   {estimates.map((estimate) => {
                     const quickOffer = isQuickOfferEstimate(estimate);
+                    const chatbot = isChatbotEstimate(estimate);
+                    const publicLead = isPublicLeadEstimate(estimate);
                     const aiReview = isAiReviewEstimate(estimate);
 
                     return (
                       <tr
                         key={estimate.id}
-                        className={
-                          quickOffer
-                            ? "bg-fuchsia-300/[0.035] hover:bg-fuchsia-300/[0.07]"
-                            : "hover:bg-white/[0.03]"
-                        }
+                        className={leadRowClass(estimate)}
                       >
                         <td className="px-4 py-4">
                           <Link
@@ -466,7 +506,13 @@ export default function DashboardEstimatesPage() {
 
                           {quickOffer ? (
                             <p className="mt-2 w-fit rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-2 py-1 text-[11px] font-bold text-fuchsia-100">
-                              Neuer Website-Lead
+                              QuickOffer Website-Lead
+                            </p>
+                          ) : null}
+
+                          {chatbot ? (
+                            <p className="mt-2 w-fit rounded-full border border-violet-300/20 bg-violet-300/10 px-2 py-1 text-[11px] font-bold text-violet-100">
+                              Chatbot Website-Lead
                             </p>
                           ) : null}
                         </td>
@@ -504,7 +550,7 @@ export default function DashboardEstimatesPage() {
 
                           {aiReview ? (
                             <p className="mt-2 text-xs font-semibold text-amber-200">
-                              Prüfen przed wysyłką
+                              Prüfen vor Versand
                             </p>
                           ) : null}
                         </td>
@@ -540,13 +586,9 @@ export default function DashboardEstimatesPage() {
                           <div className="flex justify-end gap-2">
                             <Link
                               href={`/dashboard/estimates/${estimate.id}`}
-                              className={
-                                quickOffer
-                                  ? "rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 hover:bg-fuchsia-300/20"
-                                  : "rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-neutral-100 hover:bg-white/[0.08]"
-                              }
+                              className={leadActionClass(estimate)}
                             >
-                              {quickOffer ? "Lead prüfen" : "Details"}
+                              {publicLead ? "Lead prüfen" : "Details"}
                             </Link>
 
                             <Link
