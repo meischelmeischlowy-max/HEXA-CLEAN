@@ -6,6 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import MarkOrderAsCompletedButton from "@/components/dashboard/MarkOrderAsCompletedButton";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
@@ -34,7 +35,7 @@ const prismaAny = prisma as unknown as Record<string, PrismaModel>;
 
 async function safeFindUnique<T = Row>(
   modelName: string,
-  args: any
+  args: any,
 ): Promise<T | null> {
   const model = prismaAny[modelName];
 
@@ -52,7 +53,7 @@ async function safeFindUnique<T = Row>(
 
 async function safeFindMany<T = Row>(
   modelName: string,
-  args: any
+  args: any,
 ): Promise<T[]> {
   const model = prismaAny[modelName];
 
@@ -145,12 +146,113 @@ function statusLabel(status: unknown) {
     PARTIALLY_PAID: "Teilweise bezahlt",
     UNPAID: "Unbezahlt",
     DRAFT: "Entwurf",
+    AI_REVIEW: "KI-Prüfung",
+    NEEDS_PHOTOS: "Fotos erforderlich",
+    NEEDS_HUMAN_REVIEW: "Interne Prüfung erforderlich",
+    READY_TO_SEND: "Bereit zum Senden",
     SENT: "Versendet",
     ACCEPTED: "Akzeptiert",
     REJECTED: "Abgelehnt",
+    EXPIRED: "Abgelaufen",
   };
 
   return labels[value] ?? formatValue(status);
+}
+
+function metadataValue(metadata: unknown, key: string) {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  if (!(key in metadata)) {
+    return null;
+  }
+
+  return (metadata as Record<string, unknown>)[key];
+}
+
+function metadataString(metadata: unknown, key: string) {
+  const value = metadataValue(metadata, key);
+
+  if (typeof value === "string") {
+    return value.trim() || null;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return null;
+}
+
+function normalizeStatus(value: unknown) {
+  return String(value ?? "").toUpperCase();
+}
+
+function isQuickOfferOrder({
+  order,
+  session,
+  estimates,
+}: {
+  order: Row;
+  session: Row | null;
+  estimates: Row[];
+}) {
+  const title = String(order.title ?? "").toUpperCase();
+  const description = String(order.description ?? "").toUpperCase();
+  const sessionSource = String(session?.source ?? "").toUpperCase();
+  const hasQuickOfferEstimate = estimates.some(
+    (estimate) => String(estimate.source ?? "").toUpperCase() === "QUICK_OFFER",
+  );
+
+  return (
+    title.includes("QUICKOFFER") ||
+    description.includes("QUICKOFFER") ||
+    sessionSource === "QUICK_OFFER" ||
+    sessionSource === "QUICK_OFFER_CONTACT" ||
+    sessionSource === "QUICK_OFFER_FORM" ||
+    sessionSource === "QUICK_OFFER_WEBSITE" ||
+    sessionSource === "QUICK_OFFER_LEAD" ||
+    sessionSource === "QUICK_OFFER_PUBLIC" ||
+    sessionSource === "QUICK_OFFER_CRM" ||
+    sessionSource === "QUICK_OFFER_API" ||
+    sessionSource === "QUICKOFFER" ||
+    sessionSource === "QUICK_OFFER_FORMULAR" ||
+    sessionSource === "QUICK_OFFER_FORMULARZ" ||
+    sessionSource === "PUBLIC_QUICK_OFFER" ||
+    sessionSource === "PUBLIC_WEBSITE" ||
+    sessionSource === "quick_offer".toUpperCase() ||
+    hasQuickOfferEstimate
+  );
+}
+
+function needsReview(order: Row, estimates: Row[]) {
+  const orderStatus = normalizeStatus(order.status);
+  const latestEstimate = estimates[0] ?? null;
+  const estimateStatus = normalizeStatus(latestEstimate?.status);
+
+  return (
+    ["NEW", "OPEN", "PENDING", "IN_PROGRESS"].includes(orderStatus) ||
+    ["AI_REVIEW", "NEEDS_HUMAN_REVIEW", "NEEDS_PHOTOS"].includes(estimateStatus)
+  );
+}
+
+function firstEstimate(estimates: Row[]) {
+  return estimates[0] ?? null;
+}
+
+function firstMessage(conversationMessages: Row[]) {
+  return conversationMessages[0] ?? null;
+}
+
+function quickOfferMetadata({
+  session,
+  message,
+}: {
+  session: Row | null;
+  message: Row | null;
+}) {
+  return message?.metadata ?? session?.metadata ?? null;
 }
 
 function InfoCard({
@@ -212,12 +314,16 @@ function ActionButton({
 }: {
   href: string;
   children: React.ReactNode;
-  variant?: "default" | "primary";
+  variant?: "default" | "primary" | "warning" | "quick";
 }) {
   const classes =
     variant === "primary"
       ? "border-cyan-500 bg-cyan-500/10 text-cyan-100 hover:border-cyan-300 hover:bg-cyan-500/20"
-      : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-cyan-500/70 hover:text-cyan-200";
+      : variant === "warning"
+        ? "border-amber-400/50 bg-amber-400/10 text-amber-100 hover:border-amber-300 hover:bg-amber-400/20"
+        : variant === "quick"
+          ? "border-fuchsia-400/50 bg-fuchsia-400/10 text-fuchsia-100 hover:border-fuchsia-300 hover:bg-fuchsia-400/20"
+          : "border-neutral-700 bg-neutral-900 text-neutral-200 hover:border-cyan-500/70 hover:text-cyan-200";
 
   return (
     <Link
@@ -252,6 +358,40 @@ function Section({
 
       {children}
     </section>
+  );
+}
+
+function ReviewChecklist({ isQuickOffer }: { isQuickOffer: boolean }) {
+  const items = isQuickOffer
+    ? [
+        "Sprawdź kontakt klienta: telefon albo e-mail.",
+        "Sprawdź zakres: usługa, m², dodatki i termin.",
+        "Sprawdź orientacyjną cenę z formularza.",
+        "Uzupełnij ryzyko, dojazd, materiały i ewentualne zdjęcia.",
+        "Otwórz powiązaną wycenę i ustaw właściwy status przed wysłaniem oferty.",
+      ]
+    : [
+        "Sprawdź dane zlecenia.",
+        "Sprawdź powiązane wyceny i faktury.",
+        "Uzupełnij brakujące dane klienta.",
+      ];
+
+  return (
+    <Section title="Kontrola przed dalszą obsługą">
+      <div className="grid gap-3">
+        {items.map((item, index) => (
+          <div
+            key={item}
+            className="flex gap-3 rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4 text-sm leading-6 text-amber-50"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-300 text-xs font-black text-neutral-950">
+              {index + 1}
+            </span>
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
@@ -419,6 +559,32 @@ export default async function OrderDetailsPage({
 
   const currency = String(order.currency ?? "CHF");
   const completed = order.status === "COMPLETED";
+  const latestEstimate = firstEstimate(estimates);
+  const leadMessage = firstMessage(conversationMessages);
+  const leadMetadata = quickOfferMetadata({
+    session,
+    message: leadMessage,
+  });
+
+  const quickOffer = isQuickOfferOrder({
+    order,
+    session,
+    estimates,
+  });
+
+  const reviewRequired = needsReview(order, estimates);
+
+  const quickOfferService =
+    metadataString(leadMetadata, "service") ?? order.serviceType ?? order.title ?? "—";
+  const quickOfferSize = metadataString(leadMetadata, "size");
+  const quickOfferTime = metadataString(leadMetadata, "time");
+  const quickOfferMin = metadataString(leadMetadata, "calculatedMinPrice");
+  const quickOfferMax = metadataString(leadMetadata, "calculatedMaxPrice");
+  const quickOfferContact =
+    metadataString(leadMetadata, "contact") ??
+    customer?.email ??
+    customer?.phone ??
+    "—";
 
   const totalInvoices = invoices.reduce((sum, invoice) => {
     return sum + Number(invoice.totalAmount ?? invoice.amount ?? 0);
@@ -447,9 +613,28 @@ export default async function OrderDetailsPage({
             Auftrag {formatValue(order.orderNumber ?? order.number ?? order.id)}
           </h1>
 
-          <p className="mt-2 max-w-3xl text-sm text-neutral-500">
-            Vollständige Ansicht des Auftrags: Kunde, Leistungsdaten, Termine, Kalkulationen,
-            Rechnungen, Zahlungen, Nachrichten, Anhänge und Änderungsverlauf.
+          <div className="mt-4 flex flex-wrap gap-2">
+            {quickOffer ? (
+              <span className="rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-1 text-xs font-bold text-fuchsia-100">
+                QuickOffer Website Lead
+              </span>
+            ) : null}
+
+            {reviewRequired ? (
+              <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-bold text-amber-100">
+                Prüfung erforderlich
+              </span>
+            ) : null}
+
+            <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100">
+              Status: {statusLabel(order.status)}
+            </span>
+          </div>
+
+          <p className="mt-4 max-w-3xl text-sm text-neutral-500">
+            Vollständige Ansicht des Auftrags: Kunde, Leistungsdaten, Termine,
+            Kalkulationen, Rechnungen, Zahlungen, Nachrichten, Anhänge und
+            Änderungsverlauf.
           </p>
         </div>
 
@@ -466,9 +651,18 @@ export default async function OrderDetailsPage({
             </ActionButton>
           ) : null}
 
-          <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
-            Angebote
-          </ActionButton>
+          {latestEstimate?.id ? (
+            <ActionButton
+              href={`/dashboard/estimates/${latestEstimate.id}`}
+              variant={quickOffer ? "quick" : "default"}
+            >
+              {quickOffer ? "Lead prüfen" : "Kalkulation öffnen"}
+            </ActionButton>
+          ) : (
+            <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
+              Angebote
+            </ActionButton>
+          )}
 
           <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
             Rechnungen
@@ -488,12 +682,87 @@ export default async function OrderDetailsPage({
         </div>
       </div>
 
+      {quickOffer ? (
+        <section className="mb-8 rounded-3xl border border-fuchsia-300/25 bg-fuchsia-300/10 p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100/80">
+                QuickOffer Lead
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-fuchsia-50">
+                Anfrage aus dem öffentlichen Formular
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-50/80">
+                Dieses Zlecenie wurde automatisch aus QuickOffer erstellt. Es ist
+                noch keine verbindliche Offerte. Erst Daten prüfen, ggf. Kunde
+                kontaktieren, dann die Kalkulation freigeben.
+              </p>
+            </div>
+
+            {latestEstimate?.id ? (
+              <ActionButton
+                href={`/dashboard/estimates/${latestEstimate.id}`}
+                variant="quick"
+              >
+                Powiązaną wycenę otworzyć
+              </ActionButton>
+            ) : null}
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <InfoCard label="Leistung" value={quickOfferService} />
+            <InfoCard
+              label="Grösse"
+              value={quickOfferSize ? `${quickOfferSize} m²` : "—"}
+            />
+            <InfoCard label="Termin" value={quickOfferTime ?? "—"} />
+            <InfoCard label="Kontakt" value={quickOfferContact} />
+            <InfoCard
+              label="Website-Spanne"
+              value={
+                quickOfferMin || quickOfferMax
+                  ? `CHF ${quickOfferMin ?? "—"} – ${quickOfferMax ?? "—"}`
+                  : latestEstimate
+                    ? `${formatMoney(
+                        latestEstimate.aiMinTotal,
+                        latestEstimate.currency ?? currency,
+                      )} – ${formatMoney(
+                        latestEstimate.aiMaxTotal,
+                        latestEstimate.currency ?? currency,
+                      )}`
+                    : "—"
+              }
+            />
+          </div>
+        </section>
+      ) : null}
+
       <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Status" value={statusLabel(order.status)} />
-        <StatCard label="Kunde" value={customerName(customer)} href={customer?.id ? `/dashboard/customers/${customer.id}` : null} />
-        <StatCard label="Angebote" value={estimates.length} href={`/dashboard/estimates?orderId=${order.id}`} />
-        <StatCard label="Rechnungen" value={invoices.length} href={`/dashboard/invoices?orderId=${order.id}`} />
-        <StatCard label="Zahlungen" value={formatMoney(totalPaid, currency)} href={`/dashboard/payments?orderId=${order.id}`} />
+        <StatCard
+          label="Kunde"
+          value={customerName(customer)}
+          href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
+        />
+        <StatCard
+          label="Angebote"
+          value={estimates.length}
+          href={
+            latestEstimate?.id
+              ? `/dashboard/estimates/${latestEstimate.id}`
+              : `/dashboard/estimates?orderId=${order.id}`
+          }
+        />
+        <StatCard
+          label="Rechnungen"
+          value={invoices.length}
+          href={`/dashboard/invoices?orderId=${order.id}`}
+        />
+        <StatCard
+          label="Zahlungen"
+          value={formatMoney(totalPaid, currency)}
+          href={`/dashboard/payments?orderId=${order.id}`}
+        />
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
@@ -538,7 +807,7 @@ export default async function OrderDetailsPage({
                 <InfoCard label="Email" value={customer.email} />
                 <InfoCard label="Telefon" value={customer.phone} />
                 <InfoCard
-                  label="Adressese"
+                  label="Adresse"
                   value={[
                     customer.street,
                     customer.zipCode,
@@ -589,11 +858,51 @@ export default async function OrderDetailsPage({
               <InfoCard label="ID sesji" value={session.id} />
               <InfoCard label="Status" value={session.status} />
               <InfoCard label="Kanal" value={session.channel} />
+              <InfoCard label="Quelle" value={session.source} />
               <InfoCard label="Erstellt am" value={session.createdAt} />
               <InfoCard label="Beendet am" value={session.endedAt} />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">Keine verknüpfte Sitzung.</p>
+          )}
+        </Section>
+
+        <ReviewChecklist isQuickOffer={quickOffer} />
+      </section>
+
+      <section className="mb-8 grid gap-6 xl:grid-cols-2">
+        <Section title="Wiadomość klienta / Formularz">
+          {conversationMessages.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              Keine gespeicherten Nachrichten.
+            </p>
+          ) : (
+            <div className="max-h-[480px] space-y-4 overflow-auto pr-2">
+              {conversationMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className="rounded-2xl border border-neutral-800 bg-neutral-950/50 p-4"
+                >
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                      {formatValue(message.role ?? message.sender ?? message.type)}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {formatValue(message.createdAt)}
+                    </p>
+                  </div>
+
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-300">
+                    {formatValue(
+                      message.content ??
+                        message.message ??
+                        message.text ??
+                        message.body,
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
           )}
         </Section>
 
@@ -603,9 +912,18 @@ export default async function OrderDetailsPage({
               Daten korrigieren
             </ActionButton>
 
-            <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
-              Zu Angeboten
-            </ActionButton>
+            {latestEstimate?.id ? (
+              <ActionButton
+                href={`/dashboard/estimates/${latestEstimate.id}`}
+                variant={quickOffer ? "quick" : "default"}
+              >
+                Kalkulation prüfen
+              </ActionButton>
+            ) : (
+              <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
+                Zu Angeboten
+              </ActionButton>
+            )}
 
             <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
               Zu Rechnungen
@@ -629,12 +947,17 @@ export default async function OrderDetailsPage({
               value: (item) => item.estimateNumber ?? item.number ?? item.id,
             },
             {
+              label: "Quelle",
+              value: (item) => item.source ?? "—",
+            },
+            {
               label: "Status",
               value: (item) => statusLabel(item.status),
             },
             {
               label: "Betrag",
-              value: (item) => item.totalAmount ?? item.amount,
+              value: (item) =>
+                item.total ?? item.totalAmount ?? item.amount ?? item.aiMinTotal,
               money: true,
             },
             {

@@ -126,7 +126,8 @@ function statusLabel(status: string | null | undefined) {
 function statusDescription(status: string | null | undefined) {
   const descriptions: Record<string, string> = {
     DRAFT: "Die Kalkulation ist noch in Vorbereitung.",
-    AI_REVIEW: "Die Kalkulation ist für spätere KI-Prüfung markiert.",
+    AI_REVIEW:
+      "Die Kalkulation wurde automatisch vorbereitet und muss vor dem Versand geprüft werden.",
     NEEDS_PHOTOS: "Für eine zuverlässige Kalkulation werden Fotos benötigt.",
     NEEDS_HUMAN_REVIEW:
       "Die Kalkulation muss intern geprüft werden, bevor sie versendet wird.",
@@ -157,7 +158,47 @@ function statusBadgeClass(status: string | null | undefined) {
     return "border-cyan-300/30 bg-cyan-300/10 text-cyan-100";
   }
 
+  if (status === "AI_REVIEW") {
+    return "border-amber-300/30 bg-amber-300/10 text-amber-100";
+  }
+
   return "border-white/10 bg-white/[0.03] text-neutral-100";
+}
+
+function sourceLabel(source: string | null | undefined) {
+  const labels: Record<string, string> = {
+    QUICK_OFFER: "QuickOffer Website",
+    ADMIN: "Dashboard",
+    CHATBOT: "Chatbot",
+    PUBLIC_FORM: "Public Form",
+    IMPORT: "Import",
+  };
+
+  if (!source) {
+    return "Unbekannte Quelle";
+  }
+
+  return labels[source] ?? source;
+}
+
+function sourceBadgeClass(source: string | null | undefined) {
+  if (source === "QUICK_OFFER") {
+    return "border-fuchsia-300/30 bg-fuchsia-300/10 text-fuchsia-100";
+  }
+
+  if (source === "CHATBOT") {
+    return "border-violet-300/30 bg-violet-300/10 text-violet-100";
+  }
+
+  if (source === "ADMIN") {
+    return "border-neutral-300/20 bg-white/[0.05] text-neutral-200";
+  }
+
+  return "border-slate-300/20 bg-slate-300/10 text-slate-200";
+}
+
+function isQuickOfferSource(source: string | null | undefined) {
+  return String(source ?? "").toUpperCase() === "QUICK_OFFER";
 }
 
 function metadataText(metadata: unknown, key: string) {
@@ -176,6 +217,18 @@ function metadataText(metadata: unknown, key: string) {
   }
 
   return value.trim() || null;
+}
+
+function metadataValue(metadata: unknown, key: string) {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  if (!(key in metadata)) {
+    return null;
+  }
+
+  return (metadata as Record<string, unknown>)[key];
 }
 
 function unitLabel(value: unknown) {
@@ -239,6 +292,65 @@ function auditStatusChange(before: unknown, after: unknown) {
   return `${statusLabel(beforeStatus)} → ${statusLabel(afterStatus)}`;
 }
 
+function InfoLine({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+        {label}
+      </p>
+      <div className="mt-2 text-sm font-semibold text-neutral-100">{value}</div>
+    </div>
+  );
+}
+
+function ReviewChecklist({ isQuickOffer }: { isQuickOffer: boolean }) {
+  const items = isQuickOffer
+    ? [
+        "Kontakt prüfen: Telefon oder E-Mail ist erreichbar.",
+        "Leistungsumfang prüfen: m², Zusatzleistungen und Termin plausibel.",
+        "Anfahrt, Material, Risiko und Zeitaufwand ergänzen.",
+        "Bei Unsicherheit Fotos oder Rückfrage beim Kunden anfordern.",
+        "Erst danach Status auf READY_TO_SEND setzen und Angebot vorbereiten.",
+      ]
+    : [
+        "Positionen prüfen.",
+        "Preis, Risiko, Rabatt und Anfahrt kontrollieren.",
+        "Kundennotiz und interne Notiz prüfen.",
+        "Status erst nach Kontrolle auf READY_TO_SEND setzen.",
+      ];
+
+  return (
+    <section className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-6">
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-100/80">
+        Kontrollliste vor Versand
+      </p>
+      <h2 className="mt-2 text-xl font-bold text-amber-50">
+        Nicht automatisch an Kunden senden
+      </h2>
+
+      <div className="mt-5 grid gap-3">
+        {items.map((item, index) => (
+          <div
+            key={item}
+            className="flex gap-3 rounded-2xl border border-amber-300/15 bg-black/20 p-4 text-sm leading-6 text-amber-50"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-300 text-xs font-black text-neutral-950">
+              {index + 1}
+            </span>
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function DashboardEstimateDetailsPage({
   params,
 }: {
@@ -281,7 +393,36 @@ export default async function DashboardEstimateDetailsPage({
     notFound();
   }
 
+  const conversationMessages = estimate.sessionId
+    ? await prisma.conversationMessage.findMany({
+        where: {
+          sessionId: estimate.sessionId,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+        take: 30,
+      })
+    : [];
+
   const latestAuditLog = estimate.auditLogs[0];
+  const isQuickOffer = isQuickOfferSource(estimate.source);
+  const firstMessage = conversationMessages[0] ?? null;
+
+  const quickOfferMetadata =
+    firstMessage?.metadata ?? estimate.session?.metadata ?? null;
+
+  const quickOfferService =
+    metadataValue(quickOfferMetadata, "service") ?? estimate.title ?? "—";
+  const quickOfferSize = metadataValue(quickOfferMetadata, "size");
+  const quickOfferTime = metadataValue(quickOfferMetadata, "time");
+  const quickOfferMin = metadataValue(quickOfferMetadata, "calculatedMinPrice");
+  const quickOfferMax = metadataValue(quickOfferMetadata, "calculatedMaxPrice");
+  const quickOfferContact =
+    metadataValue(quickOfferMetadata, "contact") ??
+    estimate.customer?.email ??
+    estimate.customer?.phone ??
+    "—";
 
   const serviceAddress = [
     estimate.serviceStreet,
@@ -318,14 +459,36 @@ export default async function DashboardEstimateDetailsPage({
                 {estimate.estimateNumber}
               </h1>
 
-              <p className="mt-2 max-w-3xl text-sm text-neutral-400">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs font-bold ${sourceBadgeClass(
+                    estimate.source,
+                  )}`}
+                >
+                  {sourceLabel(estimate.source)}
+                </span>
+
+                {isQuickOffer ? (
+                  <span className="rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-1 text-xs font-bold text-fuchsia-100">
+                    Website Lead
+                  </span>
+                ) : null}
+
+                {estimate.status === "AI_REVIEW" ? (
+                  <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-bold text-amber-100">
+                    Prüfung erforderlich
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-3 max-w-3xl text-sm text-neutral-400">
                 {estimate.title ?? "Kalkulationsentwurf"}
               </p>
             </div>
 
             <div
               className={`rounded-2xl border px-5 py-4 text-right ${statusBadgeClass(
-                estimate.status
+                estimate.status,
               )}`}
             >
               <p className="text-xs uppercase tracking-[0.2em] opacity-70">
@@ -341,12 +504,66 @@ export default async function DashboardEstimateDetailsPage({
           </div>
         </section>
 
+        {isQuickOffer ? (
+          <section className="rounded-3xl border border-fuchsia-300/25 bg-fuchsia-300/10 p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-fuchsia-100/80">
+                  QuickOffer Lead
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-fuchsia-50">
+                  Anfrage aus dem öffentlichen Formular
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-50/80">
+                  Diese Kalkulation wurde automatisch aus dem Website-Formular
+                  erstellt. Die Preisangabe ist nur eine Orientierung und muss
+                  intern geprüft werden, bevor daraus ein offizielles Angebot
+                  wird.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-fuchsia-300/20 bg-black/20 px-5 py-4 text-sm text-fuchsia-50">
+                <p className="font-black">Nächster Schritt</p>
+                <p className="mt-2 leading-6">
+                  Umfang prüfen → Status setzen → Angebot vorbereiten.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <InfoLine label="Leistung" value={String(quickOfferService)} />
+              <InfoLine
+                label="Grösse"
+                value={quickOfferSize ? `${String(quickOfferSize)} m²` : "—"}
+              />
+              <InfoLine
+                label="Termin"
+                value={quickOfferTime ? String(quickOfferTime) : "—"}
+              />
+              <InfoLine label="Kontakt" value={String(quickOfferContact)} />
+              <InfoLine
+                label="Website-Spanne"
+                value={
+                  quickOfferMin || quickOfferMax
+                    ? `CHF ${String(quickOfferMin ?? "—")} – ${String(
+                        quickOfferMax ?? "—",
+                      )}`
+                    : `${formatMoney(estimate.aiMinTotal, estimate.currency)} – ${formatMoney(
+                        estimate.aiMaxTotal,
+                        estimate.currency,
+                      )}`
+                }
+              />
+            </div>
+          </section>
+        ) : null}
+
         <EstimateStatusActions
           estimateId={estimate.id}
           currentStatus={estimate.status}
         />
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Link
             href={`/dashboard/estimates/${estimate.id}/offer`}
             className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20"
@@ -367,6 +584,19 @@ export default async function DashboardEstimateDetailsPage({
           >
             Kunde öffnen
           </Link>
+
+          {estimate.order?.id ? (
+            <Link
+              href={`/dashboard/orders/${estimate.order.id}`}
+              className="rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-violet-100 transition hover:border-violet-200 hover:bg-violet-300/20"
+            >
+              Auftrag öffnen
+            </Link>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-neutral-600">
+              Kein Auftrag
+            </div>
+          )}
 
           <Link
             href="/dashboard/estimates/new"
@@ -401,7 +631,7 @@ export default async function DashboardEstimateDetailsPage({
               {formatDate(estimate.createdAt)}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Quelle: {estimate.source ?? "—"}
+              Quelle: {sourceLabel(estimate.source)}
             </p>
           </div>
 
@@ -426,12 +656,78 @@ export default async function DashboardEstimateDetailsPage({
           </div>
         </section>
 
+        <ReviewChecklist isQuickOffer={isQuickOffer} />
+
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+            <h2 className="text-xl font-semibold">CRM-Verknüpfung</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-400">
+              Verbindung zwischen Formular, Kunde, Session, Auftrag und
+              Kalkulation.
+            </p>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <InfoLine label="Customer ID" value={estimate.customerId} />
+              <InfoLine label="Order ID" value={estimate.orderId ?? "—"} />
+              <InfoLine label="Session ID" value={estimate.sessionId ?? "—"} />
+              <InfoLine
+                label="Order Number"
+                value={estimate.order?.orderNumber ?? "—"}
+              />
+              <InfoLine
+                label="Session Status"
+                value={estimate.session?.status ?? "—"}
+              />
+              <InfoLine
+                label="Session Source"
+                value={estimate.session?.source ?? "—"}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+            <h2 className="text-xl font-semibold">Nachrichten aus Formular / Chat</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-400">
+              Gespeicherte ConversationMessages der zugehörigen Session.
+            </p>
+
+            {conversationMessages.length === 0 ? (
+              <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-6 text-sm text-neutral-400">
+                Keine Nachrichten zur Session gespeichert.
+              </div>
+            ) : (
+              <div className="mt-5 max-h-[420px] space-y-4 overflow-auto pr-2">
+                {conversationMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className="rounded-2xl border border-white/10 bg-black/25 p-4"
+                  >
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+                        {message.role}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {formatDate(message.createdAt)}
+                      </p>
+                    </div>
+
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-300">
+                      {message.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
           <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-xl font-semibold">Kalkulationspositionen</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Positionen aus dem Leistungskatalog oder aus dem manuellen Formular.
+                Positionen aus dem Leistungskatalog, aus dem manuellen Formular
+                oder automatisch aus QuickOffer.
               </p>
             </div>
 
@@ -440,8 +736,8 @@ export default async function DashboardEstimateDetailsPage({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-white/10">
-            <table className="w-full border-collapse text-left text-sm">
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
               <thead className="bg-white/[0.05] text-xs uppercase tracking-[0.18em] text-neutral-400">
                 <tr>
                   <th className="px-4 py-4">Leistung</th>
@@ -630,7 +926,8 @@ export default async function DashboardEstimateDetailsPage({
                           {formatDate(log.createdAt)}
                         </p>
                         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-neutral-500">
-                          {log.actorType ?? "System"} · {log.entityType ?? "Estimate"}
+                          {log.actorType ?? "System"} ·{" "}
+                          {log.entityType ?? "Estimate"}
                         </p>
                       </div>
                     </div>
@@ -658,7 +955,7 @@ export default async function DashboardEstimateDetailsPage({
               {estimate.notifications.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Später: E-Mail, SMS und WhatsApp.
+              E-Mail, SMS, WhatsApp und interne Benachrichtigungen.
             </p>
           </div>
 

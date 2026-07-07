@@ -33,6 +33,36 @@ const extras = [
 
 const whatsappNumber = "41762581948";
 
+type SentStatus = "idle" | "success" | "partial" | "error";
+
+type QuickOfferApiResponse = {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  emailSent?: boolean;
+  crm?: {
+    customerId?: string;
+    sessionId?: string;
+    orderId?: string;
+    orderNumber?: string;
+    estimateId?: string;
+    estimateNumber?: string;
+    notificationId?: string;
+  };
+};
+
+function getErrorMessage(data: QuickOfferApiResponse | null) {
+  if (data?.error) {
+    return data.error;
+  }
+
+  if (data?.message) {
+    return data.message;
+  }
+
+  return "Die Anfrage konnte nicht im CRM gespeichert werden.";
+}
+
 export default function QuickOffer() {
   const [service, setService] = useState("Wohnung");
   const [size, setSize] = useState(80);
@@ -42,8 +72,10 @@ export default function QuickOffer() {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [sending, setSending] = useState(false);
-  const [sentStatus, setSentStatus] = useState<"idle" | "success" | "error">(
-    "idle"
+  const [sentStatus, setSentStatus] = useState<SentStatus>("idle");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [crmSummary, setCrmSummary] = useState<QuickOfferApiResponse["crm"] | null>(
+    null,
   );
 
   const price = useMemo(() => {
@@ -73,7 +105,7 @@ export default function QuickOffer() {
     setSelectedExtras((current) =>
       current.includes(extra)
         ? current.filter((item) => item !== extra)
-        : [...current, extra]
+        : [...current, extra],
     );
   }
 
@@ -97,15 +129,17 @@ Kontakt: ${contact || "-"}`;
   function sendWhatsApp() {
     window.open(
       `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-        buildMessage()
+        buildMessage(),
       )}`,
-      "_blank"
+      "_blank",
     );
   }
 
-  async function sendEmail() {
+  async function sendQuickOfferToCrm() {
     setSending(true);
     setSentStatus("idle");
+    setStatusMessage("");
+    setCrmSummary(null);
 
     try {
       const response = await fetch("/api/contact", {
@@ -124,21 +158,45 @@ Kontakt: ${contact || "-"}`;
         }),
       });
 
-      if (!response.ok) {
+      const data = (await response
+        .json()
+        .catch(() => null)) as QuickOfferApiResponse | null;
+
+      if (!response.ok || !data?.success) {
         setSentStatus("error");
-        return;
+        setStatusMessage(getErrorMessage(data));
+        return false;
       }
 
-      setSentStatus("success");
+      setCrmSummary(data.crm ?? null);
+
+      if (data.emailSent) {
+        setSentStatus("success");
+        setStatusMessage(
+          "Anfrage wurde im CRM gespeichert. Die Benachrichtigung wurde gesendet. WhatsApp wurde geöffnet.",
+        );
+      } else {
+        setSentStatus("partial");
+        setStatusMessage(
+          "Anfrage wurde im CRM gespeichert. Die E-Mail-Benachrichtigung muss später geprüft werden. WhatsApp wurde geöffnet.",
+        );
+      }
+
+      return true;
     } catch {
       setSentStatus("error");
+      setStatusMessage(
+        "Serverfehler. Die Anfrage konnte nicht im CRM gespeichert werden.",
+      );
+
+      return false;
     } finally {
       setSending(false);
     }
   }
 
   async function handleSubmit() {
-    await sendEmail();
+    await sendQuickOfferToCrm();
     sendWhatsApp();
   }
 
@@ -148,7 +206,7 @@ Kontakt: ${contact || "-"}`;
   return (
     <section
       id="quick-offer"
-      className="scroll-mt-24 relative overflow-hidden bg-[#020711] px-6 py-20 text-white"
+      className="relative scroll-mt-24 overflow-hidden bg-[#020711] px-6 py-20 text-white"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(34,211,238,0.16),transparent_36%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_75%,rgba(34,211,238,0.1),transparent_30%)]" />
@@ -220,7 +278,7 @@ Kontakt: ${contact || "-"}`;
                 max="250"
                 step="10"
                 value={size}
-                onChange={(e) => setSize(Number(e.target.value))}
+                onChange={(event) => setSize(Number(event.target.value))}
                 className="w-full accent-cyan-300"
               />
             </div>
@@ -366,14 +424,14 @@ Kontakt: ${contact || "-"}`;
                 <input
                   placeholder="Name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(event) => setName(event.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
                 />
 
                 <input
                   placeholder="Telefon oder E-Mail"
                   value={contact}
-                  onChange={(e) => setContact(e.target.value)}
+                  onChange={(event) => setContact(event.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
                 />
 
@@ -384,20 +442,39 @@ Kontakt: ${contact || "-"}`;
                   className="group relative mt-1 overflow-hidden rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-[#02101b] shadow-[0_0_30px_rgba(0,220,255,0.42)] transition hover:scale-[1.02] hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="relative">
-                    {sending ? "Wird gesendet..." : "Anfrage senden →"}
+                    {sending ? "Wird gespeichert..." : "Anfrage senden →"}
                   </span>
                 </button>
 
                 {sentStatus === "success" && (
-                  <p className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-xs font-semibold text-cyan-200">
-                    Anfrage wurde per E-Mail gesendet. WhatsApp wurde geöffnet.
-                  </p>
+                  <div className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-xs font-semibold text-cyan-200">
+                    <p>{statusMessage}</p>
+
+                    {crmSummary?.orderNumber || crmSummary?.estimateNumber ? (
+                      <p className="mt-1 text-cyan-100/80">
+                        CRM: {crmSummary.orderNumber ?? "Order erstellt"} ·{" "}
+                        {crmSummary.estimateNumber ?? "Estimate erstellt"}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+
+                {sentStatus === "partial" && (
+                  <div className="rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-100">
+                    <p>{statusMessage}</p>
+
+                    {crmSummary?.orderNumber || crmSummary?.estimateNumber ? (
+                      <p className="mt-1 text-amber-50/80">
+                        CRM: {crmSummary.orderNumber ?? "Order erstellt"} ·{" "}
+                        {crmSummary.estimateNumber ?? "Estimate erstellt"}
+                      </p>
+                    ) : null}
+                  </div>
                 )}
 
                 {sentStatus === "error" && (
                   <p className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs font-semibold text-red-200">
-                    E-Mail konnte nicht gesendet werden. WhatsApp wurde trotzdem
-                    geöffnet.
+                    {statusMessage}
                   </p>
                 )}
 
@@ -409,7 +486,8 @@ Kontakt: ${contact || "-"}`;
 
                   <div className="flex items-center gap-2">
                     <Mail size={13} className="text-cyan-300" />
-                    Anfrage später mit E-Mail / Make verbindbar
+                    Anfrage wird im CRM gespeichert und mit Benachrichtigung
+                    verknüpft
                   </div>
                 </div>
               </div>

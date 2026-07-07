@@ -20,10 +20,22 @@ type OrderCustomer = {
   phone?: string | null;
 };
 
+type OrderEstimate = {
+  id: string;
+  estimateNumber?: string | null;
+  status?: string | null;
+  source?: string | null;
+  total?: string | number | null;
+  currency?: string | null;
+  createdAt?: string | null;
+};
+
 type Order = {
   id: string;
   customerId?: string | null;
+  sessionId?: string | null;
   customer?: OrderCustomer | null;
+  estimates?: OrderEstimate[];
   orderNumber?: string | null;
   status?: string | null;
   title?: string | null;
@@ -165,6 +177,63 @@ function getCustomerHref(order: Order) {
   return id ? `/dashboard/customers/${id}` : null;
 }
 
+function getLatestEstimate(order: Order) {
+  const estimates = Array.isArray(order.estimates) ? order.estimates : [];
+
+  return estimates[0] ?? null;
+}
+
+function isQuickOfferOrder(order: Order) {
+  const title = String(order.title ?? "").toUpperCase();
+  const description = String(order.description ?? "").toUpperCase();
+  const estimateSource = getLatestEstimate(order)?.source?.toUpperCase();
+
+  return (
+    title.includes("QUICKOFFER") ||
+    description.includes("QUICKOFFER") ||
+    estimateSource === "QUICK_OFFER"
+  );
+}
+
+function needsQuickOfferReview(order: Order) {
+  const latestEstimate = getLatestEstimate(order);
+  const orderStatus = normalizeStatus(order.status);
+  const estimateStatus = normalizeStatus(latestEstimate?.status);
+
+  return (
+    isQuickOfferOrder(order) &&
+    (orderStatus === "NEW" ||
+      orderStatus === "OPEN" ||
+      orderStatus === "PENDING" ||
+      estimateStatus === "AI_REVIEW" ||
+      estimateStatus === "NEEDS_HUMAN_REVIEW")
+  );
+}
+
+function sourceLabel(order: Order) {
+  if (isQuickOfferOrder(order)) {
+    return "QuickOffer";
+  }
+
+  if (order.sessionId) {
+    return "Session";
+  }
+
+  return "Dashboard";
+}
+
+function sourceBadgeClass(order: Order) {
+  if (isQuickOfferOrder(order)) {
+    return "border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100";
+  }
+
+  if (order.sessionId) {
+    return "border-violet-300/25 bg-violet-300/10 text-violet-100";
+  }
+
+  return "border-white/10 bg-white/[0.04] text-zinc-200";
+}
+
 export default function DashboardOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,6 +291,9 @@ export default function DashboardOrdersPage() {
       ),
     ).length;
 
+    const quickOffer = orders.filter(isQuickOfferOrder).length;
+    const quickOfferReview = orders.filter(needsQuickOfferReview).length;
+
     const estimatedValue = orders.reduce((sum, order) => {
       const amount = getOrderAmount(order);
 
@@ -242,6 +314,8 @@ export default function DashboardOrdersPage() {
       open,
       completed,
       quoted,
+      quickOffer,
+      quickOfferReview,
       estimatedValue,
     };
   }, [orders]);
@@ -250,15 +324,56 @@ export default function DashboardOrdersPage() {
     {
       key: "order",
       header: "Auftrag",
+      render: (order) => {
+        const quickOffer = isQuickOfferOrder(order);
+
+        return (
+          <div>
+            <p className="font-black tracking-tight text-white">
+              {getOrderTitle(order)}
+            </p>
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              {quickOffer ? (
+                <span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-300/10 px-2 py-1 text-[11px] font-bold text-fuchsia-100">
+                  QuickOffer Lead
+                </span>
+              ) : null}
+
+              {needsQuickOfferReview(order) ? (
+                <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-1 text-[11px] font-bold text-amber-100">
+                  Prüfung erforderlich
+                </span>
+              ) : null}
+            </div>
+
+            <p className="mt-2 text-xs text-zinc-500">ID: {order.id}</p>
+
+            {order.description ? (
+              <p className="mt-1 max-w-sm truncate text-xs text-zinc-500">
+                {order.description}
+              </p>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
+      key: "source",
+      header: "Quelle",
       render: (order) => (
         <div>
-          <p className="font-black tracking-tight text-white">
-            {getOrderTitle(order)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">ID: {order.id}</p>
-          {order.description ? (
-            <p className="mt-1 max-w-sm truncate text-xs text-zinc-500">
-              {order.description}
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-bold ${sourceBadgeClass(
+              order,
+            )}`}
+          >
+            {sourceLabel(order)}
+          </span>
+
+          {order.sessionId ? (
+            <p className="mt-2 max-w-[160px] truncate text-xs text-zinc-500">
+              Session: {order.sessionId}
             </p>
           ) : null}
         </div>
@@ -292,6 +407,37 @@ export default function DashboardOrdersPage() {
       ),
     },
     {
+      key: "estimate",
+      header: "Kalkulation",
+      render: (order) => {
+        const latestEstimate = getLatestEstimate(order);
+
+        if (!latestEstimate) {
+          return <p className="text-sm text-zinc-500">Keine Kalkulation</p>;
+        }
+
+        return (
+          <div>
+            <PremiumButton
+              href={`/dashboard/estimates/${latestEstimate.id}`}
+              variant={isQuickOfferOrder(order) ? "secondary" : "ghost"}
+              size="sm"
+            >
+              {latestEstimate.estimateNumber ?? "Kalkulation öffnen"}
+            </PremiumButton>
+
+            <p className="mt-2 text-xs text-zinc-500">
+              {latestEstimate.status ?? "—"} ·{" "}
+              {formatAmount(
+                latestEstimate.total,
+                latestEstimate.currency ?? order.currency,
+              )}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
       key: "location",
       header: "Ort",
       render: (order) => (
@@ -320,41 +466,55 @@ export default function DashboardOrdersPage() {
       key: "action",
       header: "Aktionen",
       className: "text-right",
-      render: (order) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <PremiumButton
-            href={`/dashboard/orders/${order.id}`}
-            variant="primary"
-            size="sm"
-          >
-            Details
-          </PremiumButton>
+      render: (order) => {
+        const latestEstimate = getLatestEstimate(order);
 
-          <PremiumButton
-            href={`/dashboard/orders/${order.id}/edit`}
-            variant="secondary"
-            size="sm"
-          >
-            Bearbeiten
-          </PremiumButton>
+        return (
+          <div className="flex flex-wrap justify-end gap-2">
+            <PremiumButton
+              href={`/dashboard/orders/${order.id}`}
+              variant="primary"
+              size="sm"
+            >
+              {isQuickOfferOrder(order) ? "Lead öffnen" : "Details"}
+            </PremiumButton>
 
-          <PremiumButton
-            href={`/dashboard/estimates?orderId=${order.id}`}
-            variant="secondary"
-            size="sm"
-          >
-            Kalkulationen
-          </PremiumButton>
+            <PremiumButton
+              href={`/dashboard/orders/${order.id}/edit`}
+              variant="secondary"
+              size="sm"
+            >
+              Bearbeiten
+            </PremiumButton>
 
-          <PremiumButton
-            href={`/dashboard/invoices?orderId=${order.id}`}
-            variant="ghost"
-            size="sm"
-          >
-            Rechnungen
-          </PremiumButton>
-        </div>
-      ),
+            {latestEstimate ? (
+              <PremiumButton
+                href={`/dashboard/estimates/${latestEstimate.id}`}
+                variant="secondary"
+                size="sm"
+              >
+                Kalkulation
+              </PremiumButton>
+            ) : (
+              <PremiumButton
+                href={`/dashboard/estimates?orderId=${order.id}`}
+                variant="secondary"
+                size="sm"
+              >
+                Kalkulationen
+              </PremiumButton>
+            )}
+
+            <PremiumButton
+              href={`/dashboard/invoices?orderId=${order.id}`}
+              variant="ghost"
+              size="sm"
+            >
+              Rechnungen
+            </PremiumButton>
+          </div>
+        );
+      },
     },
   ];
 
@@ -364,7 +524,7 @@ export default function DashboardOrdersPage() {
         <PageHeader
           eyebrow="HEXA OS CRM / Aufträge"
           title="Operative Aufträge"
-          description="Zentrales Arbeitscenter für Kundenaufträge: Status, Orte, Beträge, Workflow und der Übergang zu Kunden, Kalkulationen, Rechnungen und Zahlungen."
+          description="Zentrales Arbeitscenter für Kundenaufträge: Status, Orte, Beträge, Workflow und der Übergang zu Kunden, Kalkulationen, Rechnungen und Zahlungen. QuickOffer-Leads aus der Website werden hier direkt als neue Aufträge sichtbar."
         >
           <PremiumButton href="/dashboard/orders/new" variant="primary">
             Auftrag erstellen
@@ -383,7 +543,7 @@ export default function DashboardOrdersPage() {
           </PremiumButton>
         </PageHeader>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <MetricCard
             title="Alle Aufträge"
             value={String(stats.total)}
@@ -400,6 +560,24 @@ export default function DashboardOrdersPage() {
             trend="Zur Bearbeitung"
             tone="amber"
             icon={<span className="text-lg font-black">↗</span>}
+          />
+
+          <MetricCard
+            title="QuickOffer"
+            value={String(stats.quickOffer)}
+            description="Website-Leads aus dem QuickOffer Formular."
+            trend={`${stats.quickOfferReview} do kontroli`}
+            tone="violet"
+            icon={<span className="text-lg font-black">QO</span>}
+          />
+
+          <MetricCard
+            title="Do kontroli"
+            value={String(stats.quickOfferReview)}
+            description="QuickOffer-Leads, die noch geprüft werden müssen."
+            trend="Vor Versand prüfen"
+            tone="amber"
+            icon={<span className="text-lg font-black">!</span>}
           />
 
           <MetricCard
@@ -420,6 +598,62 @@ export default function DashboardOrdersPage() {
             icon={<span className="text-lg font-black">CHF</span>}
           />
         </section>
+
+        {stats.quickOfferReview > 0 ? (
+          <DashboardPanel
+            title="QuickOffer-Leads warten auf Prüfung"
+            description="Diese Aufträge wurden automatisch aus dem öffentlichen Formular erstellt. Vor einem offiziellen Angebot müssen Umfang, Risiko, Preis, Fotos und Kundendaten geprüft werden."
+          >
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {orders.filter(needsQuickOfferReview).map((order) => {
+                const latestEstimate = getLatestEstimate(order);
+
+                return (
+                  <div
+                    key={order.id}
+                    className="rounded-3xl border border-fuchsia-300/20 bg-fuchsia-300/10 p-5"
+                  >
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-fuchsia-100/80">
+                      QuickOffer Lead
+                    </p>
+
+                    <p className="mt-2 text-lg font-black text-white">
+                      {order.orderNumber ?? order.title ?? order.id}
+                    </p>
+
+                    <p className="mt-2 text-sm text-zinc-300">
+                      {getCustomerName(order)}
+                    </p>
+
+                    <p className="mt-1 text-sm text-zinc-500">
+                      {formatAmount(getOrderAmount(order), order.currency)}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <PremiumButton
+                        href={`/dashboard/orders/${order.id}`}
+                        variant="primary"
+                        size="sm"
+                      >
+                        Auftrag öffnen
+                      </PremiumButton>
+
+                      {latestEstimate ? (
+                        <PremiumButton
+                          href={`/dashboard/estimates/${latestEstimate.id}`}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Lead prüfen
+                        </PremiumButton>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </DashboardPanel>
+        ) : null}
 
         {loading ? (
           <DashboardPanel
@@ -445,7 +679,8 @@ export default function DashboardOrdersPage() {
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
               <p className="font-bold">Fehler: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Prüfen Sie den Endpoint /api/dashboard/orders und die Datenbankverbindung.
+                Prüfen Sie den Endpoint /api/dashboard/orders und die
+                Datenbankverbindung.
               </p>
             </div>
           </DashboardPanel>
@@ -454,7 +689,7 @@ export default function DashboardOrdersPage() {
         {!loading && !errorMessage ? (
           <DashboardPanel
             title="Auftragsliste"
-            description={`Anzahl Datensätze: ${orders.length}. Öffnen Sie Details oder Bearbeiten, um in den Auftrags-Workflow zu gelangen.`}
+            description={`Anzahl Datensätze: ${orders.length}. QuickOffer-Leads sind markiert und können direkt über Auftrag oder Kalkulation geprüft werden.`}
             action={
               <StatusBadge
                 status={orders.length > 0 ? "ACCEPTED" : "PENDING"}
@@ -469,7 +704,7 @@ export default function DashboardOrdersPage() {
               empty={
                 <EmptyState
                   title="Keine Aufträge in der Datenbank"
-                  description="Erstellen Sie einen Auftrag manuell oder später über AI Concierge, Formular oder Telefonanruf."
+                  description="Erstellen Sie einen Auftrag manuell oder senden Sie testweise eine Anfrage über QuickOffer auf der Website."
                   actionLabel="Auftrag erstellen"
                   actionHref="/dashboard/orders/new"
                 />
