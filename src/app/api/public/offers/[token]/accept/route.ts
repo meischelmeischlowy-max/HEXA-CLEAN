@@ -6,6 +6,16 @@ import {
   isPublicOfferLinkExpired,
   normalizePublicOfferToken,
 } from "@/lib/public-offer-links";
+import {
+  checkPublicRateLimit,
+  createPublicRateLimitResponse,
+  createSafePublicGoneResponse,
+  createSafePublicNotFoundResponse,
+  logPublicSecurityEvent,
+} from "@/lib/public-security";
+
+const PUBLIC_OFFER_ACCEPT_RATE_LIMIT = 8;
+const PUBLIC_OFFER_ACCEPT_RATE_WINDOW_MS = 5 * 60 * 1000;
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
@@ -80,14 +90,50 @@ export async function POST(
   const { token } = await context.params;
   const rawToken = normalizePublicOfferToken(token);
 
+  const rateLimit = checkPublicRateLimit(request, {
+    scope: "public_offer_accept",
+    limit: PUBLIC_OFFER_ACCEPT_RATE_LIMIT,
+    windowMs: PUBLIC_OFFER_ACCEPT_RATE_WINDOW_MS,
+    token: rawToken ?? token,
+  });
+
+  if (!rateLimit.allowed) {
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "rate_limit_exceeded",
+      severity: "warning",
+      token: rawToken ?? token,
+      extra: {
+        limit: rateLimit.limit,
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      },
+    });
+
+    return createPublicRateLimitResponse(rateLimit);
+  }
+
   if (!rawToken) {
-    return jsonError("Offer link is not available.", 404);
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "invalid_token_format",
+      severity: "warning",
+      token,
+    });
+
+    return createSafePublicNotFoundResponse();
   }
 
   const body = await readJsonObject(request);
   const confirmAcceptance = normalizeAcceptanceValue(body.confirmAcceptance);
 
   if (!confirmAcceptance) {
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "missing_acceptance_confirmation",
+      severity: "info",
+      token: rawToken,
+    });
+
     return jsonError("Acceptance confirmation is required.", 400, {
       requiredField: "confirmAcceptance",
     });
@@ -133,40 +179,105 @@ export async function POST(
   });
 
   if (!link) {
-    return jsonError("Offer link is not available.", 404);
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "token_not_found",
+      severity: "warning",
+      token: rawToken,
+    });
+
+    return createSafePublicNotFoundResponse();
   }
 
   if (link.revokedAt) {
-    return jsonError("Offer link is no longer active.", 410);
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "revoked_link_accept_attempt",
+      severity: "warning",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+      },
+    });
+
+    return createSafePublicGoneResponse("Offer link is no longer active.");
   }
 
   if (isPublicOfferLinkExpired(link.expiresAt, now)) {
-    return jsonError("Offer link has expired.", 410);
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "expired_link_accept_attempt",
+      severity: "warning",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+      },
+    });
+
+    return createSafePublicGoneResponse("Offer link has expired.");
   }
 
   if (link.quote.validUntil && link.quote.validUntil.getTime() <= now.getTime()) {
-    return jsonError("Offer validity date has already expired.", 410);
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "expired_quote_accept_attempt",
+      severity: "warning",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+        quoteId: link.quote.id,
+      },
+    });
+
+    return createSafePublicGoneResponse("Offer validity date has already expired.");
   }
 
   if (link.quote.status === QuoteStatus.REJECTED || link.quote.status === QuoteStatus.EXPIRED) {
-    return jsonError("Offer is no longer available.", 410);
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "inactive_quote_accept_attempt",
+      severity: "warning",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+        quoteStatus: link.quote.status,
+      },
+    });
+
+    return createSafePublicGoneResponse("Offer is no longer available.");
   }
 
   if (link.quote.status === QuoteStatus.ACCEPTED && link.quote.acceptedAt) {
-    return NextResponse.json({
-      ok: true,
-      message: "Offer was already accepted.",
-      offer: {
-        quoteId: link.quote.id,
-        quoteNumber: link.quote.quoteNumber,
-        status: link.quote.status,
-        acceptedAt: link.quote.acceptedAt.toISOString(),
-        customerName: serializeCustomerName(link.quote.customer),
+    return NextResponse.json(
+      {
+        ok: true,
+        message: "Offer was already accepted.",
+        offer: {
+          quoteId: link.quote.id,
+          quoteNumber: link.quote.quoteNumber,
+          status: link.quote.status,
+          acceptedAt: link.quote.acceptedAt.toISOString(),
+          customerName: serializeCustomerName(link.quote.customer),
+        },
       },
-    });
+      {
+        headers: rateLimit.headers,
+      },
+    );
   }
 
   if (link.quote.status !== QuoteStatus.SENT) {
+    logPublicSecurityEvent(request, {
+      scope: "public_offer_accept",
+      reason: "quote_not_acceptable",
+      severity: "warning",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+        quoteStatus: link.quote.status,
+      },
+    });
+
     return jsonError("Offer cannot be accepted in the current status.", 409, {
       quoteStatus: link.quote.status,
       requiredStatus: QuoteStatus.SENT,
@@ -237,6 +348,7 @@ export async function POST(
           rawTokenStored: false,
           tokenHashStoredOnly: true,
           source: "public_offer_link",
+          securityHardened: true,
         },
       },
     });
@@ -244,15 +356,20 @@ export async function POST(
     return updatedQuote;
   });
 
-  return NextResponse.json({
-    ok: true,
-    message: "Offer accepted successfully.",
-    offer: {
-      quoteId: acceptedQuote.id,
-      quoteNumber: acceptedQuote.quoteNumber,
-      status: acceptedQuote.status,
-      acceptedAt: acceptedQuote.acceptedAt?.toISOString() ?? null,
-      customerName: serializeCustomerName(acceptedQuote.customer),
+  return NextResponse.json(
+    {
+      ok: true,
+      message: "Offer accepted successfully.",
+      offer: {
+        quoteId: acceptedQuote.id,
+        quoteNumber: acceptedQuote.quoteNumber,
+        status: acceptedQuote.status,
+        acceptedAt: acceptedQuote.acceptedAt?.toISOString() ?? null,
+        customerName: serializeCustomerName(acceptedQuote.customer),
+      },
     },
-  });
+    {
+      headers: rateLimit.headers,
+    },
+  );
 }

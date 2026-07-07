@@ -1,13 +1,23 @@
 import { PrismaClient, QuoteStatus } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { headers } from "next/headers";
+import { NextRequest } from "next/server";
+
 import PublicOfferAcceptButton from "@/components/public/PublicOfferAcceptButton";
 import {
   createPublicOfferTokenHash,
   isPublicOfferLinkExpired,
   normalizePublicOfferToken,
 } from "@/lib/public-offer-links";
+import {
+  checkPublicRateLimit,
+  logPublicSecurityEvent,
+} from "@/lib/public-security";
 
 export const dynamic = "force-dynamic";
+
+const PUBLIC_OFFER_PAGE_RATE_LIMIT = 30;
+const PUBLIC_OFFER_PAGE_RATE_WINDOW_MS = 60 * 1000;
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
@@ -38,6 +48,28 @@ function getPrisma() {
   }
 
   return globalForPrisma.hexaPrisma;
+}
+
+async function createPublicPageSecurityRequest(path: string) {
+  const requestHeaders = await headers();
+  const safeHeaders = new Headers();
+
+  for (const headerName of [
+    "x-forwarded-for",
+    "x-real-ip",
+    "cf-connecting-ip",
+    "user-agent",
+  ]) {
+    const value = requestHeaders.get(headerName);
+
+    if (value) {
+      safeHeaders.set(headerName, value);
+    }
+  }
+
+  return new NextRequest(`http://localhost${path}`, {
+    headers: safeHeaders,
+  });
 }
 
 function decimalToString(value: unknown): string {
@@ -208,8 +240,45 @@ export default async function PublicOfferPage({
 }) {
   const { token } = await params;
   const rawToken = normalizePublicOfferToken(token);
+  const securityRequest = await createPublicPageSecurityRequest(
+    `/public/offers/${encodeURIComponent(token)}`,
+  );
+
+  const rateLimit = checkPublicRateLimit(securityRequest, {
+    scope: "public_offer_page",
+    limit: PUBLIC_OFFER_PAGE_RATE_LIMIT,
+    windowMs: PUBLIC_OFFER_PAGE_RATE_WINDOW_MS,
+    token: rawToken ?? token,
+  });
+
+  if (!rateLimit.allowed) {
+    logPublicSecurityEvent(securityRequest, {
+      scope: "public_offer_page",
+      reason: "rate_limit_exceeded",
+      severity: "warning",
+      token: rawToken ?? token,
+      extra: {
+        limit: rateLimit.limit,
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      },
+    });
+
+    return (
+      <ErrorView
+        title="Zu viele Versuche"
+        message="Dieser Link wurde zu oft in kurzer Zeit geöffnet. Bitte versuchen Sie es später erneut."
+      />
+    );
+  }
 
   if (!rawToken) {
+    logPublicSecurityEvent(securityRequest, {
+      scope: "public_offer_page",
+      reason: "invalid_token_format",
+      severity: "warning",
+      token,
+    });
+
     return (
       <ErrorView
         title="Offerte nicht verfügbar"
@@ -260,6 +329,13 @@ export default async function PublicOfferPage({
   });
 
   if (!link) {
+    logPublicSecurityEvent(securityRequest, {
+      scope: "public_offer_page",
+      reason: "token_not_found",
+      severity: "warning",
+      token: rawToken,
+    });
+
     return (
       <ErrorView
         title="Offerte nicht verfügbar"
@@ -269,6 +345,16 @@ export default async function PublicOfferPage({
   }
 
   if (link.revokedAt) {
+    logPublicSecurityEvent(securityRequest, {
+      scope: "public_offer_page",
+      reason: "revoked_link_opened",
+      severity: "info",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+      },
+    });
+
     return (
       <ErrorView
         title="Link deaktiviert"
@@ -278,6 +364,16 @@ export default async function PublicOfferPage({
   }
 
   if (isPublicOfferLinkExpired(link.expiresAt, now)) {
+    logPublicSecurityEvent(securityRequest, {
+      scope: "public_offer_page",
+      reason: "expired_link_opened",
+      severity: "info",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+      },
+    });
+
     return (
       <ErrorView
         title="Link abgelaufen"
@@ -296,6 +392,17 @@ export default async function PublicOfferPage({
   }
 
   if (link.quote.status !== QuoteStatus.SENT && link.quote.status !== QuoteStatus.ACCEPTED) {
+    logPublicSecurityEvent(securityRequest, {
+      scope: "public_offer_page",
+      reason: "quote_not_publicly_viewable",
+      severity: "info",
+      token: rawToken,
+      extra: {
+        linkId: link.id,
+        quoteStatus: link.quote.status,
+      },
+    });
+
     return (
       <ErrorView
         title="Offerte nicht freigegeben"
