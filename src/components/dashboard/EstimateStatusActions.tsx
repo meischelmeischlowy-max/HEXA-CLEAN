@@ -14,6 +14,13 @@ type StatusOption = {
   description: string;
 };
 
+type WorkflowNotificationResult = {
+  created: boolean;
+  skipped: boolean;
+  reason: string | null;
+  notificationId: string | null;
+};
+
 type ApiResponse = {
   layer?: string;
   message?: string;
@@ -22,6 +29,7 @@ type ApiResponse = {
     message?: string;
     updated?: boolean;
     created?: boolean;
+    notification?: WorkflowNotificationResult;
     estimate?: {
       id: string;
       status: string;
@@ -63,6 +71,38 @@ const statusOptions: StatusOption[] = [
   },
 ];
 
+function notificationStatusText(notification: WorkflowNotificationResult | null) {
+  if (!notification) {
+    return null;
+  }
+
+  if (notification.created) {
+    return "Kundenbenachrichtigung: vorbereitet und als ausstehend gespeichert.";
+  }
+
+  if (notification.reason === "pending_notification_already_exists") {
+    return "Kundenbenachrichtigung: bereits als ausstehend vorhanden.";
+  }
+
+  if (notification.reason === "customer_contact_missing") {
+    return "Kundenbenachrichtigung: übersprungen, weil keine E-Mail oder Telefonnummer vorhanden ist.";
+  }
+
+  if (notification.reason === "status_already_set") {
+    return "Kundenbenachrichtigung: keine neue Aktion, der Status war bereits gesetzt.";
+  }
+
+  if (notification.reason === "not_ready_to_send_workflow") {
+    return null;
+  }
+
+  if (notification.skipped) {
+    return "Kundenbenachrichtigung: übersprungen.";
+  }
+
+  return null;
+}
+
 export default function EstimateStatusActions({
   estimateId,
   currentStatus,
@@ -73,13 +113,17 @@ export default function EstimateStatusActions({
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [message, setMessage] = useState("");
+  const [notificationResult, setNotificationResult] =
+    useState<WorkflowNotificationResult | null>(null);
   const [error, setError] = useState("");
 
   const canCreateQuote = ["READY_TO_SEND", "SENT", "ACCEPTED"].includes(
-    currentStatus
+    currentStatus,
   );
 
   const canCreateInvoice = currentStatus === "ACCEPTED";
+
+  const notificationText = notificationStatusText(notificationResult);
 
   function canUseStatusAction(nextStatus: string) {
     if (currentStatus === nextStatus) {
@@ -108,7 +152,7 @@ export default function EstimateStatusActions({
     }
 
     if (nextStatus === "EXPIRED") {
-      return currentStatus !== "ACCEPTED";
+      return true;
     }
 
     return false;
@@ -119,7 +163,7 @@ export default function EstimateStatusActions({
 
     if (!rawText.trim()) {
       throw new Error(
-        `Die API hat eine leere Antwort zurückgegeben. HTTP-Status: ${response.status}`
+        `Die API hat eine leere Antwort zurückgegeben. HTTP-Status: ${response.status}`,
       );
     }
 
@@ -129,7 +173,7 @@ export default function EstimateStatusActions({
       throw new Error(
         `Die API hat kein JSON zurückgegeben. HTTP-Status: ${
           response.status
-        }. Antwort: ${rawText.slice(0, 300)}`
+        }. Antwort: ${rawText.slice(0, 300)}`,
       );
     }
   }
@@ -137,6 +181,7 @@ export default function EstimateStatusActions({
   async function updateStatus(nextStatus: string) {
     setIsUpdating(nextStatus);
     setMessage("");
+    setNotificationResult(null);
     setError("");
 
     try {
@@ -157,17 +202,18 @@ export default function EstimateStatusActions({
         throw new Error(
           data.data?.message ??
             data.message ??
-            "Der Status konnte nicht geändert werden."
+            "Der Status konnte nicht geändert werden.",
         );
       }
 
       setMessage(data.data?.message ?? "Der Status wurde geändert.");
+      setNotificationResult(data.data?.notification ?? null);
       router.refresh();
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Unbekannter Fehler beim Ändern des Status."
+          : "Unbekannter Fehler beim Ändern des Status.",
       );
     } finally {
       setIsUpdating("");
@@ -177,6 +223,7 @@ export default function EstimateStatusActions({
   async function createQuote() {
     setIsCreatingQuote(true);
     setMessage("");
+    setNotificationResult(null);
     setError("");
 
     try {
@@ -185,7 +232,7 @@ export default function EstimateStatusActions({
         {
           method: "POST",
           credentials: "same-origin",
-        }
+        },
       );
 
       const data = await parseApiResponse(response);
@@ -194,7 +241,7 @@ export default function EstimateStatusActions({
         throw new Error(
           data.data?.message ??
             data.message ??
-            "Das Angebot konnte nicht erstellt werden."
+            "Das Angebot konnte nicht erstellt werden.",
         );
       }
 
@@ -210,7 +257,7 @@ export default function EstimateStatusActions({
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Unbekannter Fehler beim Erstellen des Angebots."
+          : "Unbekannter Fehler beim Erstellen des Angebots.",
       );
     } finally {
       setIsCreatingQuote(false);
@@ -220,6 +267,7 @@ export default function EstimateStatusActions({
   async function createInvoice() {
     setIsCreatingInvoice(true);
     setMessage("");
+    setNotificationResult(null);
     setError("");
 
     try {
@@ -228,7 +276,7 @@ export default function EstimateStatusActions({
         {
           method: "POST",
           credentials: "same-origin",
-        }
+        },
       );
 
       const data = await parseApiResponse(response);
@@ -237,7 +285,7 @@ export default function EstimateStatusActions({
         throw new Error(
           data.data?.message ??
             data.message ??
-            "Die Rechnung konnte nicht erstellt werden."
+            "Die Rechnung konnte nicht erstellt werden.",
         );
       }
 
@@ -253,7 +301,7 @@ export default function EstimateStatusActions({
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Unbekannter Fehler beim Erstellen der Rechnung."
+          : "Unbekannter Fehler beim Erstellen der Rechnung.",
       );
     } finally {
       setIsCreatingInvoice(false);
@@ -266,11 +314,12 @@ export default function EstimateStatusActions({
         <div>
           <h2 className="text-xl font-semibold">Kalkulation Workflow</h2>
           <p className="mt-2 text-sm text-neutral-400">
-            Der Status folgt dem echten Prozess: prüfen, senden, akzeptieren,
-            Angebot erstellen und erst danach Rechnung erstellen.
+            Der Status folgt dem echten Prozess: prüfen, freigeben, Angebot
+            erstellen, senden, akzeptieren und erst danach Rechnung erstellen.
           </p>
           <p className="mt-2 text-xs text-neutral-500">
-            Aktueller Status: <span className="font-semibold">{currentStatus}</span>
+            Aktueller Status:{" "}
+            <span className="font-semibold">{currentStatus}</span>
           </p>
         </div>
 
@@ -297,8 +346,8 @@ export default function EstimateStatusActions({
 
       {!canCreateQuote ? (
         <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Ein Angebot kann erst aus einer bereiten, versendeten oder akzeptierten
-          Kalkulation erstellt werden.
+          Ein Angebot kann erst aus einer freigegebenen, versendeten oder
+          akzeptierten Kalkulation erstellt werden.
         </div>
       ) : null}
 
@@ -346,7 +395,13 @@ export default function EstimateStatusActions({
 
       {message ? (
         <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-          {message}
+          <p>{message}</p>
+
+          {notificationText ? (
+            <p className="mt-2 text-xs text-emerald-200/80">
+              {notificationText}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
