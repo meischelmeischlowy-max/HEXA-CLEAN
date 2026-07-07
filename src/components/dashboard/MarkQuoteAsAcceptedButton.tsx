@@ -16,7 +16,7 @@ export default function MarkQuoteAsAcceptedButton({
 
   async function handleMarkAsAccepted() {
     const confirmed = window.confirm(
-      "Czy na pewno oznaczyć tę ofertę jako zaakceptowaną?"
+      "Dieses Angebot wirklich als angenommen markieren?",
     );
 
     if (!confirmed) {
@@ -31,19 +31,19 @@ export default function MarkQuoteAsAcceptedButton({
         `/api/dashboard/quotes/${quoteId}/mark-accepted`,
         {
           method: "POST",
-        }
+        },
       );
 
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK") {
-        setError("Nie udało się oznaczyć oferty jako zaakceptowanej.");
+        setError("Das Angebot konnte nicht als angenommen markiert werden.");
         return;
       }
 
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -57,10 +57,10 @@ export default function MarkQuoteAsAcceptedButton({
         disabled={isLoading}
         className="rounded-xl border border-lime-600 bg-lime-950/50 px-4 py-3 text-sm font-semibold text-lime-100 transition hover:border-lime-300 hover:bg-lime-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Oznaczam..." : "Oznacz jako zaakceptowaną"}
+        {isLoading ? "Wird gespeichert..." : "Als angenommen markieren"}
       </button>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error ? <p className="text-xs text-red-400">{error}</p> : null}
     </div>
   );
 }

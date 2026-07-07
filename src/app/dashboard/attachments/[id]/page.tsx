@@ -75,7 +75,7 @@ function DataSection({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Brak danych.</p>
+        <p className="text-sm text-neutral-500">Keine Daten.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">
@@ -86,13 +86,13 @@ function DataSection({
                   Status / Typ
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Treść / Akcja
+                  Inhalt / Aktion
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
                   Data
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Akcja
+                  Aktion
                 </th>
               </tr>
             </thead>
@@ -135,7 +135,7 @@ function DataSection({
                           href={`${basePath}/${itemId}`}
                           className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-400 transition hover:border-cyan-400 hover:bg-cyan-500/10"
                         >
-                          Szczegóły
+                          Details
                         </Link>
                       ) : (
                         <span className="text-xs text-neutral-600">—</span>
@@ -192,18 +192,18 @@ export default async function AttachmentDetailsPage({
             href="/dashboard/attachments"
             className="text-sm text-cyan-400 transition hover:text-cyan-300"
           >
-            ← Wróć do załączników
+            ← Zurück zu Anhängen
           </Link>
 
           <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
             HEXA OS
           </p>
 
-          <h1 className="mt-3 text-3xl font-bold">Szczegóły załącznika</h1>
+          <h1 className="mt-3 text-3xl font-bold">Anhangdetails</h1>
 
           <p className="mt-2 text-sm text-neutral-500">
-            Pełne dane pliku oraz powiązany klient, zlecenie, oferta, faktura,
-            sesja, wiadomości i historia systemu.
+            Vollständige Dateidaten inklusive zugehörigem Kunden, Auftrag, Angebot,
+            Rechnung, Sitzung, Nachrichten und Systemverlauf.
           </p>
         </div>
 
@@ -214,7 +214,7 @@ export default async function AttachmentDetailsPage({
             rel="noreferrer"
             className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-4 py-3 text-sm font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
           >
-            Otwórz plik
+            Datei öffnen
           </a>
         )}
       </div>
@@ -224,25 +224,25 @@ export default async function AttachmentDetailsPage({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <RecordLink
-            label="Klient"
+            label="Kunde"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
             value={customer?.name ?? customer?.email ?? customer?.id}
           />
 
           <RecordLink
-            label="Zlecenie"
+            label="Auftrag"
             href={order?.id ? `/dashboard/orders/${order.id}` : null}
             value={order?.orderNumber ?? order?.number ?? order?.id}
           />
 
           <RecordLink
-            label="Oferta"
+            label="Angebot"
             href={quote?.id ? `/dashboard/quotes/${quote.id}` : null}
             value={quote?.quoteNumber ?? quote?.number ?? quote?.id}
           />
 
           <RecordLink
-            label="Faktura"
+            label="Rechnung"
             href={invoice?.id ? `/dashboard/invoices/${invoice.id}` : null}
             value={invoice?.invoiceNumber ?? invoice?.number ?? invoice?.id}
           />
@@ -250,63 +250,63 @@ export default async function AttachmentDetailsPage({
       </section>
 
       <section className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-        <h2 className="mb-4 text-xl font-bold">Załącznik</h2>
+        <h2 className="mb-4 text-xl font-bold">Anhang</h2>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <InfoCard label="ID" value={attachment.id} />
           <InfoCard
-            label="Nazwa pliku"
+            label="Dateiname"
             value={attachment.fileName ?? attachment.name}
           />
           <InfoCard
-            label="Typ pliku"
+            label="Dateityp"
             value={attachment.mimeType ?? attachment.fileType ?? attachment.type}
           />
           <InfoCard
-            label="Rozmiar"
+            label="Größe"
             value={formatFileSize(attachment.size ?? attachment.sizeBytes)}
           />
           <InfoCard label="URL" value={fileUrl} />
-          <InfoCard label="Klient ID" value={attachment.customerId} />
-          <InfoCard label="Zlecenie ID" value={attachment.orderId} />
-          <InfoCard label="Oferta ID" value={attachment.quoteId} />
-          <InfoCard label="Faktura ID" value={attachment.invoiceId} />
+          <InfoCard label="Kunden-ID" value={attachment.customerId} />
+          <InfoCard label="Auftrag ID" value={attachment.orderId} />
+          <InfoCard label="Angebot ID" value={attachment.quoteId} />
+          <InfoCard label="Rechnung ID" value={attachment.invoiceId} />
           <InfoCard label="Sesja ID" value={attachment.sessionId} />
-          <InfoCard label="Utworzono" value={attachment.createdAt} />
-          <InfoCard label="Aktualizacja" value={attachment.updatedAt} />
+          <InfoCard label="Erstellt am" value={attachment.createdAt} />
+          <InfoCard label="Aktualisiert am" value={attachment.updatedAt} />
         </div>
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-4">
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Klient</h2>
+          <h2 className="mb-4 text-xl font-bold">Kunde</h2>
 
           {customer ? (
             <div className="grid gap-4">
               <RecordLink
-                label="Otwórz klienta"
+                label="Kunden öffnen"
                 href={`/dashboard/customers/${customer.id}`}
                 value={customer.name ?? customer.email ?? customer.id}
               />
               <InfoCard label="ID" value={customer.id} />
-              <InfoCard label="Imię / nazwa" value={customer.name} />
+              <InfoCard label="Name" value={customer.name} />
               <InfoCard label="Email" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
-              Brak powiązanego klienta.
+              Kein verknüpfter Kunde.
             </p>
           )}
         </div>
 
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Zlecenie</h2>
+          <h2 className="mb-4 text-xl font-bold">Auftrag</h2>
 
           {order ? (
             <div className="grid gap-4">
               <RecordLink
-                label="Otwórz zlecenie"
+                label="Auftrag öffnen"
                 href={`/dashboard/orders/${order.id}`}
                 value={order.orderNumber ?? order.number ?? order.id}
               />
@@ -317,56 +317,56 @@ export default async function AttachmentDetailsPage({
               />
               <InfoCard label="Status" value={order.status} />
               <InfoCard
-                label="Usługa"
+                label="Leistung"
                 value={order.serviceType ?? order.service}
               />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
-              Brak powiązanego zlecenia.
+              Kein verknüpfter Auftrag.
             </p>
           )}
         </div>
 
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Oferta / Faktura</h2>
+          <h2 className="mb-4 text-xl font-bold">Angebot / Rechnung</h2>
 
           <div className="grid gap-4">
             {quote ? (
               <>
                 <RecordLink
-                  label="Otwórz ofertę"
+                  label="Angebot öffnen"
                   href={`/dashboard/quotes/${quote.id}`}
                   value={quote.quoteNumber ?? quote.number ?? quote.id}
                 />
-                <InfoCard label="Oferta ID" value={quote.id} />
+                <InfoCard label="Angebot ID" value={quote.id} />
                 <InfoCard
-                  label="Oferta numer"
+                  label="Angebot numer"
                   value={quote.quoteNumber ?? quote.number}
                 />
               </>
             ) : (
               <p className="text-sm text-neutral-500">
-                Brak powiązanej oferty.
+                Kein zugehöriges Angebot vorhanden.
               </p>
             )}
 
             {invoice ? (
               <>
                 <RecordLink
-                  label="Otwórz fakturę"
+                  label="Rechnung öffnen"
                   href={`/dashboard/invoices/${invoice.id}`}
                   value={invoice.invoiceNumber ?? invoice.number ?? invoice.id}
                 />
-                <InfoCard label="Faktura ID" value={invoice.id} />
+                <InfoCard label="Rechnung ID" value={invoice.id} />
                 <InfoCard
-                  label="Faktura numer"
+                  label="Rechnung numer"
                   value={invoice.invoiceNumber ?? invoice.number}
                 />
               </>
             ) : (
               <p className="text-sm text-neutral-500">
-                Brak powiązanej faktury.
+                Keine zugehörige Rechnung.
               </p>
             )}
           </div>
@@ -380,17 +380,17 @@ export default async function AttachmentDetailsPage({
               <InfoCard label="ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
               <InfoCard label="Utworzono" value={session.createdAt} />
-              <InfoCard label="Zakończono" value={session.endedAt} />
+              <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">Brak powiązanej sesji.</p>
+            <p className="text-sm text-neutral-500">Keine verknüpfte Sitzung.</p>
           )}
         </div>
       </section>
 
       <div className="grid gap-6">
         <DataSection
-          title="Wiadomości rozmów"
+          title="Gesprächsnachrichten"
           items={conversationMessages as Record<string, unknown>[]}
         />
 

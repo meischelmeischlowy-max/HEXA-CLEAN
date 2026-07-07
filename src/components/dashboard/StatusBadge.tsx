@@ -18,17 +18,17 @@ const statusStyles: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  NEW: "Nowe",
-  OPEN: "Otwarte",
-  DRAFT: "Szkic",
-  SENT: "Wysłane",
-  ACCEPTED: "Zaakceptowane",
-  PAID: "Opłacone",
-  PENDING: "Oczekuje",
-  OVERDUE: "Po terminie",
-  CANCELLED: "Anulowane",
-  COMPLETED: "Zakończone",
-  IN_PROGRESS: "W trakcie",
+  NEW: "Neu",
+  OPEN: "Offen",
+  DRAFT: "Entwurf",
+  SENT: "Versendet",
+  ACCEPTED: "Akzeptiert",
+  PAID: "Bezahlt",
+  PENDING: "Ausstehend",
+  OVERDUE: "Überfällig",
+  CANCELLED: "Storniert",
+  COMPLETED: "Abgeschlossen",
+  IN_PROGRESS: "In Bearbeitung",
 };
 
 export default function StatusBadge({ status, label }: StatusBadgeProps) {

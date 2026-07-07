@@ -4,57 +4,57 @@ import DashboardLogoutButton from "./DashboardLogoutButton";
 
 const navItems = [
   {
-    label: "Overview",
+    label: "Übersicht",
     href: "/dashboard",
-    description: "Centrum systemu",
+    description: "Zentrale Systemübersicht",
     marker: "OS",
   },
   {
-    label: "Klienci",
+    label: "Kunden",
     href: "/dashboard/customers",
-    description: "CRM i kontakty",
+    description: "CRM und Kontakte",
     marker: "CRM",
   },
   {
-    label: "Zlecenia",
+    label: "Aufträge",
     href: "/dashboard/orders",
-    description: "Prace i realizacje",
+    description: "Arbeiten und Einsätze",
     marker: "JOB",
   },
   {
-    label: "Wyceny",
+    label: "Kalkulationen",
     href: "/dashboard/estimates",
-    description: "Kalkulator i ceny robocze",
+    description: "Preise und interne Berechnung",
     marker: "EST",
   },
   {
-    label: "Oferty",
+    label: "Angebote",
     href: "/dashboard/quotes",
-    description: "Oferty dla klientów",
+    description: "Angebote für Kunden",
     marker: "CHF",
   },
   {
-    label: "Faktury",
+    label: "Rechnungen",
     href: "/dashboard/invoices",
-    description: "Dokumenty sprzedaży",
+    description: "Verkaufsdokumente",
     marker: "INV",
   },
   {
-    label: "Płatności",
+    label: "Zahlungen",
     href: "/dashboard/payments",
-    description: "Kontrola wpłat",
+    description: "Zahlungseingänge",
     marker: "PAY",
   },
   {
-    label: "Cennik",
+    label: "Leistungen",
     href: "/dashboard/services",
-    description: "Usługi i stawki",
+    description: "Services und Preise",
     marker: "SVC",
   },
   {
-    label: "Audit log",
+    label: "Audit Log",
     href: "/dashboard/audit-logs",
-    description: "Historia działań",
+    description: "Systemhistorie",
     marker: "LOG",
   },
 ];
@@ -62,15 +62,15 @@ const navItems = [
 const futureItems = [
   {
     label: "AI Concierge",
-    description: "Chatbot, sesje, zapytania",
+    description: "Chatbot, Sitzungen, Anfragen",
   },
   {
-    label: "Automatyzacje",
-    description: "Email, SMS, workflow",
+    label: "Automatisierung",
+    description: "E-Mail, SMS, Workflow",
   },
   {
     label: "Vision AI",
-    description: "Zdjęcia, ryzyko, analiza",
+    description: "Fotos, Risiko, Analyse",
   },
 ];
 
@@ -102,7 +102,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     HEXA OS
                   </p>
                   <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100/70">
-                    Operations Panel
+                    Betriebs-Panel
                   </p>
                 </div>
               </div>
@@ -110,7 +110,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
             <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
               <p className="px-3 pb-3 pt-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
-                Moduły systemu
+                Systemmodule
               </p>
 
               <nav className="space-y-2">
@@ -139,7 +139,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
             <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
               <p className="px-3 pb-3 pt-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
-                Rozbudowa
+                Erweiterung
               </p>
 
               <div className="space-y-2">
@@ -158,7 +158,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     </div>
 
                     <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">
-                      soon
+                      bald
                     </span>
                   </div>
                 ))}
@@ -172,7 +172,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     System online
                   </p>
                   <p className="mt-1 text-xs leading-5 text-emerald-100/70">
-                    CRM, cennik, wyceny i workflow administracyjny są aktywne.
+                    CRM, Leistungen, Angebote, Rechnungen und Workflow sind aktiv.
                   </p>
                 </div>
 
@@ -198,7 +198,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   <p className="font-black tracking-tight text-white">
                     HEXA OS
                   </p>
-                  <p className="text-xs text-zinc-500">Operations Panel</p>
+                  <p className="text-xs text-zinc-500">Betriebs-Panel</p>
                 </div>
               </Link>
 

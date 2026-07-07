@@ -101,10 +101,10 @@ function formatCategory(category?: string | null) {
   if (!category) return "—";
 
   const labels: Record<string, string> = {
-    REINIGUNG: "Sprzątanie",
+    REINIGUNG: "Reinigung",
     HAUSWARTUNG: "Hauswartung",
-    KLEINREPARATUREN: "Małe naprawy",
-    UMZUGSREINIGUNG: "Sprzątanie po przeprowadzce",
+    KLEINREPARATUREN: "Kleinreparaturen",
+    UMZUGSREINIGUNG: "Umzugsreinigung",
     FENSTERREINIGUNG: "Mycie okien",
     WOHNUNGSABGABE: "Oddanie mieszkania",
     SPEZIALREINIGUNG: "Czyszczenie specjalne",
@@ -118,14 +118,14 @@ function formatUnit(unit?: string | null) {
   if (!unit) return "—";
 
   const labels: Record<string, string> = {
-    FLAT: "Ryczałt",
+    FLAT: "Pauschal",
     HOUR: "Godzina",
     M2: "m²",
-    ROOM: "Pokój",
+    ROOM: "Zimmer",
     WINDOW: "Okno",
     PIECE: "Sztuka",
     KM: "Kilometr",
-    CUSTOM: "Własna jednostka",
+    CUSTOM: "Eigene Einheit",
   };
 
   return labels[unit.toUpperCase()] ?? unit;
@@ -176,7 +176,7 @@ export default function DashboardServicesPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Dashboard Services API returned an error");
+        throw new Error("Die Leistungsverzeichnis-API hat einen Fehler zurückgegeben.");
       }
 
       const json: DashboardServicesResponse = await response.json();
@@ -203,7 +203,7 @@ export default function DashboardServicesPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Dashboard Services seed API returned an error");
+        throw new Error("Die Beispieldaten-API für Leistungen hat einen Fehler zurückgegeben.");
       }
 
       const json: DashboardServicesResponse = await response.json();
@@ -254,7 +254,7 @@ export default function DashboardServicesPage() {
   const columns: DashboardTableColumn<ServiceCatalogItem>[] = [
     {
       key: "service",
-      header: "Usługa",
+      header: "Leistung",
       render: (service) => (
         <div>
           <Link
@@ -276,7 +276,7 @@ export default function DashboardServicesPage() {
     },
     {
       key: "category",
-      header: "Kategoria",
+      header: "Kategorie",
       render: (service) => (
         <div>
           <p className="font-semibold text-zinc-200">
@@ -288,7 +288,7 @@ export default function DashboardServicesPage() {
     },
     {
       key: "unit",
-      header: "Jednostka",
+      header: "Einheit",
       render: (service) => (
         <p className="font-semibold text-zinc-200">
           {formatUnit(service.unit)}
@@ -297,7 +297,7 @@ export default function DashboardServicesPage() {
     },
     {
       key: "prices",
-      header: "Ceny",
+      header: "Preise",
       render: (service) => (
         <div>
           <p className="font-black text-emerald-100">
@@ -312,14 +312,14 @@ export default function DashboardServicesPage() {
     },
     {
       key: "risk",
-      header: "Ryzyko",
+      header: "Risiko",
       render: (service) => (
         <div>
           <p className="font-semibold text-zinc-200">
             x{formatDecimal(service.riskMultiplier)}
           </p>
           <p className="mt-1 text-xs text-zinc-500">
-            Ilość domyślna: {formatDecimal(service.defaultQuantity)}
+            Standardmenge: {formatDecimal(service.defaultQuantity)}
           </p>
         </div>
       ),
@@ -345,15 +345,15 @@ export default function DashboardServicesPage() {
     },
     {
       key: "actions",
-      header: "Akcje",
+      header: "Aktionen",
       render: (service) => (
         <div className="flex flex-wrap gap-2">
           <ActionLink href={`/dashboard/services/${service.id}`} primary>
-            Szczegóły
+            Details
           </ActionLink>
 
           <ActionLink href={`/dashboard/services/${service.id}/edit`}>
-            Edytuj
+            Bearbeiten
           </ActionLink>
         </div>
       ),
@@ -365,11 +365,11 @@ export default function DashboardServicesPage() {
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
           eyebrow="HEXA OS / Service Catalog"
-          title="Cennik usług"
-          description="Fundament pod kalkulator wyceny, AI Concierge, oferty i faktury. Tutaj definiujemy, za co system ma liczyć cenę."
+          title="Leistungsverzeichnis"
+          description="Grundlage für den Kalkulationsrechner, AI Concierge, Angebote und Rechnungen. Hier definieren wir, wie der Preis im System berechnet werden soll."
         >
           <PremiumButton href="/dashboard/services/new" variant="primary">
-            Dodaj usługę
+            Leistung hinzufügen
           </PremiumButton>
 
           <PremiumButton
@@ -378,7 +378,7 @@ export default function DashboardServicesPage() {
             onClick={seedDemoServices}
             disabled={loading || seeding}
           >
-            {seeding ? "Dodawanie..." : "Dodaj przykładowy cennik"}
+            {seeding ? "Wird ergänzt..." : "Beispielkatalog hinzufügen"}
           </PremiumButton>
 
           <PremiumButton
@@ -387,47 +387,47 @@ export default function DashboardServicesPage() {
             onClick={loadServices}
             disabled={loading || seeding}
           >
-            Odśwież
+            Aktualisieren
           </PremiumButton>
 
           <PremiumButton href="/dashboard/estimates" variant="ghost">
-            Wyceny
+            Kalkulationen
           </PremiumButton>
         </PageHeader>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            title="Wszystkie usługi"
+            title="Alle Leistungen"
             value={String(stats.total)}
-            description="Łączna liczba pozycji w katalogu usług."
-            trend="Źródło: Services API"
+            description="Gesamtzahl der Positionen im Leistungsverzeichnis."
+            trend="Quelle: Leistungs-API"
             tone="cyan"
             icon={<span className="text-lg font-black">SVC</span>}
           />
 
           <MetricCard
-            title="Aktywne"
+            title="Aktiv"
             value={String(stats.active)}
-            description="Pozycje dostępne dla kalkulatora wyceny."
-            trend={`Nieaktywne: ${stats.inactive}`}
+            description="Positionen, die für den Kalkulationsrechner verfügbar sind."
+            trend={`Inaktiv: ${stats.inactive}`}
             tone="emerald"
             icon={<span className="text-lg font-black">✓</span>}
           />
 
           <MetricCard
-            title="Średnia cena"
+            title="Durchschnittspreis"
             value={formatMoney(stats.averageBasePrice)}
-            description="Średnia cena bazowa z katalogu usług."
-            trend="Cena robocza"
+            description="Durchschnittlicher Basispreis aus dem Leistungsverzeichnis."
+            trend="Kalkulationspreis"
             tone="amber"
             icon={<span className="text-lg font-black">CHF</span>}
           />
 
           <MetricCard
-            title="Ryzyko"
+            title="Risiko"
             value={String(stats.highRisk)}
-            description="Usługi z mnożnikiem ryzyka powyżej x1.00."
-            trend="Do kontroli przy wycenie"
+            description="Leistungen mit einem Risikomultiplikator über x1.00."
+            trend="Zur Prüfung bei der Kalkulation"
             tone="violet"
             icon={<span className="text-lg font-black">AI</span>}
           />
@@ -435,8 +435,8 @@ export default function DashboardServicesPage() {
 
         {loading ? (
           <DashboardPanel
-            title="Ładowanie cennika"
-            description="HEXA OS pobiera aktualny katalog usług."
+            title="Leistungsverzeichnis wird geladen"
+            description="HEXA OS lädt das aktuelle Leistungsverzeichnis."
           >
             <div className="grid gap-3">
               {[1, 2, 3, 4].map((item) => (
@@ -451,14 +451,13 @@ export default function DashboardServicesPage() {
 
         {errorMessage ? (
           <DashboardPanel
-            title="Błąd modułu Services"
-            description="Nie udało się pobrać katalogu usług z API."
+            title="Fehler im Leistungsmodul"
+            description="Das Leistungsverzeichnis konnte nicht aus der API geladen werden."
           >
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Błąd: {errorMessage}</p>
+              <p className="font-bold">Fehler: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Sprawdź endpoint /api/dashboard/services, Prisma Client oraz
-                połączenie z bazą.
+                Prüfen Sie den Endpoint /api/dashboard/services, den Prisma Client sowie die Datenbankverbindung.
               </p>
             </div>
           </DashboardPanel>
@@ -466,12 +465,12 @@ export default function DashboardServicesPage() {
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Lista usług"
-            description={`Liczba rekordów: ${services.length}. Ten katalog będzie używany przez moduł wyceny i przyszłe Vision AI.`}
+            title="Leistungsliste"
+            description={`Anzahl Datensätze: ${services.length}. Dieser Katalog wird vom Kalkulationsmodul und späteren Vision-AI-Funktionen verwendet.`}
             action={
               <StatusBadge
                 status={services.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={services.length > 0 ? "Cennik aktywny" : "Brak pozycji"}
+                label={services.length > 0 ? "Katalog aktiv" : "Keine Einträge"}
               />
             }
           >
@@ -481,9 +480,9 @@ export default function DashboardServicesPage() {
               getRowKey={(service) => service.id}
               empty={
                 <EmptyState
-                  title="Brak usług w cenniku"
-                  description="Dodaj pierwszą usługę ręcznie albo użyj przykładowego cennika demo."
-                  actionLabel="Dodaj usługę"
+                  title="Keine Leistungen im Katalog"
+                  description="Erstellen Sie die erste Leistung manuell oder verwenden Sie einen Beispielkatalog."
+                  actionLabel="Leistung hinzufügen"
                   actionHref="/dashboard/services/new"
                 />
               }
@@ -494,7 +493,7 @@ export default function DashboardServicesPage() {
         {!loading && !errorMessage ? (
           <DashboardPanel
             title="Rola Service Catalog"
-            description="Ten moduł jest podstawą pod oficjalny silnik wyceny: AI może podpowiadać, ale cena ma wynikać z cennika, reguł i zatwierdzenia człowieka."
+            description="Dieses Modul ist die Grundlage für die offizielle Kalkulationsengine: Die KI kann Vorschläge liefern, aber der Preis muss sich aus dem Katalog, den Regeln und der Freigabe durch einen Menschen ergeben."
           >
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
@@ -502,18 +501,16 @@ export default function DashboardServicesPage() {
                   Ceny bazowe
                 </p>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  Każda usługa ma jednostkę, cenę bazową, minimum i opcjonalny
-                  limit maksymalny.
+                  Jede Leistung hat eine Einheit, einen Basispreis, ein Minimum und optional ein maximales Limit.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
                 <p className="text-sm font-black text-violet-100">
-                  Ryzyko i zdjęcia
+                  Risiko und Fotos
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Później Vision AI oceni zdjęcia i zaproponuje mnożnik ryzyka,
-                  ale nie zatwierdzi ceny samo.
+                  Später bewertet Vision AI die Bilder und schlägt einen Risikomultiplikator vor, ohne den Preis selbst zu genehmigen.
                 </p>
               </div>
 
@@ -522,8 +519,7 @@ export default function DashboardServicesPage() {
                   MM Digital Core
                 </p>
                 <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Ten katalog jest przygotowany pod tenanty, czyli różne firmy z
-                  własnym cennikiem.
+                  Dieser Katalog ist für Mandanten vorbereitet, also für verschiedene Unternehmen mit eigenem Leistungsverzeichnis.
                 </p>
               </div>
             </div>

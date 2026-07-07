@@ -121,7 +121,7 @@ export default function DashboardQuotesPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Dashboard Quotes API returned an error");
+        throw new Error("Die Angebot-API hat einen Fehler zurückgegeben.");
       }
 
       const json: DashboardQuotesResponse = await response.json();
@@ -129,7 +129,7 @@ export default function DashboardQuotesPage() {
       setQuotes(json.data.quotes ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unknown quotes error"
+        error instanceof Error ? error.message : "Unbekannter Angebotsfehler"
       );
     } finally {
       setLoading(false);
@@ -170,7 +170,7 @@ export default function DashboardQuotesPage() {
   const columns: DashboardTableColumn<Quote>[] = [
     {
       key: "quote",
-      header: "Oferta",
+      header: "Angebot",
       render: (quote) => (
         <div>
           <p className="font-black tracking-tight text-white">
@@ -187,24 +187,24 @@ export default function DashboardQuotesPage() {
     },
     {
       key: "links",
-      header: "Powiązania",
+      header: "Verknüpfungen",
       render: (quote) => (
         <div className="space-y-1">
           <p className="text-sm text-zinc-300">
-            Klient:{" "}
+            Kunde:{" "}
             <span className="font-semibold text-zinc-100">
               {quote.customerId ?? "—"}
             </span>
           </p>
           <p className="text-xs text-zinc-500">
-            Zlecenie: {quote.orderId ?? "—"}
+            Auftrag: {quote.orderId ?? "—"}
           </p>
         </div>
       ),
     },
     {
       key: "subtotal",
-      header: "Subtotal",
+      header: "Zwischensumme",
       render: (quote) => (
         <p className="font-semibold text-zinc-200">
           {formatMoney(quote.subtotal, quote.currency ?? "CHF")}
@@ -213,14 +213,14 @@ export default function DashboardQuotesPage() {
     },
     {
       key: "tax",
-      header: "Podatek",
+      header: "Steuer",
       render: (quote) => (
         <div>
           <p className="font-semibold text-zinc-200">
             {formatMoney(quote.taxAmount, quote.currency ?? "CHF")}
           </p>
           <p className="mt-1 text-xs text-zinc-500">
-            Stawka: {formatTaxRate(quote.taxRate)}
+            Satz: {formatTaxRate(quote.taxRate)}
           </p>
         </div>
       ),
@@ -236,7 +236,7 @@ export default function DashboardQuotesPage() {
     },
     {
       key: "deadline",
-      header: "Ważna do",
+      header: "Gültig bis",
       render: (quote) => (
         <p className="text-sm font-medium text-zinc-400">
           {formatDate(getQuoteDeadline(quote))}
@@ -245,7 +245,7 @@ export default function DashboardQuotesPage() {
     },
     {
       key: "action",
-      header: "Akcja",
+      header: "Aktion",
       className: "text-right",
       render: (quote) => (
         <div className="flex justify-end">
@@ -254,7 +254,7 @@ export default function DashboardQuotesPage() {
             variant="primary"
             size="sm"
           >
-            Szczegóły
+            Details
           </PremiumButton>
         </div>
       ),
@@ -266,8 +266,8 @@ export default function DashboardQuotesPage() {
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
           eyebrow="HEXA OS CRM / Quotes"
-          title="Oferty i wyceny"
-          description="Moduł ofert łączy zlecenia, klientów i przyszły kalkulator wyceny. Tutaj oferta przechodzi ze szkicu do wysyłki, akceptacji i późniejszej faktury."
+          title="Angebote und Kalkulationen"
+          description="Das Angebotsmodul verbindet Aufträge, Kunden und den zukünftigen Kalkulationsrechner. Hier geht ein Angebot vom Entwurf über Versand, Annahme und später zur Rechnung."
         >
           <PremiumButton
             type="button"
@@ -275,45 +275,45 @@ export default function DashboardQuotesPage() {
             onClick={loadQuotes}
             disabled={loading}
           >
-            Odśwież
+            Aktualisieren
           </PremiumButton>
           <PremiumButton href="/dashboard/orders" variant="ghost">
-            Zlecenia
+            Aufträge
           </PremiumButton>
         </PageHeader>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            title="Wszystkie oferty"
+            title="Alle Angebote"
             value={String(stats.total)}
-            description="Łączna liczba ofert zapisanych w bazie."
-            trend="Źródło: Quotes API"
+            description="Gesamtzahl der in der Datenbank gespeicherten Angebote."
+            trend="Quelle: Angebots-API"
             tone="cyan"
             icon={<span className="text-lg font-black">Q</span>}
           />
 
           <MetricCard
-            title="Szkice"
+            title="Entwürfe"
             value={String(stats.draft)}
-            description="Oferty przygotowane, ale jeszcze niewysłane."
-            trend="Status DRAFT"
+            description="Angebote, die vorbereitet, aber noch nicht versendet wurden."
+            trend="Status ENTWURF"
             tone="zinc"
             icon={<span className="text-lg font-black">D</span>}
           />
 
           <MetricCard
-            title="Wysłane"
+            title="Versendet"
             value={String(stats.sent)}
-            description="Oferty przekazane klientowi do decyzji."
-            trend="Status SENT"
+            description="Angebote, die dem Kunden zur Entscheidung übermittelt wurden."
+            trend="Status VERSENDET"
             tone="violet"
             icon={<span className="text-lg font-black">↗</span>}
           />
 
           <MetricCard
-            title="Zaakceptowane"
+            title="Akzeptiert"
             value={String(stats.accepted)}
-            description="Oferty gotowe do przejścia w fakturę."
+            description="Angebote, die für die Umwandlung in eine Rechnung bereit sind."
             trend={formatMoney(stats.totalValue, "CHF")}
             tone="emerald"
             icon={<span className="text-lg font-black">✓</span>}
@@ -322,8 +322,8 @@ export default function DashboardQuotesPage() {
 
         {loading ? (
           <DashboardPanel
-            title="Ładowanie ofert"
-            description="HEXA OS pobiera aktualne dane z modułu Quotes."
+            title="Angebote werden geladen"
+            description="HEXA OS lädt die aktuellen Daten aus dem Angebotsmodul."
           >
             <div className="grid gap-3">
               {[1, 2, 3, 4].map((item) => (
@@ -338,13 +338,13 @@ export default function DashboardQuotesPage() {
 
         {errorMessage ? (
           <DashboardPanel
-            title="Błąd modułu Quotes"
-            description="Nie udało się pobrać listy ofert z API."
+            title="Fehler im Angebotsmodul"
+            description="Die Angebotsliste konnte nicht aus der API geladen werden."
           >
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Błąd: {errorMessage}</p>
+              <p className="font-bold">Fehler: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Sprawdź endpoint /api/dashboard/quotes oraz połączenie z bazą.
+                Prüfen Sie den Endpoint /api/dashboard/quotes und die Datenbankverbindung.
               </p>
             </div>
           </DashboardPanel>
@@ -352,12 +352,12 @@ export default function DashboardQuotesPage() {
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Lista ofert"
-            description={`Liczba rekordów: ${quotes.length}. Oferta jest etapem pomiędzy wyceną roboczą a fakturą.`}
+            title="Angebotsliste"
+            description={`Anzahl Datensätze: ${quotes.length}. Ein Angebot ist der Schritt zwischen der Kalkulation und der Rechnung.`}
             action={
               <StatusBadge
                 status={quotes.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={quotes.length > 0 ? "Oferty aktywne" : "Brak ofert"}
+                label={quotes.length > 0 ? "Angebote aktiv" : "Keine Angebote"}
               />
             }
           >
@@ -367,9 +367,9 @@ export default function DashboardQuotesPage() {
               getRowKey={(quote) => quote.id}
               empty={
                 <EmptyState
-                  title="Brak ofert w bazie"
-                  description="Pierwsza oferta pojawi się tutaj po utworzeniu jej ze zlecenia albo po wdrożeniu modułu wyceny HEXA OS."
-                  actionLabel="Przejdź do zleceń"
+                  title="Keine Angebote in der Datenbank"
+                  description="Das erste Angebot erscheint hier nach der Erstellung aus einem Auftrag oder nach dem Aktivieren des Kalkulationsmoduls von HEXA OS."
+                  actionLabel="Zu den Aufträgen"
                   actionHref="/dashboard/orders"
                 />
               }
@@ -379,37 +379,34 @@ export default function DashboardQuotesPage() {
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Rola modułu Quotes"
-            description="Docelowo oferty będą tworzone z oficjalnej wyceny, zatwierdzanej po danych klienta, zdjęciach i kontroli właściciela."
+            title="Rolle des Angebotsmoduls"
+            description="Zielzustand: Angebote werden aus einer offiziellen Kalkulation erstellt, nachdem Kundendaten, Fotos und die Kontrolle durch den Eigentümer bestätigt wurden."
           >
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
                 <p className="text-sm font-black text-cyan-100">
-                  Z wyceny do oferty
+                  Von der Kalkulation zum Angebot
                 </p>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  AI i kalkulator mogą przygotować cenę roboczą, ale oficjalna
-                  oferta powinna być zatwierdzona przez człowieka.
+                  KI und Rechner können einen Entwurfspreis vorbereiten, aber das offizielle Angebot sollte von einer Person freigegeben werden.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
                 <p className="text-sm font-black text-violet-100">
-                  Wysyłka do klienta
+                  Versand an den Kunden
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Kolejny etap to PDF z logo, email do klienta oraz zapis w
-                  EmailLog i AuditLog.
+                  Der nächste Schritt ist ein PDF mit Logo, eine E-Mail an den Kunden sowie ein Eintrag in EmailLog und AuditLog.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
                 <p className="text-sm font-black text-emerald-100">
-                  Akceptacja
+                  Akzeptanz
                 </p>
                 <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Zaakceptowana oferta przechodzi dalej do faktury i płatności w
-                  workflow HEXA OS.
+                  Ein akzeptiertes Angebot wird im Workflow von HEXA OS weiter zu Rechnung und Zahlung verarbeitet.
                 </p>
               </div>
             </div>

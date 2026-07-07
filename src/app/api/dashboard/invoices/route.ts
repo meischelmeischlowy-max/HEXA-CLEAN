@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -72,12 +72,16 @@ function decimalToNumber(value: unknown) {
   return 0;
 }
 
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function money(value: number) {
   if (!Number.isFinite(value)) {
     return "0.00";
   }
 
-  return (Math.round((value + Number.EPSILON) * 100) / 100).toFixed(2);
+  return roundMoney(value).toFixed(2);
 }
 
 function createInvoiceCandidateNumber() {
@@ -125,6 +129,39 @@ async function readBody(request: NextRequest) {
   }
 }
 
+function createExtraInvoiceItem(params: {
+  name: string;
+  description: string;
+  amount: number;
+  sortOrder: number;
+  kind: string;
+}): Prisma.InvoiceItemCreateWithoutInvoiceInput {
+  return {
+    name: params.name,
+    description: params.description,
+    category: "OTHER",
+    unit: "FLAT",
+    quantity: "1.00",
+    unitPrice: money(params.amount),
+    subtotal: money(params.amount),
+    taxRate: "0.00",
+    taxAmount: "0.00",
+    discountAmount: "0.00",
+    total: money(params.amount),
+    sortOrder: params.sortOrder,
+    metadata: {
+      source: "estimate",
+      kind: params.kind,
+    },
+  };
+}
+
+function invoiceItemsTotal(items: Prisma.InvoiceItemCreateWithoutInvoiceInput[]) {
+  return roundMoney(
+    items.reduce((sum, item) => sum + decimalToNumber(item.total), 0),
+  );
+}
+
 export async function GET() {
   try {
     const prisma = getPrisma();
@@ -133,6 +170,11 @@ export async function GET() {
       include: {
         customer: true,
         order: true,
+        items: {
+          orderBy: {
+            sortOrder: "asc",
+          },
+        },
         payments: {
           orderBy: {
             createdAt: "desc",
@@ -173,7 +215,7 @@ export async function GET() {
       },
       {
         status: 500,
-      }
+      },
     );
   }
 }
@@ -199,7 +241,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 400,
-        }
+        },
       );
     }
 
@@ -231,7 +273,7 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 404,
-        }
+        },
       );
     }
 
@@ -243,6 +285,17 @@ export async function POST(request: NextRequest) {
         notes: {
           contains: estimateReference,
         },
+      },
+      include: {
+        customer: true,
+        order: true,
+        items: {
+          orderBy: {
+            sortOrder: "asc",
+          },
+        },
+        payments: true,
+        attachments: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -262,8 +315,119 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const total = decimalToNumber(estimate.total);
+    const total = roundMoney(decimalToNumber(estimate.total));
     const invoiceNumber = await createInvoiceNumber(prisma);
+    const currency = normalizeInvoiceCurrency(estimate.currency);
+
+    const invoiceItemCreates: Prisma.InvoiceItemCreateWithoutInvoiceInput[] =
+      estimate.items.map((item) => ({
+        name: item.name,
+        description: item.description ?? "Leistung gemäss vereinbartem Angebot.",
+        category: item.category,
+        unit: item.unit,
+        quantity: money(decimalToNumber(item.quantity)),
+        unitPrice: money(decimalToNumber(item.unitPrice)),
+        subtotal: money(decimalToNumber(item.subtotal)),
+        taxRate: "0.00",
+        taxAmount: "0.00",
+        discountAmount: money(decimalToNumber(item.discountAmount)),
+        total: money(decimalToNumber(item.total)),
+        sortOrder: item.sortOrder,
+        metadata: {
+          source: "estimate_item",
+          estimateItemId: item.id,
+        },
+        ...(item.serviceCatalogItemId
+          ? {
+              serviceCatalogItem: {
+                connect: {
+                  id: item.serviceCatalogItemId,
+                },
+              },
+            }
+          : {}),
+      }));
+
+    let nextSortOrder =
+      estimate.items.reduce(
+        (max, item) => Math.max(max, item.sortOrder ?? 0),
+        0,
+      ) + 10;
+
+    const travelFee = roundMoney(decimalToNumber(estimate.travelFee));
+    const materialFee = roundMoney(decimalToNumber(estimate.materialFee));
+    const riskAmount = roundMoney(decimalToNumber(estimate.riskAmount));
+    const discountAmount = roundMoney(decimalToNumber(estimate.discountAmount));
+
+    if (travelFee > 0) {
+      invoiceItemCreates.push(
+        createExtraInvoiceItem({
+          name: "Anfahrt / Wegpauschale",
+          description: "Anfahrt gemäss vereinbartem Angebot.",
+          amount: travelFee,
+          sortOrder: nextSortOrder,
+          kind: "travel_fee",
+        }),
+      );
+      nextSortOrder += 10;
+    }
+
+    if (materialFee > 0) {
+      invoiceItemCreates.push(
+        createExtraInvoiceItem({
+          name: "Material und Verbrauchsmittel",
+          description: "Material gemäss vereinbartem Angebot.",
+          amount: materialFee,
+          sortOrder: nextSortOrder,
+          kind: "material_fee",
+        }),
+      );
+      nextSortOrder += 10;
+    }
+
+    if (riskAmount > 0) {
+      invoiceItemCreates.push(
+        createExtraInvoiceItem({
+          name: "Zuschlag gemäss Aufwandseinschätzung",
+          description: "Zusätzlicher Aufwand gemäss vereinbartem Angebot.",
+          amount: riskAmount,
+          sortOrder: nextSortOrder,
+          kind: "risk_amount",
+        }),
+      );
+      nextSortOrder += 10;
+    }
+
+    if (discountAmount > 0) {
+      invoiceItemCreates.push(
+        createExtraInvoiceItem({
+          name: "Rabatt gemäss Angebot",
+          description: "Rabatt gemäss vereinbartem Angebot.",
+          amount: -discountAmount,
+          sortOrder: nextSortOrder,
+          kind: "discount_amount",
+        }),
+      );
+      nextSortOrder += 10;
+    }
+
+    const currentItemsTotal = invoiceItemsTotal(invoiceItemCreates);
+    const diff = roundMoney(total - currentItemsTotal);
+
+    if (Math.abs(diff) >= 0.01) {
+      invoiceItemCreates.push(
+        createExtraInvoiceItem({
+          name: diff > 0 ? "Zusätzlicher Aufwand gemäss Angebot" : "Rabatt gemäss Angebot",
+          description:
+            diff > 0
+              ? "Zusätzlicher Aufwand gemäss vereinbartem Angebot."
+              : "Rabatt gemäss vereinbartem Angebot.",
+          amount: diff,
+          sortOrder: nextSortOrder,
+          kind: "balancing_line",
+        }),
+      );
+    }
 
     const invoice = await prisma.invoice.create({
       data: {
@@ -278,14 +442,22 @@ export async function POST(request: NextRequest) {
         taxAmount: "0.00",
         total: money(total),
         paidAmount: "0.00",
-        currency: normalizeInvoiceCurrency(estimate.currency),
+        currency,
         notes:
           `Erstellt aus Angebot ${estimateReference}. ` +
-          "Leistungsumfang gemäss Angebot. Diese Rechnung wurde mit HEXA OS CRM erstellt.",
+          "Leistungsumfang gemäss vereinbartem Angebot. Diese Rechnung wurde mit HEXA OS CRM erstellt.",
+        items: {
+          create: invoiceItemCreates,
+        },
       },
       include: {
         customer: true,
         order: true,
+        items: {
+          orderBy: {
+            sortOrder: "asc",
+          },
+        },
         payments: true,
         attachments: true,
       },
@@ -318,7 +490,7 @@ export async function POST(request: NextRequest) {
       },
       {
         status: 500,
-      }
+      },
     );
   }
 }

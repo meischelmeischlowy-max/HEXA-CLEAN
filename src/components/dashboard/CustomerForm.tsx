@@ -101,7 +101,7 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
       setError(
         err instanceof Error
           ? err.message
-          : "Nie udało się zapisać klienta.",
+          : "Der Kunde konnte nicht gespeichert werden.",
       );
     } finally {
       setLoading(false);
@@ -112,22 +112,22 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
     <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/10">
       <div className="flex flex-col gap-2">
         <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
-          {mode === "create" ? "Nowy klient" : "Edycja klienta"}
+          {mode === "create" ? "Neuer Kunde" : "Kunde bearbeiten"}
         </p>
 
         <h2 className="text-2xl font-black text-white">
-          {mode === "create" ? "Dodaj klienta ręcznie" : "Popraw dane klienta"}
+          {mode === "create" ? "Kunde manuell anlegen" : "Kundendaten bearbeiten"}
         </h2>
 
         <p className="max-w-3xl text-sm leading-6 text-zinc-500">
-          Wpisz dane klienta ręcznie. Te dane będą później używane przy
-          zleceniach, wycenach, fakturach, płatnościach i komunikacji.
+          Erfassen Sie die Kundendaten. Diese Daten werden später für Aufträge,
+          Angebote, Rechnungen, Zahlungen und Kommunikation verwendet.
         </p>
       </div>
 
       <div className="mt-6 grid gap-5">
         <div>
-          <label className={labelClass()}>Typ klienta</label>
+          <label className={labelClass()}>Kundentyp</label>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -138,7 +138,7 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
                   : "rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/[0.06]"
               }
             >
-              Osoba prywatna
+              Privatkunde
             </button>
 
             <button
@@ -157,39 +157,39 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className={labelClass()}>Imię</label>
+            <label className={labelClass()}>Vorname</label>
             <input
               value={form.firstName}
               onChange={(event) => updateField("firstName", event.target.value)}
-              placeholder="np. Max"
+              placeholder="z.B. Max"
               className={inputClass()}
             />
           </div>
 
           <div>
-            <label className={labelClass()}>Nazwisko</label>
+            <label className={labelClass()}>Nachname</label>
             <input
               value={form.lastName}
               onChange={(event) => updateField("lastName", event.target.value)}
-              placeholder="np. Muster"
+              placeholder="z.B. Muster"
               className={inputClass()}
             />
           </div>
         </div>
 
         <div>
-          <label className={labelClass()}>Nazwa firmy</label>
+          <label className={labelClass()}>Firmenname</label>
           <input
             value={form.companyName}
             onChange={(event) => updateField("companyName", event.target.value)}
-            placeholder="np. Muster Reinigung GmbH"
+            placeholder="z.B. Muster Reinigung GmbH"
             className={inputClass()}
           />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className={labelClass()}>Email</label>
+            <label className={labelClass()}>E-Mail</label>
             <input
               type="email"
               value={form.email}
@@ -211,38 +211,38 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
         </div>
 
         <div>
-          <label className={labelClass()}>Ulica / adres</label>
+          <label className={labelClass()}>Strasse / Adressese</label>
           <input
             value={form.street}
             onChange={(event) => updateField("street", event.target.value)}
-            placeholder="Ulica i numer"
+            placeholder="Strasse und Hausnummer"
             className={inputClass()}
           />
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <div>
-            <label className={labelClass()}>Kod pocztowy</label>
+            <label className={labelClass()}>PLZ</label>
             <input
               value={form.zipCode}
               onChange={(event) => updateField("zipCode", event.target.value)}
-              placeholder="np. 2502"
+              placeholder="z.B. 2502"
               className={inputClass()}
             />
           </div>
 
           <div>
-            <label className={labelClass()}>Miasto</label>
+            <label className={labelClass()}>Ort</label>
             <input
               value={form.city}
               onChange={(event) => updateField("city", event.target.value)}
-              placeholder="np. Biel/Bienne"
+              placeholder="z.B. Biel/Bienne"
               className={inputClass()}
             />
           </div>
 
           <div>
-            <label className={labelClass()}>Kraj</label>
+            <label className={labelClass()}>Land</label>
             <input
               value={form.country}
               onChange={(event) => updateField("country", event.target.value)}
@@ -253,11 +253,11 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
         </div>
 
         <div>
-          <label className={labelClass()}>Notatki</label>
+          <label className={labelClass()}>Notizen</label>
           <textarea
             value={form.notes}
             onChange={(event) => updateField("notes", event.target.value)}
-            placeholder="Uwagi o kliencie, dostęp, preferencje, historia kontaktu..."
+            placeholder="Hinweise zum Kunden, Zugang, Präferenzen, Kontaktverlauf..."
             rows={5}
             className={inputClass()}
           />
@@ -278,10 +278,10 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
           className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading
-            ? "Zapisywanie..."
+            ? "Speichern..."
             : mode === "create"
-              ? "Dodaj klienta"
-              : "Zapisz zmiany"}
+              ? "Kunde erstellen"
+              : "Änderungen speichern"}
         </button>
 
         <button
@@ -290,7 +290,7 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
           onClick={() => router.back()}
           className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Anuluj
+          Abbrechen
         </button>
       </div>
     </section>

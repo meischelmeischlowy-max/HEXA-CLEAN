@@ -48,7 +48,7 @@ function customerLabel(customer: {
     fullName ||
     customer.email ||
     customer.phone ||
-    "Klient bez nazwy"
+    "Kunde ohne Namen"
   );
 }
 
@@ -75,7 +75,7 @@ export default async function NewOrderPage() {
             href="/dashboard/orders"
             className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
           >
-            ← Wróć do zleceń
+            ← Zurück zu Aufträgen
           </Link>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -83,11 +83,11 @@ export default async function NewOrderPage() {
           </p>
 
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
-            Dodaj zlecenie
+            Auftrag anlegen
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            Ręczne tworzenie zlecenia dla klienta z bazy CRM.
+            Manuelle Erstellung eines Auftrags für einen Kunden aus der CRM-Datenbank.
           </p>
         </div>
 

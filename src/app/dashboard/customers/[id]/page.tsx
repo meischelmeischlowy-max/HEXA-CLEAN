@@ -102,29 +102,29 @@ function statusLabel(status?: string | null) {
     PRIVATE: "Prywatny",
     COMPANY: "Firma",
     ACTIVE: "Aktywna",
-    COMPLETED: "Zakończona",
+    COMPLETED: "Abgeschlossen",
     ABANDONED: "Porzucona",
-    EXPIRED: "Wygasła",
+    EXPIRED: "Abgelaufen",
     NEW: "Nowe",
     IN_PROGRESS: "W toku",
-    WAITING_FOR_CUSTOMER: "Czeka na klienta",
+    WAITING_FOR_CUSTOMER: "Czeka na Kunden",
     CONFIRMED: "Potwierdzone",
     SCHEDULED: "Zaplanowane",
     CANCELLED: "Anulowane",
     DRAFT: "Robocze",
-    SENT: "Wysłane",
-    ACCEPTED: "Zaakceptowane",
-    REJECTED: "Odrzucone",
-    READY_TO_SEND: "Gotowe do wysłania",
+    SENT: "Versendet",
+    ACCEPTED: "Akzeptiert",
+    REJECTED: "Abgelehnt",
+    READY_TO_SEND: "Bereit zum Senden",
     AI_REVIEW: "AI review",
-    NEEDS_PHOTOS: "Potrzebne zdjęcia",
+    NEEDS_PHOTOS: "Fotos erforderlich",
     NEEDS_HUMAN_REVIEW: "Do kontroli",
-    PAID: "Opłacone",
-    PARTIALLY_PAID: "Częściowo opłacone",
+    PAID: "Bezahlt",
+    PARTIALLY_PAID: "Teilweise bezahlt",
     OVERDUE: "Po terminie",
-    PENDING: "Oczekujące",
+    PENDING: "Ausstehend",
     FAILED: "Nieudane",
-    REFUNDED: "Zwrócone",
+    REFUNDED: "Erstattet",
   };
 
   const key = String(status || "").toUpperCase();
@@ -146,7 +146,7 @@ function customerName(customer: {
     .join(" ")
     .trim();
 
-  return fullName || customer.email || customer.phone || "Brak nazwy";
+  return fullName || customer.email || customer.phone || "Kein Name";
 }
 
 function customerAddress(customer: {
@@ -237,18 +237,18 @@ function DataTable({
 
       {items.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-zinc-500">
-          Brak danych.
+          Keine Daten.
         </div>
       ) : (
         <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
           <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="bg-black/20 text-xs uppercase tracking-[0.2em] text-zinc-500">
               <tr>
-                <th className="px-4 py-3">Nazwa / numer</th>
+                <th className="px-4 py-3">Name / numer</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Kwota</th>
                 <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3 text-right">Akcja</th>
+                <th className="px-4 py-3 text-right">Aktion</th>
               </tr>
             </thead>
 
@@ -280,7 +280,7 @@ function DataTable({
                         href={item.href}
                         className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
                       >
-                        Szczegóły
+                        Details
                       </Link>
                     ) : (
                       <span className="text-xs text-zinc-600">—</span>
@@ -413,7 +413,7 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
   const estimateItems: TimelineItem[] = customer.estimates.map((estimate) => ({
     id: estimate.id,
     title: estimate.estimateNumber,
-    subtitle: estimate.title || estimate.description || "Wycena",
+    subtitle: estimate.title || estimate.description || "Kalkulation",
     status: estimate.status,
     amount: formatMoney(estimate.total, estimate.currency),
     createdAt: estimate.createdAt,
@@ -423,7 +423,7 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
   const invoiceItems: TimelineItem[] = customer.invoices.map((invoice) => ({
     id: invoice.id,
     title: invoice.invoiceNumber,
-    subtitle: invoice.notes || "Faktura",
+    subtitle: invoice.notes || "Rechnung",
     status: invoice.status,
     amount: formatMoney(invoice.total, invoice.currency),
     createdAt: invoice.createdAt,
@@ -433,7 +433,7 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
   const paymentItems: TimelineItem[] = payments.map((payment) => ({
     id: payment.id,
     title: payment.externalRef || payment.invoiceNumber || payment.id,
-    subtitle: `Faktura: ${payment.invoiceNumber}`,
+    subtitle: `Rechnung: ${payment.invoiceNumber}`,
     status: payment.status,
     amount: formatMoney(payment.amount, payment.currency),
     createdAt: payment.paidAt ?? payment.createdAt,
@@ -494,7 +494,7 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
               href="/dashboard/customers"
               className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
             >
-              ← Wróć do klientów
+              ← Zurück zu den Kunden
             </Link>
 
             <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -506,38 +506,38 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-              Szczegóły klienta, kontakt, lokalizacja, zlecenia, wyceny, faktury,
-              płatności i historia systemowa.
+              Kundendetails, kontakt, lokalizacja, Aufträge, Kalkulation, Rechnung,
+              Zahlungen i historia systemowa.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <ActionLink href="/dashboard/customers" label="Lista klientów" />
+            <ActionLink href="/dashboard/customers" label="Kundenliste" />
             <ActionLink
               href={`/dashboard/invoices?customerId=${customer.id}`}
-              label="Faktury klienta"
+              label="Kundenrechnungen"
               variant="primary"
             />
             <ActionLink
               href={`/dashboard/orders?customerId=${customer.id}`}
-              label="Zlecenia klienta"
+              label="Kundenaufträge"
             />
           </div>
         </div>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="Typ klienta" value={statusLabel(customer.type)} tone="cyan" />
-          <InfoCard label="Faktury" value={customer.invoices.length} />
-          <InfoCard label="Zapłacono" value={formatMoney(invoicesPaid, "CHF")} tone="green" />
-          <InfoCard label="Płatności" value={formatMoney(paymentTotal, "CHF")} tone="green" />
+          <InfoCard label="Kundentyp" value={statusLabel(customer.type)} tone="cyan" />
+          <InfoCard label="Rechnungen" value={customer.invoices.length} />
+          <InfoCard label="Bezahlt" value={formatMoney(invoicesPaid, "CHF")} tone="green" />
+          <InfoCard label="Zahlungen" value={formatMoney(paymentTotal, "CHF")} tone="green" />
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h2 className="text-xl font-black text-white">Dane klienta</h2>
+              <h2 className="text-xl font-black text-white">Kundendaten</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Dane kontaktowe i adresowe klienta.
+                Kontakt- und Adressesdaten des Kunden.
               </p>
             </div>
 
@@ -549,77 +549,77 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
 
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <InfoCard label="ID" value={customer.id} />
-            <InfoCard label="Nazwa" value={name} />
+            <InfoCard label="Name" value={name} />
             <InfoCard label="Firma" value={customer.companyName} />
             <InfoCard label="Osoba" value={[customer.firstName, customer.lastName].filter(Boolean).join(" ")} />
             <InfoCard label="Email" value={customer.email} />
             <InfoCard label="Telefon" value={customer.phone} />
-            <InfoCard label="Adres" value={address} />
-            <InfoCard label="Notatki" value={customer.notes} />
+            <InfoCard label="Adresse" value={address} />
+            <InfoCard label="Notizen" value={customer.notes} />
             <InfoCard label="Utworzono" value={customer.createdAt} />
             <InfoCard label="Aktualizacja" value={customer.updatedAt} />
           </div>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="Zlecenia" value={customer.orders.length} />
-          <InfoCard label="Wyceny" value={customer.estimates.length} />
-          <InfoCard label="Faktury total" value={formatMoney(invoicesTotal, "CHF")} tone="cyan" />
-          <InfoCard label="Pozostało" value={formatMoney(Math.max(invoicesTotal - invoicesPaid, 0), "CHF")} tone={invoicesTotal - invoicesPaid > 0 ? "red" : "green"} />
+          <InfoCard label="Aufträge" value={customer.orders.length} />
+          <InfoCard label="Kalkulationen" value={customer.estimates.length} />
+          <InfoCard label="Rechnungen total" value={formatMoney(invoicesTotal, "CHF")} tone="cyan" />
+          <InfoCard label="Offen" value={formatMoney(Math.max(invoicesTotal - invoicesPaid, 0), "CHF")} tone={invoicesTotal - invoicesPaid > 0 ? "red" : "green"} />
         </section>
 
         <div className="grid gap-6">
           <DataTable
-            title="Zlecenia"
-            description="Ostatnie zlecenia powiązane z klientem."
+            title="Aufträge"
+            description="Letzte mit dem Kunden verknüpfte Aufträge."
             items={orderItems}
           />
 
           <DataTable
-            title="Wyceny"
-            description="Wyceny i oferty kosztowe klienta."
+            title="Kalkulationen"
+            description="Kalkulationen und Kostenangebote des Kunden."
             items={estimateItems}
           />
 
           <DataTable
-            title="Faktury"
-            description="Faktury wystawione dla tego klienta."
+            title="Rechnungen"
+            description="Für diesen Kunden ausgestellte Rechnungen."
             items={invoiceItems}
           />
 
           <DataTable
-            title="Płatności"
-            description="Wpłaty z faktur klienta."
+            title="Zahlungen"
+            description="Zahlungen aus Kundenrechnungen."
             items={paymentItems}
           />
 
           <DataTable
             title="Sesje"
-            description="Sesje rozmów i źródła kontaktu."
+            description="Gesprächssitzungen und Kontaktquellen."
             items={sessionItems}
           />
 
           <DataTable
-            title="Wiadomości"
-            description="Ostatnie wiadomości rozmów klienta."
+            title="Nachrichten"
+            description="Letzte Nachrichten aus Kundengesprächen."
             items={messageItems}
           />
 
           <DataTable
             title="Powiadomienia"
-            description="Historia powiadomień wysłanych albo oczekujących."
+            description="Historie der gesendeten oder ausstehenden Benachrichtigungen."
             items={notificationItems}
           />
 
           <DataTable
-            title="Załączniki"
-            description="Dokumenty i pliki klienta."
+            title="Anhänge"
+            description="Dokumente und Dateien des Kunden."
             items={attachmentItems}
           />
 
           <DataTable
             title="Audit logi"
-            description="Historia zmian systemowych dla klienta."
+            description="Systemhistorie des Kunden."
             items={auditItems}
           />
         </div>

@@ -105,20 +105,20 @@ const initialForm: EstimateForm = {
   discountAmount: "0",
   notesCustomer:
     "Preis ist eine unverbindliche Schätzung. Die definitive Offerte erfolgt nach Bestätigung des Umfangs.",
-  notesInternal: "Wycena utworzona ręcznie w panelu HEXA OS.",
+  notesInternal: "Kalkulation utworzona manuell w panelu HEXA OS.",
   items: [
     {
       ...emptyItem,
-      itemName: "Nowa pozycja wyceny",
+      itemName: "Neue Kalkulationsposition",
     },
   ],
 };
 
 const categoryLabels: Record<string, string> = {
-  REINIGUNG: "Sprzątanie",
+  REINIGUNG: "Reinigung",
   HAUSWARTUNG: "Hauswartung",
-  KLEINREPARATUREN: "Małe naprawy",
-  UMZUGSREINIGUNG: "Sprzątanie po przeprowadzce",
+  KLEINREPARATUREN: "Kleinreparaturen",
+  UMZUGSREINIGUNG: "Umzugsreinigung",
   FENSTERREINIGUNG: "Mycie okien",
   WOHNUNGSABGABE: "Oddanie mieszkania",
   SPEZIALREINIGUNG: "Czyszczenie specjalne",
@@ -126,14 +126,14 @@ const categoryLabels: Record<string, string> = {
 };
 
 const unitLabels: Record<string, string> = {
-  FLAT: "Ryczałt",
+  FLAT: "Pauschal",
   HOUR: "Godzina",
   M2: "m²",
-  ROOM: "Pokój",
+  ROOM: "Zimmer",
   WINDOW: "Okno",
   PIECE: "Sztuka",
   KM: "Kilometr",
-  CUSTOM: "Własna",
+  CUSTOM: "Eigene",
 };
 
 function toNumber(value?: string | number | null) {
@@ -216,7 +216,7 @@ export default function NewEstimatePage() {
 
       if (!response.ok || json.data?.status === "error") {
         throw new Error(
-          json.data?.message ?? "Nie udało się pobrać cennika usług."
+          json.data?.message ?? "Der Leistungskatalog konnte nicht geladen werden."
         );
       }
 
@@ -225,7 +225,7 @@ export default function NewEstimatePage() {
       setServicesError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd pobierania cennika."
+          : "Unbekannter Fehler beim Laden des Leistungskatalogs."
       );
     } finally {
       setServicesLoading(false);
@@ -423,7 +423,7 @@ export default function NewEstimatePage() {
         );
 
       if (cleanedItems.length === 0) {
-        throw new Error("Dodaj przynajmniej jedną pozycję wyceny.");
+        throw new Error("Fügen Sie mindestens eine Kalkulationsposition hinzu.");
       }
 
       const response = await fetch("/api/dashboard/estimates", {
@@ -443,7 +443,7 @@ export default function NewEstimatePage() {
 
       if (!rawText.trim()) {
         throw new Error(
-          `API zwróciło pustą odpowiedź. HTTP status: ${response.status}`
+          `Die API hat eine leere Antwort zurückgegeben. HTTP-Status: ${response.status}`
         );
       }
 
@@ -453,15 +453,15 @@ export default function NewEstimatePage() {
         data = JSON.parse(rawText) as CreateEstimateResponse;
       } catch {
         throw new Error(
-          `API nie zwróciło JSON. HTTP status: ${
+          `Die API hat kein JSON zurückgegeben. HTTP-Status: ${
             response.status
-          }. Odpowiedź: ${rawText.slice(0, 300)}`
+          }. Antwort: ${rawText.slice(0, 300)}`
         );
       }
 
       if (!response.ok || data.data?.status === "error") {
         throw new Error(
-          data.data?.message ?? data.message ?? "Nie udało się utworzyć wyceny."
+          data.data?.message ?? data.message ?? "Die Kalkulation konnte nicht erstellt werden."
         );
       }
 
@@ -479,7 +479,7 @@ export default function NewEstimatePage() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd tworzenia wyceny."
+          : "Unbekannter Fehler beim Erstellen der Kalkulation."
       );
     } finally {
       setIsSubmitting(false);
@@ -496,7 +496,7 @@ export default function NewEstimatePage() {
                 href="/dashboard/estimates"
                 className="text-sm font-semibold text-cyan-300 hover:text-cyan-200"
               >
-                ← Wróć do wycen
+                ← Zurück zu den Kalkulationen
               </Link>
 
               <p className="mt-5 text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
@@ -504,17 +504,17 @@ export default function NewEstimatePage() {
               </p>
 
               <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-                Nowa wycena
+                Neue Kalkulation
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-                Wycena MVP: klient, adres, pozycje z cennika, ręczna korekta
-                ilości/ceny/ryzyka i szybki podgląd sumy.
+                Kalkulations-MVP: Kunde, Adresse, Positionen aus dem Leistungskatalog, manuelle Korrektur
+                von Menge, Preis, Risiko und schneller Summenvorschau.
               </p>
             </div>
 
             <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-5 py-4 text-sm text-amber-100">
-              To jeszcze nie jest oficjalna oferta dla klienta.
+              To jeszcze nie jest oficjalna Angebot dla Kunden.
             </div>
           </div>
         </section>
@@ -527,7 +527,7 @@ export default function NewEstimatePage() {
 
         {servicesError ? (
           <section className="rounded-3xl border border-red-400/20 bg-red-500/10 p-5 text-sm text-red-100">
-            Błąd cennika: {servicesError}
+            Fehler Leistungskatalogs: {servicesError}
           </section>
         ) : null}
 
@@ -537,12 +537,12 @@ export default function NewEstimatePage() {
         >
           <div className="flex flex-col gap-6">
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-semibold">Klient</h2>
+              <h2 className="text-xl font-semibold">Kunde</h2>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <span className="mb-3 block text-sm text-neutral-400">
-                    Typ klienta
+                    Kundentyp
                   </span>
 
                   <div className="grid gap-3 md:grid-cols-2">
@@ -569,7 +569,7 @@ export default function NewEstimatePage() {
                 </div>
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Imię</span>
+                  <span className="text-sm text-neutral-400">Vorname</span>
                   <input
                     value={form.firstName}
                     onChange={(event) =>
@@ -621,14 +621,14 @@ export default function NewEstimatePage() {
                     value={form.email}
                     onChange={(event) => updateField("email", event.target.value)}
                     className={inputClass()}
-                    placeholder="klient@email.ch"
+                    placeholder="kunde@email.ch"
                   />
                 </label>
               </div>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-semibold">Adres usługi</h2>
+              <h2 className="text-xl font-semibold">Adresse Leistungen</h2>
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <label className="flex flex-col gap-2 md:col-span-3">
@@ -656,7 +656,7 @@ export default function NewEstimatePage() {
                 </label>
 
                 <label className="flex flex-col gap-2 md:col-span-2">
-                  <span className="text-sm text-neutral-400">Miasto</span>
+                  <span className="text-sm text-neutral-400">Ort</span>
                   <input
                     value={form.serviceCity}
                     onChange={(event) =>
@@ -670,11 +670,11 @@ export default function NewEstimatePage() {
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-semibold">Zakres wyceny</h2>
+              <h2 className="text-xl font-semibold">Leistungsumfang</h2>
 
               <div className="mt-5 grid gap-4">
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Tytuł wyceny</span>
+                  <span className="text-sm text-neutral-400">Kalkulationstitel</span>
                   <input
                     value={form.title}
                     onChange={(event) => updateField("title", event.target.value)}
@@ -684,7 +684,7 @@ export default function NewEstimatePage() {
                 </label>
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Opis / zakres</span>
+                  <span className="text-sm text-neutral-400">Beschreibung / Umfang</span>
                   <textarea
                     value={form.description}
                     onChange={(event) =>
@@ -692,7 +692,7 @@ export default function NewEstimatePage() {
                     }
                     rows={4}
                     className={inputClass("resize-none")}
-                    placeholder="Krótki opis pracy, mieszkania, stanu zabrudzenia itd."
+                    placeholder="Kurze Beschreibung der Arbeit, Wohnung, Verschmutzung usw."
                   />
                 </label>
               </div>
@@ -701,9 +701,9 @@ export default function NewEstimatePage() {
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold">Szybkie dodanie z cennika</h2>
+                  <h2 className="text-xl font-semibold">Szybkie dodanie z Leistungskatalogs</h2>
                   <p className="mt-1 text-sm text-neutral-400">
-                    Kliknij usługę, żeby dodać ją jako kolejną pozycję wyceny.
+                    Klicken Sie auf eine Leistung, um sie als weitere Kalkulationsposition hinzuzufügen.
                   </p>
                 </div>
 
@@ -712,7 +712,7 @@ export default function NewEstimatePage() {
                   onClick={addItem}
                   className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/20"
                 >
-                  Dodaj pustą pozycję
+                  Leere Position hinzufügen
                 </button>
               </div>
 
@@ -727,7 +727,7 @@ export default function NewEstimatePage() {
                 </div>
               ) : services.length === 0 ? (
                 <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
-                  Brak aktywnych usług w cenniku. Dodaj usługę w module Cennik.
+                  Kein aktywnych Leistungen w Leistungskatalog. Leistung hinzufügen w module Leistungen.
                 </div>
               ) : (
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -755,9 +755,9 @@ export default function NewEstimatePage() {
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold">Pozycje wyceny</h2>
+                  <h2 className="text-xl font-semibold">Kalkulationspositionen</h2>
                   <p className="mt-1 text-sm text-neutral-400">
-                    Każdą pozycję możesz poprawić ręcznie: ilość, cena i mnożnik
+                    Jede Position kann manuell angepasst werden: Menge, Preis und Faktor
                     ryzyka.
                   </p>
                 </div>
@@ -767,7 +767,7 @@ export default function NewEstimatePage() {
                   onClick={addItem}
                   className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/20"
                 >
-                  Dodaj pozycję
+                  Position hinzufügen
                 </button>
               </div>
 
@@ -789,11 +789,11 @@ export default function NewEstimatePage() {
                           </p>
                           {selectedService ? (
                             <p className="mt-1 text-xs text-neutral-500">
-                              Z cennika: {selectedService.slug}
+                              Z Leistungskatalogs: {selectedService.slug}
                             </p>
                           ) : (
                             <p className="mt-1 text-xs text-neutral-500">
-                              Pozycja ręczna
+                              Manuelle Position
                             </p>
                           )}
                         </div>
@@ -805,7 +805,7 @@ export default function NewEstimatePage() {
                               onClick={() => clearCatalogService(index)}
                               className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/20"
                             >
-                              Odłącz cennik
+                              Vom Leistungskatalog trennen
                             </button>
                           ) : null}
 
@@ -815,7 +815,7 @@ export default function NewEstimatePage() {
                             disabled={form.items.length <= 1}
                             className="rounded-xl border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            Usuń
+                            Löschen
                           </button>
                         </div>
                       </div>
@@ -823,7 +823,7 @@ export default function NewEstimatePage() {
                       {services.length > 0 ? (
                         <div className="mb-5">
                           <span className="mb-3 block text-sm text-neutral-400">
-                            Wybierz usługę z cennika
+                            Wybierz Leistung z Leistungskatalogs
                           </span>
 
                           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -850,7 +850,7 @@ export default function NewEstimatePage() {
                       <div className="grid gap-4 md:grid-cols-2">
                         <label className="flex flex-col gap-2 md:col-span-2">
                           <span className="text-sm text-neutral-400">
-                            Nazwa pozycji
+                            Name pozycji
                           </span>
                           <input
                             value={item.itemName}
@@ -863,13 +863,13 @@ export default function NewEstimatePage() {
                             }
                             required
                             className={inputClass()}
-                            placeholder="np. Sprzątanie mieszkania"
+                            placeholder="np. Reinigung mieszkania"
                           />
                         </label>
 
                         <label className="flex flex-col gap-2 md:col-span-2">
                           <span className="text-sm text-neutral-400">
-                            Opis pozycji
+                            Positionsbeschreibung
                           </span>
                           <textarea
                             value={item.itemDescription}
@@ -882,7 +882,7 @@ export default function NewEstimatePage() {
                             }
                             rows={3}
                             className={inputClass("resize-none")}
-                            placeholder="np. Kuchnia, łazienka, podłogi, kurz"
+                            placeholder="z. B. Küche, Bad, Böden, Staub"
                           />
                         </label>
 
@@ -923,7 +923,7 @@ export default function NewEstimatePage() {
                         </label>
 
                         <label className="flex flex-col gap-2">
-                          <span className="text-sm text-neutral-400">Ilość</span>
+                          <span className="text-sm text-neutral-400">Menge</span>
                           <input
                             value={item.quantity}
                             onChange={(event) =>
@@ -941,7 +941,7 @@ export default function NewEstimatePage() {
 
                         <label className="flex flex-col gap-2">
                           <span className="text-sm text-neutral-400">
-                            Cena jednostkowa CHF
+                            Einzelpreis CHF
                           </span>
                           <input
                             value={item.unitPrice}
@@ -960,7 +960,7 @@ export default function NewEstimatePage() {
 
                         <label className="flex flex-col gap-2 md:col-span-2">
                           <span className="text-sm text-neutral-400">
-                            Mnożnik ryzyka
+                            Risikofaktor
                           </span>
                           <input
                             value={item.riskMultiplier}
@@ -984,7 +984,7 @@ export default function NewEstimatePage() {
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-semibold">Opłaty dodatkowe</h2>
+              <h2 className="text-xl font-semibold">Zusatzgebühren</h2>
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <label className="flex flex-col gap-2">
@@ -1000,7 +1000,7 @@ export default function NewEstimatePage() {
                 </label>
 
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Materiały CHF</span>
+                  <span className="text-sm text-neutral-400">Material CHF</span>
                   <input
                     value={form.materialFee}
                     onChange={(event) =>
@@ -1026,12 +1026,12 @@ export default function NewEstimatePage() {
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-semibold">Notatki</h2>
+              <h2 className="text-xl font-semibold">Notizen</h2>
 
               <div className="mt-5 grid gap-4">
                 <label className="flex flex-col gap-2">
                   <span className="text-sm text-neutral-400">
-                    Notatka dla klienta po niemiecku
+                    Kundennotiz auf Deutsch
                   </span>
                   <textarea
                     value={form.notesCustomer}
@@ -1045,7 +1045,7 @@ export default function NewEstimatePage() {
 
                 <label className="flex flex-col gap-2">
                   <span className="text-sm text-neutral-400">
-                    Notatka wewnętrzna
+                    Interne Notiz
                   </span>
                   <textarea
                     value={form.notesInternal}
@@ -1062,7 +1062,7 @@ export default function NewEstimatePage() {
 
           <aside className="h-fit rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-6 lg:sticky lg:top-8">
             <p className="text-sm font-black uppercase tracking-[0.25em] text-cyan-200">
-              Podgląd ceny
+              Preisvorschau
             </p>
 
             <div className="mt-6 space-y-4 text-sm">
@@ -1106,7 +1106,7 @@ export default function NewEstimatePage() {
               </div>
 
               <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
-                <span className="text-neutral-400">Materiały</span>
+                <span className="text-neutral-400">Material</span>
                 <span className="font-semibold">{money(preview.materialFee)}</span>
               </div>
 
@@ -1124,7 +1124,7 @@ export default function NewEstimatePage() {
                 {money(preview.total)}
               </p>
               <p className="mt-3 text-xs leading-5 text-cyan-100/60">
-                Widełki robocze: {money(preview.aiMinTotal)} –{" "}
+                Arbeits-Spanne: {money(preview.aiMinTotal)} –{" "}
                 {money(preview.aiMaxTotal)}
               </p>
             </div>
@@ -1134,12 +1134,12 @@ export default function NewEstimatePage() {
               disabled={isSubmitting}
               className="mt-6 w-full rounded-2xl bg-cyan-300 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-neutral-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "Tworzenie..." : "Utwórz wycenę"}
+              {isSubmitting ? "Wird erstellt..." : "Kalkulation erstellen"}
             </button>
 
             <p className="mt-4 text-xs leading-5 text-neutral-400">
-              Po utworzeniu system przeniesie Cię na szczegóły tej jednej
-              wyceny.
+              Nach der Erstellung öffnet das System die Details dieser
+              Kalkulation.
             </p>
           </aside>
         </form>

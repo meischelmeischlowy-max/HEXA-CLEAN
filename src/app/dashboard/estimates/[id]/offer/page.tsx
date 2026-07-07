@@ -144,7 +144,7 @@ function unitLabel(value: unknown, metadata: unknown) {
       stück: "Stk.",
       flat: "Pauschal",
       ryczalt: "Pauschal",
-      ryczałt: "Pauschal",
+      pauschal: "Pauschal",
     };
 
     return manualLabels[normalizedManualUnit] ?? manualUnit;
@@ -175,29 +175,29 @@ function hasPolishText(value: string) {
   const lower = value.toLowerCase();
 
   const polishMarkers = [
-    "cena",
+    "Preis",
     "orientacyjna",
     "ostateczna",
-    "wycena",
-    "wyceny",
-    "oferta",
-    "klienta",
+    "Kalkulation",
+    "Kalkulationen",
+    "Angebot",
+    "Kunden",
     "zakresu",
-    "sprzątanie",
+    "Reinigung",
     "sprzatanie",
     "mieszkania",
     "oddanie",
     "mycie",
     "okien",
     "dojazd",
-    "małe",
+    "klein",
     "male",
     "naprawy",
     "czyszczenie",
     "specjalne",
     "po potwierdzeniu",
     "utworzona",
-    "ręcznie",
+    "manuell",
     "recznie",
     "panelu",
   ];
@@ -212,22 +212,22 @@ function knownGermanTranslation(value: string) {
   const normalized = value.trim().toLowerCase();
 
   const translations: Record<string, string> = {
-    "sprzątanie mieszkania": "Wohnungsreinigung",
+    "Reinigung mieszkania": "Wohnungsreinigung",
     "sprzatanie mieszkania": "Wohnungsreinigung",
     "endreinigung / oddanie mieszkania": "Endreinigung / Wohnungsabgabe",
     "mycie okien": "Fensterreinigung",
-    "sprzątanie biura": "Büroreinigung",
+    "Reinigung biura": "Büroreinigung",
     "sprzatanie biura": "Büroreinigung",
     "hauswartung / utrzymanie obiektu": "Hauswartung / Objektbetreuung",
-    "małe naprawy": "Kleinreparaturen",
+    "klein naprawy": "Kleinreparaturen",
     "male naprawy": "Kleinreparaturen",
     dojazd: "Anfahrt",
     "czyszczenie specjalne": "Spezialreinigung",
-    "nowa pozycja wyceny": "Neue Angebotsposition",
+    "neue Kalkulationsposition": "Neue Angebotsposition",
     "pozycja 1": "Position 1",
     "pozycja 2": "Position 2",
     "pozycja 3": "Position 3",
-    "demo wyceny: endreinigung + okna":
+    "demo Kalkulationen: endreinigung + okna":
       "Demo-Angebot: Endreinigung und Fensterreinigung",
   };
 
@@ -235,7 +235,7 @@ function knownGermanTranslation(value: string) {
     return translations[normalized];
   }
 
-  if (normalized.startsWith("wycena:")) {
+  if (normalized.startsWith("Kalkulation:")) {
     return "Angebot für Reinigungsdienstleistungen";
   }
 

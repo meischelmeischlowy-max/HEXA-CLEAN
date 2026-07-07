@@ -16,7 +16,7 @@ export default function MarkQuoteAsSentButton({
 
   async function handleMarkAsSent() {
     const confirmed = window.confirm(
-      "Czy na pewno oznaczyć tę ofertę jako wysłaną?"
+      "Dieses Angebot wirklich als gesendet markieren?",
     );
 
     if (!confirmed) {
@@ -31,19 +31,19 @@ export default function MarkQuoteAsSentButton({
         `/api/dashboard/quotes/${quoteId}/mark-sent`,
         {
           method: "POST",
-        }
+        },
       );
 
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK") {
-        setError("Nie udało się oznaczyć oferty jako wysłanej.");
+        setError("Das Angebot konnte nicht als gesendet markiert werden.");
         return;
       }
 
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -57,10 +57,10 @@ export default function MarkQuoteAsSentButton({
         disabled={isLoading}
         className="rounded-xl border border-sky-600 bg-sky-950/50 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:border-sky-300 hover:bg-sky-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Oznaczam..." : "Oznacz jako wysłaną"}
+        {isLoading ? "Wird gespeichert..." : "Als gesendet markieren"}
       </button>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error ? <p className="text-xs text-red-400">{error}</p> : null}
     </div>
   );
 }

@@ -18,8 +18,8 @@ type ActivityTimelineProps = {
 
 export default function ActivityTimeline({
   items,
-  emptyTitle = "Brak aktywności",
-  emptyDescription = "Gdy pojawią się nowe akcje w CRM, zobaczysz je tutaj.",
+  emptyTitle = "Keine Aktivität",
+  emptyDescription = "Neue CRM-Aktionen werden hier angezeigt, sobald sie vorhanden sind.",
 }: ActivityTimelineProps) {
   if (items.length === 0) {
     return (

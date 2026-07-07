@@ -16,7 +16,7 @@ export default function MarkInvoiceAsSentButton({
 
   async function handleMarkAsSent() {
     const confirmed = window.confirm(
-      "Czy na pewno oznaczyć tę fakturę jako wysłaną?"
+      "Möchten Sie diese Rechnung wirklich als versendet markieren?"
     );
 
     if (!confirmed) {
@@ -37,13 +37,13 @@ export default function MarkInvoiceAsSentButton({
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK") {
-        setError("Nie udało się oznaczyć faktury jako wysłanej.");
+        setError("Die Rechnung konnte nicht als versendet markiert werden.");
         return;
       }
 
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +57,7 @@ export default function MarkInvoiceAsSentButton({
         disabled={isLoading}
         className="rounded-xl border border-sky-600 bg-sky-950/50 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:border-sky-300 hover:bg-sky-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Oznaczam..." : "Oznacz jako wysłaną"}
+        {isLoading ? "Wird markiert..." : "Als versendet markieren"}
       </button>
 
       {error && <p className="text-xs text-red-400">{error}</p>}

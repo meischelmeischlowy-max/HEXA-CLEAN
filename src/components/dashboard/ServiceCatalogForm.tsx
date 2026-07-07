@@ -31,22 +31,22 @@ type ServiceCatalogFormProps = {
 };
 
 const categoryLabels: Record<string, string> = {
-  REINIGUNG: "Sprzątanie",
-  WOHNUNGSABGABE: "Oddanie mieszkania",
-  FENSTERREINIGUNG: "Mycie okien",
+  REINIGUNG: "Reinigung",
+  WOHNUNGSABGABE: "Wohnungsabgabe",
+  FENSTERREINIGUNG: "Fensterreinigung",
   HAUSWARTUNG: "Hauswartung",
-  KLEINREPARATUREN: "Małe naprawy",
-  SPEZIALREINIGUNG: "Czyszczenie specjalne",
-  OTHER: "Inne",
+  KLEINREPARATUREN: "Kleinreparaturen",
+  SPEZIALREINIGUNG: "Spezialreinigung",
+  OTHER: "Andere",
 };
 
 const unitLabels: Record<string, string> = {
-  FLAT: "Ryczałt",
-  HOUR: "Godzina",
+  FLAT: "Pauschal",
+  HOUR: "Stunde",
   M2: "m²",
-  WINDOW: "Okno",
-  PIECE: "Sztuka",
-  CUSTOM: "Ręcznie",
+  WINDOW: "Fenster",
+  PIECE: "Stück",
+  CUSTOM: "Manuell",
 };
 
 function ButtonOption({
@@ -119,17 +119,14 @@ export default function ServiceCatalogForm({
       sortOrder: initialService?.sortOrder ?? "0",
       notes: initialService?.notes ?? "",
     }),
-    [categories, initialService, units]
+    [categories, initialService, units],
   );
 
   const [form, setForm] = useState(defaults);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  function updateField(
-    field: keyof typeof form,
-    value: string | boolean
-  ) {
+  function updateField(field: keyof typeof form, value: string | boolean) {
     setForm((current) => ({
       ...current,
       [field]: value,
@@ -168,7 +165,7 @@ export default function ServiceCatalogForm({
         throw new Error(
           json?.data?.message ??
             json?.message ??
-            "Nie udało się zapisać usługi."
+            "Die Leistung konnte nicht gespeichert werden.",
         );
       }
 
@@ -178,7 +175,7 @@ export default function ServiceCatalogForm({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Nieznany błąd zapisu usługi."
+          : "Unbekannter Fehler beim Speichern der Leistung.",
       );
     } finally {
       setSubmitting(false);
@@ -197,12 +194,12 @@ export default function ServiceCatalogForm({
       ) : null}
 
       <div className="grid gap-5 md:grid-cols-2">
-        <Field label="Nazwa usługi">
+        <Field label="Name der Leistung">
           <input
             className={inputClass}
             value={form.name}
             onChange={(event) => updateField("name", event.target.value)}
-            placeholder="np. Endreinigung 3.5 Zimmer"
+            placeholder="z.B. Endreinigung 3.5 Zimmer"
             required
           />
         </Field>
@@ -212,22 +209,22 @@ export default function ServiceCatalogForm({
             className={inputClass}
             value={form.slug}
             onChange={(event) => updateField("slug", event.target.value)}
-            placeholder="auto z nazwy albo własny"
+            placeholder="automatisch aus dem Namen oder manuell"
           />
         </Field>
 
-        <Field label="Opis PL" wide>
+        <Field label="Beschreibung" wide>
           <textarea
             className={`${inputClass} min-h-28 resize-y`}
             value={form.description}
             onChange={(event) =>
               updateField("description", event.target.value)
             }
-            placeholder="Opis usługi do CRM i wyceny."
+            placeholder="Beschreibung für CRM, Angebot und Rechnung."
           />
         </Field>
 
-        <Field label="Kategoria" wide>
+        <Field label="Kategorie" wide>
           <div className="grid gap-3 md:grid-cols-3">
             {categories.map((category) => (
               <ButtonOption
@@ -241,7 +238,7 @@ export default function ServiceCatalogForm({
           </div>
         </Field>
 
-        <Field label="Jednostka" wide>
+        <Field label="Einheit" wide>
           <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             {units.map((unit) => (
               <ButtonOption
@@ -255,7 +252,7 @@ export default function ServiceCatalogForm({
           </div>
         </Field>
 
-        <Field label="Cena bazowa CHF">
+        <Field label="Basispreis CHF">
           <input
             className={inputClass}
             value={form.basePrice}
@@ -267,7 +264,7 @@ export default function ServiceCatalogForm({
           />
         </Field>
 
-        <Field label="Cena minimalna CHF">
+        <Field label="Mindestpreis CHF">
           <input
             className={inputClass}
             value={form.minPrice}
@@ -277,17 +274,17 @@ export default function ServiceCatalogForm({
           />
         </Field>
 
-        <Field label="Cena maksymalna CHF">
+        <Field label="Maximalpreis CHF">
           <input
             className={inputClass}
             value={form.maxPrice}
             onChange={(event) => updateField("maxPrice", event.target.value)}
             inputMode="decimal"
-            placeholder="puste = brak limitu"
+            placeholder="leer = kein Limit"
           />
         </Field>
 
-        <Field label="Ilość domyślna">
+        <Field label="Standardmenge">
           <input
             className={inputClass}
             value={form.defaultQuantity}
@@ -295,11 +292,11 @@ export default function ServiceCatalogForm({
               updateField("defaultQuantity", event.target.value)
             }
             inputMode="decimal"
-            placeholder="np. 60"
+            placeholder="z.B. 60"
           />
         </Field>
 
-        <Field label="Mnożnik ryzyka">
+        <Field label="Risikofaktor">
           <input
             className={inputClass}
             value={form.riskMultiplier}
@@ -311,7 +308,7 @@ export default function ServiceCatalogForm({
           />
         </Field>
 
-        <Field label="Sortowanie">
+        <Field label="Sortierung">
           <input
             className={inputClass}
             value={form.sortOrder}
@@ -327,24 +324,24 @@ export default function ServiceCatalogForm({
               active={form.isActive}
               onClick={() => updateField("isActive", true)}
             >
-              Aktywna
+              Aktiv
             </ButtonOption>
 
             <ButtonOption
               active={!form.isActive}
               onClick={() => updateField("isActive", false)}
             >
-              Nieaktywna
+              Inaktiv
             </ButtonOption>
           </div>
         </Field>
 
-        <Field label="Notatki wewnętrzne" wide>
+        <Field label="Interne Notizen" wide>
           <textarea
             className={`${inputClass} min-h-28 resize-y`}
             value={form.notes}
             onChange={(event) => updateField("notes", event.target.value)}
-            placeholder="Uwagi robocze, dopłaty, zasady ręcznej kontroli."
+            placeholder="Interne Hinweise, Zuschläge, Regeln für manuelle Kontrolle."
           />
         </Field>
       </div>
@@ -356,10 +353,10 @@ export default function ServiceCatalogForm({
           className="rounded-xl border border-cyan-500 bg-cyan-500/15 px-5 py-3 text-sm font-bold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting
-            ? "Zapisywanie..."
+            ? "Speichern..."
             : mode === "edit"
-              ? "Zapisz zmiany"
-              : "Dodaj usługę"}
+              ? "Änderungen speichern"
+              : "Leistung hinzufügen"}
         </button>
 
         <button
@@ -367,7 +364,7 @@ export default function ServiceCatalogForm({
           onClick={() => router.push("/dashboard/services")}
           className="rounded-xl border border-neutral-700 bg-neutral-950 px-5 py-3 text-sm font-bold text-neutral-300 transition hover:border-neutral-500 hover:text-white"
         >
-          Anuluj
+          Abbrechen
         </button>
       </div>
     </form>

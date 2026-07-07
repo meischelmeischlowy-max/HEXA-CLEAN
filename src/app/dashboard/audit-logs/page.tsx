@@ -53,24 +53,24 @@ function normalizeAction(action?: string | null) {
 }
 
 function formatAction(action?: string | null) {
-  if (!action) return "Nieznana akcja";
+  if (!action) return "Unbekannte akcja";
 
   const labels: Record<string, string> = {
     CREATE: "Utworzono",
     CREATED: "Utworzono",
     UPDATE: "Zaktualizowano",
     UPDATED: "Zaktualizowano",
-    DELETE: "Usunięto",
-    DELETED: "Usunięto",
+    DELETE: "Gelöscht",
+    DELETED: "Gelöscht",
     STATUS_CHANGE: "Zmiana statusu",
-    MARK_PAID: "Oznaczono jako opłacone",
-    MARK_SENT: "Oznaczono jako wysłane",
+    MARK_PAID: "Als bezahlt markiert",
+    MARK_SENT: "Als gesendet markiert",
     MARK_ACCEPTED: "Oznaczono jako zaakceptowane",
-    MARK_COMPLETED: "Oznaczono jako zakończone",
-    CREATE_QUOTE: "Utworzono ofertę",
-    CREATE_INVOICE: "Utworzono fakturę",
-    CREATE_PAYMENT: "Utworzono płatność",
-    LOGIN: "Logowanie",
+    MARK_COMPLETED: "Als abgeschlossen markiert",
+    CREATE_QUOTE: "Angebot erstellt",
+    CREATE_INVOICE: "Rechnung erstellt",
+    CREATE_PAYMENT: "Zahlung erstellt",
+    LOGIN: "Anmeldung",
     LOGOUT: "Wylogowanie",
   };
 
@@ -199,7 +199,7 @@ export default function DashboardAuditLogsPage() {
   const columns: DashboardTableColumn<AuditLog>[] = [
     {
       key: "action",
-      header: "Akcja",
+      header: "Aktion",
       render: (log) => (
         <div>
           <p className="font-black tracking-tight text-white">
@@ -228,7 +228,7 @@ export default function DashboardAuditLogsPage() {
         <div>
           <p className="font-semibold text-zinc-200">{getEntity(log)}</p>
           <p className="mt-1 max-w-xs truncate text-xs text-zinc-500">
-            {log.entityId ?? "Brak entity ID"}
+            {log.entityId ?? "Kein entity ID"}
           </p>
         </div>
       ),
@@ -247,7 +247,7 @@ export default function DashboardAuditLogsPage() {
     },
     {
       key: "message",
-      header: "Wiadomość",
+      header: "Nachricht",
       render: (log) => (
         <p className="max-w-md text-sm leading-6 text-zinc-400">
           {log.message ?? "—"}
@@ -265,7 +265,7 @@ export default function DashboardAuditLogsPage() {
     },
     {
       key: "actionLink",
-      header: "Akcja",
+      header: "Aktion",
       className: "text-right",
       render: (log) => (
         <div className="flex justify-end">
@@ -274,7 +274,7 @@ export default function DashboardAuditLogsPage() {
             variant="primary"
             size="sm"
           >
-            Szczegóły
+            Details
           </PremiumButton>
         </div>
       ),
@@ -286,8 +286,8 @@ export default function DashboardAuditLogsPage() {
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
           eyebrow="HEXA OS CRM / Audit Logs"
-          title="Historia działań systemu"
-          description="Audit log zapisuje kluczowe zdarzenia workflow: tworzenie ofert, faktur, płatności, zmiany statusów i działania administratora."
+          title="System-Aktivitätshistorie"
+          description="Der Audit-Log speichert wichtige Workflow-Ereignisse: Erstellung von Angeboten, Rechnungen, Zahlungen, Statusänderungen und Administratoraktionen."
         >
           <PremiumButton
             type="button"
@@ -295,7 +295,7 @@ export default function DashboardAuditLogsPage() {
             onClick={loadAuditLogs}
             disabled={loading}
           >
-            Odśwież
+            Aktualisieren
           </PremiumButton>
           <PremiumButton href="/dashboard" variant="ghost">
             Overview
@@ -306,14 +306,14 @@ export default function DashboardAuditLogsPage() {
           <MetricCard
             title="Wszystkie zdarzenia"
             value={String(stats.total)}
-            description="Łączna liczba wpisów w historii systemu."
-            trend="Źródło: AuditLogs API"
+            description="Gesamtzahl der Einträge in der Systemhistorie."
+            trend="Quelle: AuditLogs API"
             tone="cyan"
             icon={<span className="text-lg font-black">LOG</span>}
           />
 
           <MetricCard
-            title="Zmiany statusów"
+            title="Statusänderungen"
             value={String(stats.statusChanges)}
             description="Zdarzenia typu STATUS_CHANGE."
             trend="Workflow tracking"
@@ -324,7 +324,7 @@ export default function DashboardAuditLogsPage() {
           <MetricCard
             title="Utworzone rekordy"
             value={String(stats.created)}
-            description="Oferty, faktury, płatności i inne rekordy."
+            description="Angebote, Rechnung, Zahlungen i inne rekordy."
             trend="CRM automation"
             tone="emerald"
             icon={<span className="text-lg font-black">+</span>}
@@ -342,8 +342,8 @@ export default function DashboardAuditLogsPage() {
 
         {loading ? (
           <DashboardPanel
-            title="Ładowanie audit logów"
-            description="HEXA OS pobiera aktualną historię działań systemowych."
+            title="Audit-Logs werden geladen"
+            description="HEXA OS lädt die aktuelle System-Aktivitätshistorie."
           >
             <div className="grid gap-3">
               {[1, 2, 3, 4].map((item) => (
@@ -358,14 +358,14 @@ export default function DashboardAuditLogsPage() {
 
         {errorMessage ? (
           <DashboardPanel
-            title="Błąd modułu Audit Logs"
-            description="Nie udało się pobrać historii działań z API."
+            title="Fehler im Audit-Log-Modul"
+            description="Die Aktivitätshistorie konnte nicht aus der API geladen werden."
           >
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Błąd: {errorMessage}</p>
+              <p className="font-bold">Fehler: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Sprawdź endpoint /api/dashboard/audit-logs oraz połączenie z
-                bazą.
+                Prüfen Sie den Endpoint /api/dashboard/audit-logs und die Verbindung zur
+                Datenbank.
               </p>
             </div>
           </DashboardPanel>
@@ -373,13 +373,13 @@ export default function DashboardAuditLogsPage() {
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Tabela zdarzeń"
-            description={`Liczba rekordów: ${auditLogs.length}. Każdy wpis pomaga odtworzyć, kto i kiedy wykonał daną akcję.`}
+            title="Ereignistabelle"
+            description={`Anzahl Datensätze: ${auditLogs.length}. Jeder Eintrag hilft nachzuvollziehen, wer wann welche Aktion ausgeführt hat.`}
             action={
               <StatusBadge
                 status={auditLogs.length > 0 ? "ACCEPTED" : "PENDING"}
                 label={
-                  auditLogs.length > 0 ? "Historia aktywna" : "Brak wpisów"
+                  auditLogs.length > 0 ? "Historie aktiv" : "Keine Einträge"
                 }
               />
             }
@@ -390,9 +390,9 @@ export default function DashboardAuditLogsPage() {
               getRowKey={(log) => log.id}
               empty={
                 <EmptyState
-                  title="Brak wpisów audit log"
-                  description="Pierwsze wpisy pojawią się tutaj po utworzeniu ofert, faktur, płatności albo zmianach statusów w systemie."
-                  actionLabel="Wróć do overview"
+                  title="Keine Audit-Log-Einträge"
+                  description="Die ersten Einträge erscheinen hier nach der Erstellung von Angeboten, Rechnungen, Zahlungen oder nach Statusänderungen im System."
+                  actionLabel="Zurück zur Übersicht"
                   actionHref="/dashboard"
                 />
               }
@@ -403,16 +403,16 @@ export default function DashboardAuditLogsPage() {
         {!loading && !errorMessage ? (
           <DashboardPanel
             title="Rola Audit Log"
-            description="Historia działań jest fundamentem bezpieczeństwa, automatyzacji i późniejszej obsługi wielu firm w MM Digital Core."
+            description="Die Aktivitätshistorie ist die Grundlage für Sicherheit, Automatisierung und spätere Mandantenfähigkeit in MM Digital Core."
           >
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
                 <p className="text-sm font-black text-cyan-100">
-                  Pełny ślad workflow
+                  Vollständige Workflow-Spur
                 </p>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  Każda ważna akcja, status i przejście między modułami powinny
-                  być zapisane.
+                  Jede wichtige Aktion, jeder Status und jeder Übergang zwischen Modulen sollte
+                  gespeichert werden.
                 </p>
               </div>
 
@@ -421,18 +421,18 @@ export default function DashboardAuditLogsPage() {
                   Debug i kontrola
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Logi pomagają sprawdzić, co zrobił system, użytkownik albo
+                  Logs helfen zu prüfen, was das System, ein Benutzer oder
                   automatyzacja.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
                 <p className="text-sm font-black text-emerald-100">
-                  Gotowe pod SaaS
+                  Bereit pod SaaS
                 </p>
                 <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Dla wielu firm później każdy tenant będzie miał własną
-                  historię działań.
+                  Für mehrere Firmen erhält später jeder Tenant eine eigene
+                  Aktivitätshistorie.
                 </p>
               </div>
             </div>

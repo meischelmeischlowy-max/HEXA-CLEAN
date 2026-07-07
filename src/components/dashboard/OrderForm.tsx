@@ -56,23 +56,23 @@ function normalizeDateTime(value?: string | null) {
 
 function humanLabel(value: string) {
   const labels: Record<string, string> = {
-    NEW: "Nowe",
-    OPEN: "Otwarte",
-    PENDING: "Oczekujące",
-    IN_PROGRESS: "W trakcie",
-    WAITING_FOR_CUSTOMER: "Czeka na klienta",
-    CONFIRMED: "Potwierdzone",
-    SCHEDULED: "Zaplanowane",
-    COMPLETED: "Zakończone",
-    CANCELLED: "Anulowane",
+    NEW: "Neu",
+    OPEN: "Offen",
+    PENDING: "Wartend",
+    IN_PROGRESS: "In Bearbeitung",
+    WAITING_FOR_CUSTOMER: "Wartet auf Kunde",
+    CONFIRMED: "Bestätigt",
+    SCHEDULED: "Geplant",
+    COMPLETED: "Abgeschlossen",
+    CANCELLED: "Storniert",
 
-    BASIC_CLEANING: "Sprzątanie podstawowe",
-    DEEP_CLEANING: "Sprzątanie gruntowne",
-    END_OF_TENANCY: "Po wyprowadzce",
-    OFFICE_CLEANING: "Biuro",
-    WINDOW_CLEANING: "Okna",
-    MOVE_IN_OUT: "Przeprowadzka / odbiór",
-    OTHER: "Inne",
+    BASIC_CLEANING: "Grundreinigung",
+    DEEP_CLEANING: "Intensivreinigung",
+    END_OF_TENANCY: "Wohnungsabgabe",
+    OFFICE_CLEANING: "Büroreinigung",
+    WINDOW_CLEANING: "Fensterreinigung",
+    MOVE_IN_OUT: "Umzug / Abgabe",
+    OTHER: "Andere",
   };
 
   return labels[value] ?? value.replaceAll("_", " ");
@@ -162,7 +162,7 @@ export default function OrderForm({
       setError(
         err instanceof Error
           ? err.message
-          : "Nie udało się zapisać zlecenia.",
+          : "Der Auftrag konnte nicht gespeichert werden.",
       );
     } finally {
       setLoading(false);
@@ -173,23 +173,23 @@ export default function OrderForm({
     <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/10">
       <div>
         <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
-          {mode === "create" ? "Nowe zlecenie" : "Edycja zlecenia"}
+          {mode === "create" ? "Neuer Auftrag" : "Auftrag bearbeiten"}
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-white">
-          {mode === "create" ? "Dodaj zlecenie ręcznie" : "Popraw dane zlecenia"}
+          {mode === "create" ? "Auftrag manuell anlegen" : "Auftragsdaten bearbeiten"}
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
-          Wpisz klienta normalnie ręcznie: firma albo osoba prywatna, dane
-          kontaktowe, a niżej zakres zlecenia.
+          Erfassen Sie Kunde, Kontaktdaten und Leistungsumfang. Daraus können
+          später Angebot, Rechnung und Zahlung entstehen.
         </p>
       </div>
 
       <div className="mt-6 grid gap-6">
         <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/5 p-5">
           <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
-            Klient
+            Kunde
           </p>
 
           <div className="mb-5 flex flex-wrap gap-2">
@@ -198,7 +198,7 @@ export default function OrderForm({
               onClick={() => updateField("customerType", "PRIVATE")}
               className={choiceButtonClass(form.customerType === "PRIVATE")}
             >
-              Osoba prywatna
+              Privatkunde
             </button>
 
             <button
@@ -212,13 +212,13 @@ export default function OrderForm({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className={labelClass()}>Nazwa firmy</label>
+              <label className={labelClass()}>Firmenname</label>
               <input
                 value={form.customerCompanyName}
                 onChange={(event) =>
                   updateField("customerCompanyName", event.target.value)
                 }
-                placeholder="np. Muster Reinigung GmbH"
+                placeholder="z.B. Muster Reinigung GmbH"
                 className={inputClass()}
               />
             </div>
@@ -236,31 +236,31 @@ export default function OrderForm({
             </div>
 
             <div>
-              <label className={labelClass()}>Imię</label>
+              <label className={labelClass()}>Vorname</label>
               <input
                 value={form.customerFirstName}
                 onChange={(event) =>
                   updateField("customerFirstName", event.target.value)
                 }
-                placeholder="np. Max"
+                placeholder="z.B. Max"
                 className={inputClass()}
               />
             </div>
 
             <div>
-              <label className={labelClass()}>Nazwisko</label>
+              <label className={labelClass()}>Nachname</label>
               <input
                 value={form.customerLastName}
                 onChange={(event) =>
                   updateField("customerLastName", event.target.value)
                 }
-                placeholder="np. Muster"
+                placeholder="z.B. Muster"
                 className={inputClass()}
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className={labelClass()}>Email</label>
+              <label className={labelClass()}>E-Mail</label>
               <input
                 type="email"
                 value={form.customerEmail}
@@ -276,19 +276,19 @@ export default function OrderForm({
 
         <section className="rounded-3xl border border-white/10 bg-black/10 p-5">
           <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
-            Zlecenie
+            Auftrag
           </p>
 
           <div className="grid gap-5">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className={labelClass()}>Numer zlecenia</label>
+                <label className={labelClass()}>Auftragsnummer</label>
                 <input
                   value={form.orderNumber}
                   onChange={(event) =>
                     updateField("orderNumber", event.target.value)
                   }
-                  placeholder="Automatycznie, jeśli zostawisz puste"
+                  placeholder="Automatisch, wenn leer"
                   className={inputClass()}
                 />
               </div>
@@ -312,17 +312,17 @@ export default function OrderForm({
             </div>
 
             <div>
-              <label className={labelClass()}>Nazwa / tytuł zlecenia</label>
+              <label className={labelClass()}>Titel des Auftrags</label>
               <input
                 value={form.title}
                 onChange={(event) => updateField("title", event.target.value)}
-                placeholder="np. Sprzątanie mieszkania 3.5 pokoju"
+                placeholder="z.B. Reinigung einer 3.5-Zimmer-Wohnung"
                 className={inputClass()}
               />
             </div>
 
             <div>
-              <label className={labelClass()}>Typ usługi</label>
+              <label className={labelClass()}>Leistungsart</label>
               <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/20 p-3">
                 {serviceTypes.map((serviceType) => (
                   <button
@@ -339,13 +339,13 @@ export default function OrderForm({
             </div>
 
             <div>
-              <label className={labelClass()}>Opis zlecenia</label>
+              <label className={labelClass()}>Beschreibung</label>
               <textarea
                 value={form.description}
                 onChange={(event) =>
                   updateField("description", event.target.value)
                 }
-                placeholder="Zakres pracy, uwagi klienta, metraż, dostęp, materiały..."
+                placeholder="Arbeitsumfang, Kundenhinweise, Fläche, Zugang, Material..."
                 rows={5}
                 className={inputClass()}
               />
@@ -353,7 +353,7 @@ export default function OrderForm({
 
             <div className="grid gap-4 md:grid-cols-4">
               <div>
-                <label className={labelClass()}>Termin start</label>
+                <label className={labelClass()}>Starttermin</label>
                 <input
                   type="datetime-local"
                   value={form.scheduledStart}
@@ -365,7 +365,7 @@ export default function OrderForm({
               </div>
 
               <div>
-                <label className={labelClass()}>Waluta</label>
+                <label className={labelClass()}>Währung</label>
                 <input
                   value={form.currency}
                   onChange={(event) =>
@@ -377,7 +377,7 @@ export default function OrderForm({
               </div>
 
               <div>
-                <label className={labelClass()}>Cena szacunkowa</label>
+                <label className={labelClass()}>Geschätzter Preis</label>
                 <input
                   type="number"
                   min="0"
@@ -392,7 +392,7 @@ export default function OrderForm({
               </div>
 
               <div>
-                <label className={labelClass()}>Cena końcowa</label>
+                <label className={labelClass()}>Endpreis</label>
                 <input
                   type="number"
                   min="0"
@@ -424,10 +424,10 @@ export default function OrderForm({
           className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading
-            ? "Zapisywanie..."
+            ? "Speichern..."
             : mode === "create"
-              ? "Dodaj zlecenie"
-              : "Zapisz zmiany"}
+              ? "Auftrag erstellen"
+              : "Änderungen speichern"}
         </button>
 
         <button
@@ -436,7 +436,7 @@ export default function OrderForm({
           onClick={() => router.back()}
           className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Anuluj
+          Abbrechen
         </button>
       </div>
     </section>

@@ -11,7 +11,7 @@ export default function RecordLink({ href, label, value }: RecordLinkProps) {
     return (
       <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
         <p className="text-sm text-neutral-400">{label}</p>
-        <p className="mt-1 text-sm text-neutral-500">Brak danych</p>
+        <p className="mt-1 text-sm text-neutral-500">Keine Daten</p>
       </div>
     );
   }

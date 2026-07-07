@@ -19,10 +19,10 @@ function formatMoney(value: number, currency = "CHF") {
 
 function invoiceStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    DRAFT: "Robocza",
-    SENT: "Wysłana",
-    PARTIALLY_PAID: "Częściowo opłacona",
-    PAID: "Opłacona",
+    DRAFT: "Entwurf",
+    SENT: "Versendet",
+    PARTIALLY_PAID: "Teilweise bezahlt",
+    PAID: "Bezahlt",
     OVERDUE: "Po terminie",
     CANCELLED: "Anulowana",
   };
@@ -56,7 +56,7 @@ export default function InvoiceStatusActions({
 
     if (action === "cancel") {
       const confirmed = window.confirm(
-        "Czy na pewno anulować tę fakturę? Nie anuluj jej, jeśli klient już zapłacił.",
+        "Möchten Sie diese Rechnung wirklich stornieren? Bitte nicht stornieren, wenn der Kunde bereits bezahlt hat.",
       );
 
       if (!confirmed) {
@@ -67,10 +67,10 @@ export default function InvoiceStatusActions({
 
     if (action === "mark_paid" && hasOpenAmount) {
       const confirmed = window.confirm(
-        `System dopisze brakującą płatność na kwotę ${formatMoney(
+        `Das System wird eine ausstehende Zahlung in Höhe von ${formatMoney(
           openAmount,
           currency,
-        )}. Kontynuować?`,
+        )} erfassen. Fortfahren?`,
       );
 
       if (!confirmed) {
@@ -94,19 +94,19 @@ export default function InvoiceStatusActions({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Nie udało się zmienić statusu faktury.");
+        throw new Error(data?.error || "Der Rechnungsstatus konnte nicht geändert werden.");
       }
 
       if (action === "mark_sent") {
-        setMessage("Faktura została oznaczona jako wysłana.");
+        setMessage("Die Rechnung wurde als versendet markiert.");
       }
 
       if (action === "mark_paid") {
-        setMessage("Faktura została oznaczona jako opłacona.");
+        setMessage("Die Rechnung wurde als bezahlt markiert.");
       }
 
       if (action === "cancel") {
-        setMessage("Faktura została anulowana.");
+        setMessage("Die Rechnung wurde storniert.");
       }
 
       router.refresh();
@@ -114,7 +114,7 @@ export default function InvoiceStatusActions({
       const nextMessage =
         error instanceof Error
           ? error.message
-          : "Nie udało się zmienić statusu faktury.";
+          : "Der Rechnungsstatus konnte nicht geändert werden.";
 
       setErrorMessage(nextMessage);
     } finally {
@@ -126,7 +126,7 @@ export default function InvoiceStatusActions({
     <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Akcje faktury</h2>
+          <h2 className="text-xl font-semibold">Rechnungsaktionen</h2>
           <p className="mt-1 text-sm text-neutral-400">
             Aktualny status:{" "}
             <span className="font-semibold text-cyan-100">
@@ -137,7 +137,7 @@ export default function InvoiceStatusActions({
 
         <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-right">
           <p className="text-xs uppercase tracking-[0.18em] text-cyan-100/60">
-            Otwarte
+            Offen
           </p>
           <p className="mt-1 text-lg font-black text-cyan-100">
             {formatMoney(openAmount, currency)}
@@ -152,7 +152,7 @@ export default function InvoiceStatusActions({
           onClick={() => runAction("mark_sent")}
           className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-sm font-black uppercase tracking-[0.14em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Oznacz jako wysłana
+          Als versendet markieren
         </button>
 
         <button
@@ -161,7 +161,7 @@ export default function InvoiceStatusActions({
           onClick={() => runAction("mark_paid")}
           className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-sm font-black uppercase tracking-[0.14em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Oznacz jako opłacona
+          Als bezahlt markieren
         </button>
 
         <button
@@ -170,38 +170,35 @@ export default function InvoiceStatusActions({
           onClick={() => runAction("cancel")}
           className="rounded-2xl border border-red-300/30 bg-red-300/10 px-5 py-4 text-sm font-black uppercase tracking-[0.14em] text-red-100 transition hover:border-red-200 hover:bg-red-300/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Anuluj fakturę
+          Rechnung stornieren
         </button>
       </div>
 
       <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-neutral-400">
         {isDraft ? (
           <p>
-            Faktura jest robocza. Możesz oznaczyć ją jako wysłaną, opłaconą albo
-            anulować.
+            Die Rechnung ist im Entwurf. Sie kann als versendet, bezahlt oder storniert markiert werden.
           </p>
         ) : null}
 
         {isSent ? (
           <p>
-            Faktura została wysłana. Możesz dodać płatność ręcznie albo oznaczyć
-            ją jako opłaconą.
+            Die Rechnung wurde versendet. Sie kann manuell bezahlt oder als bezahlt markiert werden.
           </p>
         ) : null}
 
         {isPartiallyPaid ? (
           <p>
-            Faktura ma częściową płatność. Nie można jej anulować bez dalszej
-            logiki korekty/zwrotu.
+            Die Rechnung hat eine Teilzahlung. Sie kann ohne weitere Korrektur- oder Rückerstattungslogik nicht storniert werden.
           </p>
         ) : null}
 
         {isPaid ? (
-          <p>Faktura jest opłacona. Dalsze akcje statusu są zablokowane.</p>
+          <p>Die Rechnung ist bezahlt. Weitere Statusaktionen sind gesperrt.</p>
         ) : null}
 
         {isCancelled ? (
-          <p>Faktura jest anulowana. Dalsze akcje statusu są zablokowane.</p>
+          <p>Die Rechnung ist storniert. Weitere Statusaktionen sind gesperrt.</p>
         ) : null}
       </div>
 

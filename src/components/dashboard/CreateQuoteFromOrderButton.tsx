@@ -23,20 +23,20 @@ export default function CreateQuoteFromOrderButton({
         `/api/dashboard/orders/${orderId}/create-quote`,
         {
           method: "POST",
-        }
+        },
       );
 
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK" || !result.quoteId) {
-        setError("Nie udało się utworzyć oferty.");
+        setError("Das Angebot konnte nicht erstellt werden.");
         return;
       }
 
       router.push(`/dashboard/quotes/${result.quoteId}`);
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -50,10 +50,10 @@ export default function CreateQuoteFromOrderButton({
         disabled={isLoading}
         className="rounded-xl border border-cyan-600 bg-cyan-950/50 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Tworzę ofertę..." : "Utwórz ofertę"}
+        {isLoading ? "Angebot wird erstellt..." : "Angebot erstellen"}
       </button>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error ? <p className="text-xs text-red-400">{error}</p> : null}
     </div>
   );
 }

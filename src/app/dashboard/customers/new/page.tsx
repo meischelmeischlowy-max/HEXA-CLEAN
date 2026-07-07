@@ -13,7 +13,7 @@ export default function NewCustomerPage() {
             href="/dashboard/customers"
             className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
           >
-            ← Wróć do klientów
+            ← Zurück zu den Kunden
           </Link>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -21,11 +21,11 @@ export default function NewCustomerPage() {
           </p>
 
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
-            Dodaj klienta
+            Kunde erstellen
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            Ręczne dodawanie klienta do bazy CRM.
+            Manuelle Erstellung eines Kunden im CRM.
           </p>
         </div>
 

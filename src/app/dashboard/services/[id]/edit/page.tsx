@@ -61,18 +61,18 @@ export default async function EditServiceCatalogItemPage({
           href={`/dashboard/services/${service.id}`}
           className="text-sm text-cyan-400 transition hover:text-cyan-300"
         >
-          ← Wróć do usługi
+          ← Zurück zur Leistung
         </Link>
 
         <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
-          HEXA OS / Cennik
+          HEXA OS / Leistungen
         </p>
 
-        <h1 className="mt-3 text-3xl font-bold">Edytuj usługę</h1>
+        <h1 className="mt-3 text-3xl font-bold">Leistung bearbeiten</h1>
 
         <p className="mt-2 max-w-3xl text-sm text-neutral-500">
-          Popraw dane pozycji cennika. Zmiany będą używane przy kolejnych
-          wycenach, ofertach i fakturach.
+          Leistungsdaten bearbeiten. Änderungen werden bei späteren
+          Kalkulationen, Angebotch i Rechnungenach.
         </p>
       </div>
 

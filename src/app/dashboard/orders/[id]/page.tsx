@@ -139,15 +139,15 @@ function statusLabel(status: unknown) {
     OPEN: "Otwarte",
     PENDING: "Oczekuje",
     IN_PROGRESS: "W trakcie",
-    COMPLETED: "Zakończone",
+    COMPLETED: "Abgeschlossen",
     CANCELLED: "Anulowane",
-    PAID: "Opłacone",
-    PARTIALLY_PAID: "Częściowo opłacone",
-    UNPAID: "Nieopłacone",
-    DRAFT: "Szkic",
-    SENT: "Wysłane",
-    ACCEPTED: "Zaakceptowane",
-    REJECTED: "Odrzucone",
+    PAID: "Bezahlt",
+    PARTIALLY_PAID: "Teilweise bezahlt",
+    UNPAID: "Unbezahlt",
+    DRAFT: "Entwurf",
+    SENT: "Versendet",
+    ACCEPTED: "Akzeptiert",
+    REJECTED: "Abgelehnt",
   };
 
   return labels[value] ?? formatValue(status);
@@ -273,7 +273,7 @@ function MiniTable({
   return (
     <Section title={title} count={items.length}>
       {items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Brak danych.</p>
+        <p className="text-sm text-neutral-500">Keine Daten.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
@@ -289,7 +289,7 @@ function MiniTable({
                 ))}
 
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Akcje
+                  Aktionen
                 </th>
               </tr>
             </thead>
@@ -320,7 +320,7 @@ function MiniTable({
                           href={`${basePath}/${itemId}`}
                           className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-300 transition hover:border-cyan-300 hover:bg-cyan-500/10"
                         >
-                          Szczegóły
+                          Details
                         </Link>
                       ) : (
                         <span className="text-xs text-neutral-600">—</span>
@@ -436,7 +436,7 @@ export default async function OrderDetailsPage({
             href="/dashboard/orders"
             className="text-sm text-cyan-400 transition hover:text-cyan-300"
           >
-            ← Wróć do zleceń
+            ← Zurück zu Aufträgen
           </Link>
 
           <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
@@ -444,43 +444,43 @@ export default async function OrderDetailsPage({
           </p>
 
           <h1 className="mt-3 text-3xl font-bold">
-            Zlecenie {formatValue(order.orderNumber ?? order.number ?? order.id)}
+            Auftrag {formatValue(order.orderNumber ?? order.number ?? order.id)}
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm text-neutral-500">
-            Pełny widok zlecenia: klient, dane usługi, terminy, wyceny,
-            faktury, płatności, wiadomości, załączniki i historia zmian.
+            Vollständige Ansicht des Auftrags: Kunde, Leistungsdaten, Termine, Kalkulationen,
+            Rechnungen, Zahlungen, Nachrichten, Anhänge und Änderungsverlauf.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-3 xl:justify-end">
           <ActionButton href={`/dashboard/orders/${order.id}/edit`} variant="primary">
-            Edytuj zlecenie
+            Auftrag bearbeiten
           </ActionButton>
 
-          <ActionButton href="/dashboard/orders">Lista zleceń</ActionButton>
+          <ActionButton href="/dashboard/orders">Auftragsliste</ActionButton>
 
           {customer?.id ? (
             <ActionButton href={`/dashboard/customers/${customer.id}`}>
-              Klient
+              Kunde
             </ActionButton>
           ) : null}
 
           <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
-            Wyceny
+            Angebote
           </ActionButton>
 
           <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
-            Faktury
+            Rechnungen
           </ActionButton>
 
           <ActionButton href={`/dashboard/payments?orderId=${order.id}`}>
-            Płatności
+            Zahlungen
           </ActionButton>
 
           {completed ? (
             <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
-              Zlecenie zakończone
+              Auftrag abgeschlossen
             </div>
           ) : (
             <MarkOrderAsCompletedButton orderId={order.id} />
@@ -490,55 +490,55 @@ export default async function OrderDetailsPage({
 
       <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Status" value={statusLabel(order.status)} />
-        <StatCard label="Klient" value={customerName(customer)} href={customer?.id ? `/dashboard/customers/${customer.id}` : null} />
-        <StatCard label="Wyceny" value={estimates.length} href={`/dashboard/estimates?orderId=${order.id}`} />
-        <StatCard label="Faktury" value={invoices.length} href={`/dashboard/invoices?orderId=${order.id}`} />
-        <StatCard label="Wpłaty" value={formatMoney(totalPaid, currency)} href={`/dashboard/payments?orderId=${order.id}`} />
+        <StatCard label="Kunde" value={customerName(customer)} href={customer?.id ? `/dashboard/customers/${customer.id}` : null} />
+        <StatCard label="Angebote" value={estimates.length} href={`/dashboard/estimates?orderId=${order.id}`} />
+        <StatCard label="Rechnungen" value={invoices.length} href={`/dashboard/invoices?orderId=${order.id}`} />
+        <StatCard label="Zahlungen" value={formatMoney(totalPaid, currency)} href={`/dashboard/payments?orderId=${order.id}`} />
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
-        <Section title="Dane zlecenia">
+        <Section title="Auftragsdaten">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <InfoCard label="ID" value={order.id} />
             <InfoCard label="Numer" value={order.orderNumber ?? order.number} />
             <InfoCard label="Status" value={statusLabel(order.status)} />
-            <InfoCard label="Typ usługi" value={order.serviceType ?? order.type} />
+            <InfoCard label="Leistungstyp" value={order.serviceType ?? order.type} />
 
-            <InfoCard label="Tytuł" value={order.title} />
-            <InfoCard label="Waluta" value={currency} />
+            <InfoCard label="Titel" value={order.title} />
+            <InfoCard label="Währung" value={currency} />
             <InfoCard
-              label="Cena szacowana"
+              label="Geschätzter Preis"
               value={formatMoney(order.estimatedPrice, currency)}
             />
             <InfoCard
-              label="Cena końcowa"
+              label="Endpreis"
               value={formatMoney(order.finalPrice, currency)}
             />
 
             <InfoCard label="Start" value={order.scheduledStart} />
             <InfoCard label="Koniec" value={order.scheduledEnd} />
-            <InfoCard label="Utworzono" value={order.createdAt} />
-            <InfoCard label="Aktualizacja" value={order.updatedAt} />
+            <InfoCard label="Erstellt am" value={order.createdAt} />
+            <InfoCard label="Aktualisiert am" value={order.updatedAt} />
 
-            <InfoCard label="Ulica / adres usługi" value={order.serviceStreet} />
-            <InfoCard label="Kod pocztowy" value={order.serviceZipCode} />
-            <InfoCard label="Miasto" value={order.serviceCity} />
-            <InfoCard label="Kraj" value={order.serviceCountry} />
+            <InfoCard label="Straße / Dienstadresse" value={order.serviceStreet} />
+            <InfoCard label="PLZ" value={order.serviceZipCode} />
+            <InfoCard label="Ort" value={order.serviceCity} />
+            <InfoCard label="Land" value={order.serviceCountry} />
 
-            <InfoCard label="Opis" value={order.description} wide />
-            <InfoCard label="Notatki" value={order.notes} wide />
+            <InfoCard label="Beschreibung" value={order.description} wide />
+            <InfoCard label="Notizen" value={order.notes} wide />
           </div>
         </Section>
 
         <div className="grid gap-6">
-          <Section title="Klient">
+          <Section title="Kunde">
             {customer ? (
               <div className="grid gap-4">
-                <InfoCard label="Nazwa" value={customerName(customer)} />
+                <InfoCard label="Name" value={customerName(customer)} />
                 <InfoCard label="Email" value={customer.email} />
                 <InfoCard label="Telefon" value={customer.phone} />
                 <InfoCard
-                  label="Adres"
+                  label="Adresse"
                   value={[
                     customer.street,
                     customer.zipCode,
@@ -553,28 +553,28 @@ export default async function OrderDetailsPage({
                   href={`/dashboard/customers/${customer.id}`}
                   className="rounded-xl border border-cyan-500/50 bg-cyan-500/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-500/20"
                 >
-                  Otwórz kartę klienta
+                  Kundenkarte öffnen
                 </Link>
               </div>
             ) : (
               <p className="text-sm text-neutral-500">
-                Brak powiązanego klienta.
+                Kein zugehöriger Kunde vorhanden.
               </p>
             )}
           </Section>
 
-          <Section title="Podsumowanie finansowe">
+          <Section title="Finanzübersicht">
             <div className="grid gap-4">
               <InfoCard
-                label="Suma faktur"
+                label="Rechnungsbetrag"
                 value={formatMoney(totalInvoices, currency)}
               />
               <InfoCard
-                label="Suma wpłat"
+                label="Zahlungsbetrag"
                 value={formatMoney(totalPaid, currency)}
               />
               <InfoCard
-                label="Pozostało"
+                label="Offen"
                 value={formatMoney(totalInvoices - totalPaid, currency)}
               />
             </div>
@@ -583,36 +583,36 @@ export default async function OrderDetailsPage({
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-2">
-        <Section title="Sesja / rozmowa">
+        <Section title="Sitzung / Gespräch">
           {session ? (
             <div className="grid gap-4 md:grid-cols-2">
               <InfoCard label="ID sesji" value={session.id} />
               <InfoCard label="Status" value={session.status} />
-              <InfoCard label="Kanał" value={session.channel} />
-              <InfoCard label="Utworzono" value={session.createdAt} />
-              <InfoCard label="Zakończono" value={session.endedAt} />
+              <InfoCard label="Kanal" value={session.channel} />
+              <InfoCard label="Erstellt am" value={session.createdAt} />
+              <InfoCard label="Beendet am" value={session.endedAt} />
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">Brak powiązanej sesji.</p>
+            <p className="text-sm text-neutral-500">Keine verknüpfte Sitzung.</p>
           )}
         </Section>
 
-        <Section title="Szybkie akcje">
+        <Section title="Schnellaktionen">
           <div className="grid gap-3 md:grid-cols-2">
             <ActionButton href={`/dashboard/orders/${order.id}/edit`} variant="primary">
-              Popraw dane
+              Daten korrigieren
             </ActionButton>
 
             <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
-              Przejdź do wycen
+              Zu Angeboten
             </ActionButton>
 
             <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
-              Przejdź do faktur
+              Zu Rechnungen
             </ActionButton>
 
             <ActionButton href={`/dashboard/payments?orderId=${order.id}`}>
-              Przejdź do płatności
+              Zu Zahlungen
             </ActionButton>
           </div>
         </Section>
@@ -620,7 +620,7 @@ export default async function OrderDetailsPage({
 
       <div className="grid gap-6">
         <MiniTable
-          title="Wyceny"
+          title="Angebote"
           items={estimates}
           basePath="/dashboard/estimates"
           columns={[
@@ -645,7 +645,7 @@ export default async function OrderDetailsPage({
         />
 
         <MiniTable
-          title="Faktury"
+          title="Rechnungen"
           items={invoices}
           basePath="/dashboard/invoices"
           columns={[
@@ -658,29 +658,29 @@ export default async function OrderDetailsPage({
               value: (item) => statusLabel(item.status),
             },
             {
-              label: "Suma",
+              label: "Gesamt",
               value: (item) => item.totalAmount ?? item.amount,
               money: true,
             },
             {
-              label: "Zapłacono",
+              label: "Bezahlt",
               value: (item) => item.paidAmount,
               money: true,
             },
             {
-              label: "Termin",
+              label: "Fällig am",
               value: (item) => item.dueDate,
             },
           ]}
         />
 
         <MiniTable
-          title="Płatności"
+          title="Zahlungen"
           items={payments}
           basePath="/dashboard/payments"
           columns={[
             {
-              label: "Referencja",
+              label: "Referenz",
               value: (item) =>
                 item.paymentReference ??
                 item.externalRef ??
@@ -688,7 +688,7 @@ export default async function OrderDetailsPage({
                 item.id,
             },
             {
-              label: "Metoda",
+              label: "Methode",
               value: (item) => item.method ?? item.paymentMethod,
             },
             {
@@ -708,15 +708,15 @@ export default async function OrderDetailsPage({
         />
 
         <MiniTable
-          title="Wiadomości rozmowy"
+          title="Gesprächsnachrichten"
           items={conversationMessages}
           columns={[
             {
-              label: "Rola",
+              label: "Rolle",
               value: (item) => item.role ?? item.sender ?? item.type,
             },
             {
-              label: "Treść",
+              label: "Inhalt",
               value: (item) =>
                 item.content ?? item.message ?? item.text ?? item.body,
             },
@@ -728,12 +728,12 @@ export default async function OrderDetailsPage({
         />
 
         <MiniTable
-          title="Powiadomienia"
+          title="Benachrichtigungen"
           items={notifications}
           basePath="/dashboard/notifications"
           columns={[
             {
-              label: "Kanał",
+              label: "Kanal",
               value: (item) => item.channel ?? item.type,
             },
             {
@@ -741,7 +741,7 @@ export default async function OrderDetailsPage({
               value: (item) => statusLabel(item.status),
             },
             {
-              label: "Temat",
+              label: "Betreff",
               value: (item) => item.subject ?? item.title ?? item.message,
             },
             {
@@ -752,12 +752,12 @@ export default async function OrderDetailsPage({
         />
 
         <MiniTable
-          title="Załączniki"
+          title="Anhänge"
           items={attachments}
           basePath="/dashboard/attachments"
           columns={[
             {
-              label: "Plik",
+              label: "Datei",
               value: (item) => item.fileName ?? item.name ?? item.id,
             },
             {
@@ -781,15 +781,15 @@ export default async function OrderDetailsPage({
           basePath="/dashboard/audit-logs"
           columns={[
             {
-              label: "Akcja",
+              label: "Aktion",
               value: (item) => item.action ?? item.event,
             },
             {
-              label: "Użytkownik",
+              label: "Benutzer",
               value: (item) => item.userEmail ?? item.userId ?? item.actor,
             },
             {
-              label: "Opis",
+              label: "Beschreibung",
               value: (item) => item.description ?? item.message,
             },
             {

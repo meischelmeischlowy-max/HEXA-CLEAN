@@ -55,7 +55,7 @@ function customerLabel(customer: {
     fullName ||
     customer.email ||
     customer.phone ||
-    "Klient bez nazwy"
+    "Kunde ohne Namen"
   );
 }
 
@@ -130,7 +130,7 @@ export default async function EditOrderPage({ params }: PageProps) {
             href={`/dashboard/orders/${order.id}`}
             className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
           >
-            ← Wróć do zlecenia
+            ← Zurück zum Auftrag
           </Link>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -138,11 +138,11 @@ export default async function EditOrderPage({ params }: PageProps) {
           </p>
 
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
-            Edytuj zlecenie
+            Auftrag bearbeiten
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            Popraw klienta, status, usługę, termin, opis i kwoty zlecenia.
+            Kunden-, Status-, Service-, Termin-, Beschreibungs- und Auftragsbetragsdaten anpassen.
           </p>
         </div>
 

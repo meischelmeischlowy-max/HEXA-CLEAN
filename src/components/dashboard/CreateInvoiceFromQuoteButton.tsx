@@ -23,20 +23,20 @@ export default function CreateInvoiceFromQuoteButton({
         `/api/dashboard/quotes/${quoteId}/create-invoice`,
         {
           method: "POST",
-        }
+        },
       );
 
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK" || !result.invoiceId) {
-        setError("Nie udało się utworzyć faktury.");
+        setError("Die Rechnung konnte nicht erstellt werden.");
         return;
       }
 
       router.push(`/dashboard/invoices/${result.invoiceId}`);
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -50,10 +50,10 @@ export default function CreateInvoiceFromQuoteButton({
         disabled={isLoading}
         className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Tworzę fakturę..." : "Utwórz fakturę"}
+        {isLoading ? "Rechnung wird erstellt..." : "Rechnung erstellen"}
       </button>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error ? <p className="text-xs text-red-400">{error}</p> : null}
     </div>
   );
 }

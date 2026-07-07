@@ -73,7 +73,7 @@ function formatDate(value: string | null | undefined) {
 
 function customerName(customer?: EstimateCustomer | null) {
   if (!customer) {
-    return "Demo klient";
+    return "Demo-Kunde";
   }
 
   if (customer.companyName) {
@@ -82,20 +82,20 @@ function customerName(customer?: EstimateCustomer | null) {
 
   const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
 
-  return fullName || "Demo klient";
+  return fullName || "Demo-Kunde";
 }
 
 function statusLabel(status?: string | null) {
   const labels: Record<string, string> = {
-    DRAFT: "Robocza",
-    AI_REVIEW: "AI sprawdza",
-    NEEDS_PHOTOS: "Potrzebne zdjęcia",
-    NEEDS_HUMAN_REVIEW: "Do kontroli właściciela",
-    READY_TO_SEND: "Gotowa do wysłania",
-    SENT: "Wysłana",
-    ACCEPTED: "Zaakceptowana",
-    REJECTED: "Odrzucona",
-    EXPIRED: "Wygasła",
+    DRAFT: "Entwurf",
+    AI_REVIEW: "KI-Prüfung",
+    NEEDS_PHOTOS: "Fotos erforderlich",
+    NEEDS_HUMAN_REVIEW: "Prüfung durch Inhaber",
+    READY_TO_SEND: "Versandbereit",
+    SENT: "Versendet",
+    ACCEPTED: "Akzeptiert",
+    REJECTED: "Abgelehnt",
+    EXPIRED: "Abgelaufen",
   };
 
   if (!status) {
@@ -149,7 +149,7 @@ export default function DashboardEstimatesPage() {
 
       if (!response.ok) {
         throw new Error(
-          data.message ?? data.data?.message ?? "Nie udało się pobrać wycen."
+          data.message ?? data.data?.message ?? "Die Kalkulationen konnten nicht geladen werden."
         );
       }
 
@@ -158,7 +158,7 @@ export default function DashboardEstimatesPage() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd pobierania wycen."
+          : "Unbekannter Fehler beim Laden der Kalkulationen."
       );
     } finally {
       setIsLoading(false);
@@ -181,7 +181,7 @@ export default function DashboardEstimatesPage() {
 
       if (!response.ok) {
         throw new Error(
-          data.message ?? data.data?.message ?? "Nie udało się dodać demo-wyceny."
+          data.message ?? data.data?.message ?? "Die Demo-Kalkulation konnte nicht erstellt werden."
         );
       }
 
@@ -190,7 +190,7 @@ export default function DashboardEstimatesPage() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd tworzenia wyceny."
+          : "Unbekannter Fehler beim Erstellen der Kalkulation."
       );
     } finally {
       setIsCreating(false);
@@ -208,16 +208,15 @@ export default function DashboardEstimatesPage() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
-                HEXA OS / Estimates
+                HEXA OS / Kalkulationen
               </p>
 
               <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-                Wyceny
+                Kalkulationen
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-                Lista roboczych i wysłanych wycen. Demo-wyceny służą tylko do
-                testowania systemu, połączenia z bazą danych i widoku szczegółów.
+                Liste von Entwurfs- und versendeten Kalkulationen. Demo-Kalkulationen dienen nur zum Testen des Systems, der Datenbankverbindung und der Detailansicht.
               </p>
             </div>
 
@@ -226,7 +225,7 @@ export default function DashboardEstimatesPage() {
                 href="/dashboard/estimates/new"
                 className="rounded-2xl bg-cyan-300 px-5 py-3 text-center text-sm font-black text-neutral-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200"
               >
-                Nowa wycena
+                Neue Kalkulation
               </Link>
 
               <button
@@ -235,7 +234,7 @@ export default function DashboardEstimatesPage() {
                 disabled={isCreating}
                 className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-neutral-100 shadow-lg shadow-black/20 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isCreating ? "Dodawanie..." : "Dodaj demo-wycenę"}
+                {isCreating ? "Wird erstellt..." : "Demo-Kalkulation hinzufügen"}
               </button>
             </div>
           </div>
@@ -243,12 +242,12 @@ export default function DashboardEstimatesPage() {
 
         <section className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Liczba wycen</p>
+            <p className="text-sm text-neutral-400">Anzahl Kalkulationen</p>
             <p className="mt-2 text-3xl font-black">{totals.count}</p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Suma wycen</p>
+            <p className="text-sm text-neutral-400">Gesamtsumme</p>
             <p className="mt-2 text-3xl font-black">
               {formatMoney(totals.totalValue, "CHF")}
             </p>
@@ -257,8 +256,8 @@ export default function DashboardEstimatesPage() {
           <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
             <p className="text-sm text-amber-100/70">Uwaga</p>
             <p className="mt-2 text-sm leading-6 text-amber-100">
-              Ceny są testowe/robocze. Nie traktować jako realny cennik dla
-              klientów bez zatwierdzenia właściciela.
+              Die Preise sind testweise/robust. Sie dürfen nicht als echter
+              Preislistenwert für Kunden gelten, ohne Freigabe durch den Inhaber.
             </p>
           </div>
         </section>
@@ -272,10 +271,10 @@ export default function DashboardEstimatesPage() {
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
           <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Lista wycen</h2>
+              <h2 className="text-xl font-semibold">Kalkulationsliste</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Kliknij numer albo przycisk „Szczegóły”, żeby otworzyć jedną
-                wycenę.
+                Klicken Sie auf die Nummer oder auf „Details“, um eine einzelne
+                Kalkulation zu öffnen.
               </p>
             </div>
 
@@ -284,7 +283,7 @@ export default function DashboardEstimatesPage() {
                 href="/dashboard/estimates/new"
                 className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 hover:bg-cyan-300/20"
               >
-                Nowa wycena
+                Neue Kalkulation
               </Link>
 
               <button
@@ -293,22 +292,20 @@ export default function DashboardEstimatesPage() {
                 disabled={isLoading}
                 className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-neutral-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoading ? "Odświeżanie..." : "Odśwież"}
+                {isLoading ? "Aktualisieren..." : "Aktualisieren"}
               </button>
             </div>
           </div>
 
           {isLoading ? (
             <div className="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-neutral-400">
-              Ładowanie wycen...
+              Kalkulationen werden geladen...
             </div>
           ) : null}
 
           {!isLoading && estimates.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-              Brak wycen. Kliknij „Nowa wycena”, żeby utworzyć pierwszą
-              ręczną wycenę, albo „Dodaj demo-wycenę”, żeby utworzyć testowy
-              wpis.
+              Keine Kalkulationen vorhanden. Klicken Sie auf „Neue Kalkulation“, um die erste manuelle Kalkulation zu erstellen, oder auf „Demo-Kalkulation hinzufügen“, um einen Testeintrag anzulegen.
             </div>
           ) : null}
 
@@ -317,13 +314,13 @@ export default function DashboardEstimatesPage() {
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="bg-white/[0.05] text-xs uppercase tracking-[0.18em] text-neutral-400">
                   <tr>
-                    <th className="px-4 py-4">Numer</th>
-                    <th className="px-4 py-4">Klient</th>
+                      <th className="px-4 py-4">Nummer</th>
+                    <th className="px-4 py-4">Kunde</th>
                     <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4">Miasto</th>
-                    <th className="px-4 py-4">Utworzono</th>
-                    <th className="px-4 py-4 text-right">Suma</th>
-                    <th className="px-4 py-4 text-right">Akcja</th>
+                    <th className="px-4 py-4">Ort</th>
+                    <th className="px-4 py-4">Erstellt</th>
+                    <th className="px-4 py-4 text-right">Gesamt</th>
+                    <th className="px-4 py-4 text-right">Aktion</th>
                   </tr>
                 </thead>
 
@@ -338,7 +335,7 @@ export default function DashboardEstimatesPage() {
                           {estimate.estimateNumber ?? estimate.id}
                         </Link>
                         <p className="mt-1 text-xs text-neutral-500">
-                          {estimate.title ?? "Robocza wycena"}
+                          {estimate.title ?? "Entwurfskalkulation"}
                         </p>
                       </td>
 
@@ -349,7 +346,7 @@ export default function DashboardEstimatesPage() {
                         <p className="mt-1 text-xs text-neutral-500">
                           {estimate.customer?.email ??
                             estimate.customer?.phone ??
-                            "Brak kontaktu"}
+                            "Kein Kontakt"}
                         </p>
                       </td>
 
@@ -376,7 +373,7 @@ export default function DashboardEstimatesPage() {
                           href={`/dashboard/estimates/${estimate.id}`}
                           className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-neutral-100 hover:bg-white/[0.08]"
                         >
-                          Szczegóły
+                          Details
                         </Link>
                       </td>
                     </tr>

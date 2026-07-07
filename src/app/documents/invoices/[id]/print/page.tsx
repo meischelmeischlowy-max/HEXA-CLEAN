@@ -3,12 +3,10 @@ import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import EstimateOfferPrintButton from "../../../../../components/dashboard/EstimateOfferPrintButton";
+import { companyConfig } from "../../../../../config/company";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const DEFAULT_INVOICE_NOTE =
-  "Leistungsumfang gemäss vereinbartem Angebot. Diese Rechnung wurde mit HEXA OS CRM erstellt.";
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
@@ -41,6 +39,11 @@ function decimalToNumber(value: unknown) {
     return Number.isFinite(value) ? value : 0;
   }
 
+  if (typeof value === "string") {
+    const number = Number(value.replace(",", "."));
+    return Number.isFinite(number) ? number : 0;
+  }
+
   if (
     typeof value === "object" &&
     value !== null &&
@@ -51,15 +54,39 @@ function decimalToNumber(value: unknown) {
     return Number.isFinite(number) ? number : 0;
   }
 
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+  return 0;
 }
 
-function formatMoney(value: unknown, currency = "CHF") {
+function safeCurrency(value: unknown) {
+  if (typeof value !== "string") {
+    return "CHF";
+  }
+
+  const cleaned = value.trim().toUpperCase();
+
+  if (cleaned === "CHF" || cleaned === "EUR" || cleaned === "USD") {
+    return cleaned;
+  }
+
+  return "CHF";
+}
+
+function formatMoney(value: unknown, currencyInput: unknown = "CHF") {
+  const currency = safeCurrency(currencyInput);
+
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
     currency,
   }).format(decimalToNumber(value));
+}
+
+function formatQuantity(value: unknown) {
+  const number = decimalToNumber(value);
+
+  return new Intl.NumberFormat("de-CH", {
+    minimumFractionDigits: number % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(number);
 }
 
 function formatDate(value: Date | null | undefined) {
@@ -105,53 +132,70 @@ function invoiceStatusLabel(status: string | null | undefined) {
   return labels[status] ?? status;
 }
 
-function hasPolishText(value: string) {
-  const lower = value.toLowerCase();
+function invoiceUnitLabel(unit: string | null | undefined) {
+  const labels: Record<string, string> = {
+    FLAT: "Pauschal",
+    HOUR: "Std.",
+    M2: "m²",
+    ROOM: "Raum",
+    WINDOW: "Fenster",
+    PIECE: "Stk.",
+    KM: "km",
+    CUSTOM: "Individuell",
+  };
 
-  const polishMarkers = [
-    "cena",
-    "orientacyjna",
-    "ostateczna",
-    "wycena",
-    "faktura",
-    "klienta",
-    "zakresu",
-    "sprzątanie",
-    "sprzatanie",
-    "mieszkania",
-    "oddanie",
-    "mycie",
-    "okien",
-    "dojazd",
-    "małe",
-    "male",
-    "naprawy",
-    "czyszczenie",
-    "po potwierdzeniu",
-    "utworzona",
-    "ręcznie",
-    "recznie",
-    "panelu",
-  ];
+  if (!unit) {
+    return "Pauschal";
+  }
 
-  return (
-    /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(value) ||
-    polishMarkers.some((marker) => lower.includes(marker))
-  );
+  return labels[unit] ?? unit;
 }
 
-function germanText(value: string | null | undefined, fallback: string) {
+function companyAddressLines() {
+  return [
+    companyConfig.legalName,
+    companyConfig.street,
+    [companyConfig.zipCode, companyConfig.city].filter(Boolean).join(" "),
+    companyConfig.country,
+  ].filter(Boolean);
+}
+
+function customerAddressLines(customer: {
+  street: string | null;
+  zipCode: string | null;
+  city: string | null;
+  country: string | null;
+}) {
+  return [
+    customer.street,
+    [customer.zipCode, customer.city].filter(Boolean).join(" "),
+    customer.country,
+  ].filter(Boolean);
+}
+
+function cleanItemName(value: string | null | undefined) {
   if (!value) {
-    return fallback;
+    return companyConfig.invoice.defaultServiceText;
   }
 
-  const trimmed = value.trim();
+  const text = value.trim();
 
-  if (!trimmed || hasPolishText(trimmed)) {
-    return fallback;
+  if (!text) {
+    return companyConfig.invoice.defaultServiceText;
   }
 
-  return trimmed;
+  const lower = text.toLowerCase();
+
+  if (
+    lower.includes("invoice generated") ||
+    lower.includes("estimate id") ||
+    lower.includes("customer notes") ||
+    lower.includes("unknown")
+  ) {
+    return companyConfig.invoice.defaultServiceText;
+  }
+
+  return text;
 }
 
 export default async function DocumentsInvoicePrintPage({
@@ -169,6 +213,11 @@ export default async function DocumentsInvoicePrintPage({
     include: {
       customer: true,
       order: true,
+      items: {
+        orderBy: {
+          sortOrder: "asc",
+        },
+      },
       payments: {
         orderBy: {
           createdAt: "desc",
@@ -181,17 +230,16 @@ export default async function DocumentsInvoicePrintPage({
     notFound();
   }
 
+  const currency = safeCurrency(invoice.currency);
   const total = decimalToNumber(invoice.total);
+  const taxAmount = decimalToNumber(invoice.taxAmount);
   const paidAmount = decimalToNumber(invoice.paidAmount);
   const openAmount = Math.max(total - paidAmount, 0);
+  const hasMwst = companyConfig.mwst.registered || taxAmount > 0;
 
-  const customerAddress = [
-    invoice.customer?.street,
-    [invoice.customer?.zipCode, invoice.customer?.city].filter(Boolean).join(" "),
-    invoice.customer?.country,
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const serviceDate = invoice.order?.scheduledStart ?? invoice.issueDate;
+
+  const customerLines = customerAddressLines(invoice.customer);
 
   const serviceAddress = invoice.order
     ? [
@@ -205,7 +253,26 @@ export default async function DocumentsInvoicePrintPage({
         .join(", ")
     : "";
 
-  const invoiceNote = germanText(invoice.notes, DEFAULT_INVOICE_NOTE);
+  const invoiceRows =
+    invoice.items.length > 0
+      ? invoice.items.map((item) => ({
+          id: item.id,
+          name: cleanItemName(item.name),
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          total: item.total,
+        }))
+      : [
+          {
+            id: "fallback",
+            name: companyConfig.invoice.defaultServiceText,
+            quantity: "1.00",
+            unit: "FLAT",
+            unitPrice: invoice.subtotal,
+            total: invoice.subtotal,
+          },
+        ];
 
   return (
     <main className="min-h-screen bg-neutral-200 px-4 py-8 text-neutral-950 print:bg-white print:px-0 print:py-0">
@@ -215,7 +282,7 @@ export default async function DocumentsInvoicePrintPage({
             href={`/dashboard/invoices/${invoice.id}`}
             className="rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
           >
-            ← Zurück zu den Details
+            ← Zurück zur Rechnung
           </Link>
 
           <EstimateOfferPrintButton />
@@ -229,12 +296,22 @@ export default async function DocumentsInvoicePrintPage({
               </div>
 
               <h1 className="mt-5 text-3xl font-black tracking-tight">
-                HEXA CLEAN
+                {companyConfig.name}
               </h1>
 
-              <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500">
-                Rechnung für Reinigungsdienstleistungen.
-              </p>
+              <div className="mt-3 space-y-1 text-sm leading-6 text-neutral-600">
+                {companyAddressLines().map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+
+                {companyConfig.email ? <p>{companyConfig.email}</p> : null}
+                {companyConfig.phone ? <p>{companyConfig.phone}</p> : null}
+                {companyConfig.website ? <p>{companyConfig.website}</p> : null}
+
+                {companyConfig.mwst.registered && companyConfig.mwst.uid ? (
+                  <p>MWST-Nr.: {companyConfig.mwst.uid}</p>
+                ) : null}
+              </div>
             </div>
 
             <div className="text-left md:text-right">
@@ -246,45 +323,35 @@ export default async function DocumentsInvoicePrintPage({
                 {invoice.invoiceNumber}
               </h2>
 
-              <p className="mt-3 text-sm text-neutral-500">
-                Rechnungsdatum: {formatDate(invoice.issueDate)}
-              </p>
-
-              <p className="mt-1 text-sm text-neutral-500">
-                Fällig bis: {formatDate(invoice.dueDate)}
-              </p>
-
-              <p className="mt-1 text-sm text-neutral-500">
-                Status: {invoiceStatusLabel(invoice.status)}
-              </p>
+              <div className="mt-4 space-y-1 text-sm text-neutral-500">
+                <p>Rechnungsdatum: {formatDate(invoice.issueDate)}</p>
+                <p>Leistungsdatum: {formatDate(serviceDate)}</p>
+                <p>Fällig bis: {formatDate(invoice.dueDate)}</p>
+                <p>Status: {invoiceStatusLabel(invoice.status)}</p>
+              </div>
             </div>
           </header>
 
           <section className="grid gap-6 border-b border-neutral-200 py-8 md:grid-cols-2">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-                Kunde
+                Rechnung an
               </p>
 
               <p className="mt-3 text-xl font-bold">
                 {customerName(invoice.customer)}
               </p>
 
-              <p className="mt-2 text-sm leading-6 text-neutral-600">
-                {invoice.customer?.email ? (
-                  <>
-                    E-Mail: {invoice.customer.email}
-                    <br />
-                  </>
-                ) : null}
-                {invoice.customer?.phone ? (
-                  <>
-                    Telefon: {invoice.customer.phone}
-                    <br />
-                  </>
-                ) : null}
-                {customerAddress || "Keine Kundenadresse angegeben"}
-              </p>
+              <div className="mt-2 space-y-1 text-sm leading-6 text-neutral-600">
+                {customerLines.length > 0 ? (
+                  customerLines.map((line) => <p key={line}>{line}</p>)
+                ) : (
+                  <p>Keine Kundenadresse angegeben</p>
+                )}
+
+                {invoice.customer?.email ? <p>E-Mail: {invoice.customer.email}</p> : null}
+                {invoice.customer?.phone ? <p>Telefon: {invoice.customer.phone}</p> : null}
+              </div>
             </div>
 
             <div>
@@ -297,7 +364,7 @@ export default async function DocumentsInvoicePrintPage({
               </p>
 
               <p className="mt-2 text-sm leading-6 text-neutral-600">
-                {serviceAddress || customerAddress || "Kein Leistungsort angegeben"}
+                {serviceAddress || customerLines.join(", ") || "Kein Leistungsort angegeben"}
               </p>
             </div>
           </section>
@@ -307,26 +374,38 @@ export default async function DocumentsInvoicePrintPage({
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="bg-neutral-100 text-xs uppercase tracking-[0.18em] text-neutral-500">
                   <tr>
-                    <th className="px-4 py-4">Position</th>
-                    <th className="px-4 py-4">Beschreibung</th>
+                    <th className="px-4 py-4">Leistung</th>
+                    <th className="px-4 py-4 text-right">Menge</th>
+                    <th className="px-4 py-4 text-right">Einheit</th>
+                    <th className="px-4 py-4 text-right">Einzelpreis</th>
                     <th className="px-4 py-4 text-right">Betrag</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-neutral-200">
-                  <tr>
-                    <td className="px-4 py-4 align-top">
-                      <p className="font-bold">Reinigungsdienstleistungen</p>
-                    </td>
+                  {invoiceRows.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-4 align-top">
+                        <p className="font-bold">{item.name}</p>
+                      </td>
 
-                    <td className="px-4 py-4 align-top text-neutral-600">
-                      {invoiceNote}
-                    </td>
+                      <td className="px-4 py-4 text-right align-top text-neutral-600">
+                        {formatQuantity(item.quantity)}
+                      </td>
 
-                    <td className="px-4 py-4 text-right align-top font-bold">
-                      {formatMoney(invoice.subtotal, invoice.currency)}
-                    </td>
-                  </tr>
+                      <td className="px-4 py-4 text-right align-top text-neutral-600">
+                        {invoiceUnitLabel(item.unit)}
+                      </td>
+
+                      <td className="px-4 py-4 text-right align-top text-neutral-600">
+                        {formatMoney(item.unitPrice, currency)}
+                      </td>
+
+                      <td className="px-4 py-4 text-right align-top font-bold">
+                        {formatMoney(item.total, currency)}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -339,50 +418,74 @@ export default async function DocumentsInvoicePrintPage({
               </p>
 
               <p className="mt-3 text-sm leading-6 text-neutral-600">
-                Bitte begleichen Sie den offenen Betrag bis zum angegebenen
-                Fälligkeitsdatum. Zahlungsinformationen werden separat oder auf
-                Anfrage mitgeteilt.
+                {companyConfig.invoice.defaultPaymentText}
               </p>
 
+              {companyConfig.iban ? (
+                <div className="mt-4 text-sm leading-6 text-neutral-600">
+                  <p>Empfänger: {companyConfig.paymentRecipient}</p>
+                  <p>IBAN: {companyConfig.iban}</p>
+                  {companyConfig.bankName ? <p>Bank: {companyConfig.bankName}</p> : null}
+                </div>
+              ) : null}
+
+              {!hasMwst ? (
+                <p className="mt-5 text-sm leading-6 text-neutral-600">
+                  {companyConfig.mwst.notRegisteredText}
+                </p>
+              ) : null}
+
               <p className="mt-5 text-xs leading-5 text-neutral-400">
-                Dieses Dokument wurde mit HEXA OS CRM erstellt.
+                {companyConfig.invoice.footerText}
               </p>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
               <div className="flex justify-between gap-4 border-b border-neutral-200 pb-3 text-sm">
-                <span className="text-neutral-500">Zwischensumme</span>
+                <span className="text-neutral-500">
+                  {hasMwst ? "Zwischensumme exkl. MWST" : "Zwischensumme"}
+                </span>
                 <span className="font-semibold">
-                  {formatMoney(invoice.subtotal, invoice.currency)}
+                  {formatMoney(invoice.subtotal, currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
-                <span className="text-neutral-500">MwSt.</span>
+                <span className="text-neutral-500">
+                  {hasMwst ? "MWST" : "MWST"}
+                </span>
                 <span className="font-semibold">
-                  {formatMoney(invoice.taxAmount, invoice.currency)}
+                  {hasMwst
+                    ? formatMoney(invoice.taxAmount, currency)
+                    : "Keine MWST ausgewiesen"}
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
+                <span className="text-neutral-500">Total</span>
+                <span className="font-semibold">
+                  {formatMoney(invoice.total, currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
                 <span className="text-neutral-500">Bereits bezahlt</span>
                 <span className="font-semibold">
-                  - {formatMoney(invoice.paidAmount, invoice.currency)}
+                  - {formatMoney(invoice.paidAmount, currency)}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 pt-5">
                 <span className="text-lg font-black">Offener Betrag</span>
                 <span className="text-2xl font-black text-cyan-700">
-                  {formatMoney(openAmount, invoice.currency)}
+                  {formatMoney(openAmount, currency)}
                 </span>
               </div>
             </div>
           </section>
 
           <footer className="mt-10 border-t border-neutral-200 pt-6 text-xs leading-5 text-neutral-400">
-            HEXA CLEAN · Rechnung · Erstellt mit HEXA OS CRM ·{" "}
-            {formatDate(new Date())}
+            {companyConfig.name} · Rechnung · {formatDate(new Date())}
           </footer>
         </article>
       </div>

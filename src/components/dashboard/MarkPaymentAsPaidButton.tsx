@@ -16,7 +16,7 @@ export default function MarkPaymentAsPaidButton({
 
   async function handleMarkAsPaid() {
     const confirmed = window.confirm(
-      "Czy na pewno oznaczyć tę płatność jako opłaconą?"
+      "Diese Zahlung wirklich als bezahlt markieren?"
     );
 
     if (!confirmed) {
@@ -37,13 +37,13 @@ export default function MarkPaymentAsPaidButton({
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK") {
-        setError("Nie udało się oznaczyć płatności jako opłaconej.");
+        setError("Die Zahlung konnte nicht als bezahlt markiert werden.");
         return;
       }
 
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +57,7 @@ export default function MarkPaymentAsPaidButton({
         disabled={isLoading}
         className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100 transition hover:border-green-300 hover:bg-green-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Oznaczam..." : "Oznacz jako opłacone"}
+        {isLoading ? "Wird markiert..." : "Als bezahlt markieren"}
       </button>
 
       {error && <p className="text-xs text-red-400">{error}</p>}

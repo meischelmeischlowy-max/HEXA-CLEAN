@@ -85,53 +85,53 @@ export default function DashboardNotificationsPage() {
           </p>
 
           <h1 className="mt-3 text-4xl font-bold tracking-tight">
-            Powiadomienia
+            Benachrichtigungen
           </h1>
 
           <p className="mt-3 max-w-2xl text-neutral-400">
-            Lista powiadomień systemowych zapisanych w bazie HEXA OS.
+            Liste der im HEXA-OS-System gespeicherten Systembenachrichtigungen.
           </p>
         </div>
 
         {loading && (
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            Ładowanie powiadomień...
+            Benachrichtigungen werden geladen...
           </div>
         )}
 
         {errorMessage && (
           <div className="rounded-2xl border border-red-800 bg-red-950/40 p-6 text-red-200">
-            Błąd: {errorMessage}
+            Fehler: {errorMessage}
           </div>
         )}
 
         {!loading && !errorMessage && (
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900">
             <div className="border-b border-neutral-800 p-5">
-              <h2 className="text-xl font-semibold">Lista powiadomień</h2>
+              <h2 className="text-xl font-semibold">Benachrichtigungsliste</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Liczba rekordów: {notifications.length}
+                Anzahl Datensätze: {notifications.length}
               </p>
             </div>
 
             {notifications.length === 0 ? (
               <div className="p-6 text-neutral-500">
-                Brak powiadomień w bazie.
+                Keine Benachrichtigungen in der Datenbank.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1200px] text-left text-sm">
                   <thead className="border-b border-neutral-800 text-neutral-400">
                     <tr>
-                      <th className="p-4 font-medium">Kanał</th>
+                      <th className="p-4 font-medium">Kanal</th>
                       <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Odbiorca</th>
-                      <th className="p-4 font-medium">Temat</th>
-                      <th className="p-4 font-medium">Wiadomość</th>
-                      <th className="p-4 font-medium">Wysłano</th>
-                      <th className="p-4 font-medium">Odczytano</th>
-                      <th className="p-4 font-medium">Dodano</th>
-                      <th className="p-4 font-medium">Akcja</th>
+                      <th className="p-4 font-medium">Empfänger</th>
+                      <th className="p-4 font-medium">Betreff</th>
+                      <th className="p-4 font-medium">Nachricht</th>
+                      <th className="p-4 font-medium">Versendet</th>
+                      <th className="p-4 font-medium">Gelesen</th>
+                      <th className="p-4 font-medium">Hinzugefügt</th>
+                      <th className="p-4 font-medium">Aktion</th>
                     </tr>
                   </thead>
 
@@ -178,7 +178,7 @@ export default function DashboardNotificationsPage() {
                             href={`/dashboard/notifications/${notification.id}`}
                             className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
                           >
-                            Szczegóły
+                            Details
                           </Link>
                         </td>
                       </tr>

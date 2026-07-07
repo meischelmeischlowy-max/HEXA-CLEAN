@@ -10,11 +10,11 @@ type AddInvoicePaymentFormProps = {
 };
 
 const PAYMENT_METHODS = [
-  { value: "BANK_TRANSFER", label: "Przelew bankowy" },
+  { value: "BANK_TRANSFER", label: "Banküberweisung" },
   { value: "TWINT", label: "TWINT" },
-  { value: "CASH", label: "Gotówka" },
-  { value: "CARD", label: "Karta" },
-  { value: "OTHER", label: "Inne" },
+  { value: "CASH", label: "Barzahlung" },
+  { value: "CARD", label: "Karte" },
+  { value: "OTHER", label: "Andere" },
 ];
 
 function formatMoney(value: number, currency = "CHF") {
@@ -58,7 +58,7 @@ export default function AddInvoicePaymentForm({
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setIsSaving(false);
-      setErrorMessage("Kwota płatności musi być większa niż 0.");
+      setErrorMessage("Der Zahlungsbetrag muss grösser als 0 sein.");
       return;
     }
 
@@ -82,10 +82,10 @@ export default function AddInvoicePaymentForm({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Nie udało się dodać płatności.");
+        throw new Error(data?.error || "Die Zahlung konnte nicht erfasst werden.");
       }
 
-      setSuccessMessage("Płatność została dodana.");
+      setSuccessMessage("Die Zahlung wurde erfasst.");
       setAmount("");
       setExternalRef("");
       setNotes("");
@@ -95,7 +95,7 @@ export default function AddInvoicePaymentForm({
       const message =
         error instanceof Error
           ? error.message
-          : "Nie udało się dodać płatności.";
+          : "Die Zahlung konnte nicht erfasst werden.";
 
       setErrorMessage(message);
     } finally {
@@ -107,10 +107,10 @@ export default function AddInvoicePaymentForm({
     return (
       <section className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-6">
         <h2 className="text-xl font-semibold text-emerald-100">
-          Faktura rozliczona
+          Rechnung bezahlt
         </h2>
         <p className="mt-2 text-sm text-emerald-100/70">
-          Brak otwartej kwoty do zapłaty.
+          Für diese Rechnung ist kein offener Betrag vorhanden.
         </p>
       </section>
     );
@@ -120,15 +120,15 @@ export default function AddInvoicePaymentForm({
     <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Dodaj płatność</h2>
+          <h2 className="text-xl font-semibold">Zahlung erfassen</h2>
           <p className="mt-1 text-sm text-neutral-400">
-            Otwarta kwota: {formatMoney(openAmount, currency)}
+            Offener Betrag: {formatMoney(openAmount, currency)}
           </p>
         </div>
 
         <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-right">
           <p className="text-xs uppercase tracking-[0.18em] text-amber-100/60">
-            Do zapłaty
+            Offen
           </p>
           <p className="mt-1 text-lg font-black text-amber-100">
             {formatMoney(openAmount, currency)}
@@ -138,7 +138,7 @@ export default function AddInvoicePaymentForm({
 
       <form onSubmit={handleSubmit} className="mt-6 grid gap-4 lg:grid-cols-4">
         <label className="block">
-          <span className="text-sm font-medium text-neutral-300">Kwota</span>
+          <span className="text-sm font-medium text-neutral-300">Betrag</span>
           <input
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
@@ -153,9 +153,7 @@ export default function AddInvoicePaymentForm({
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-neutral-300">
-            Metoda
-          </span>
+          <span className="text-sm font-medium text-neutral-300">Methode</span>
           <select
             value={method}
             onChange={(event) => setMethod(event.target.value)}
@@ -170,26 +168,24 @@ export default function AddInvoicePaymentForm({
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-neutral-300">
-            Referencja
-          </span>
+          <span className="text-sm font-medium text-neutral-300">Referenz</span>
           <input
             value={externalRef}
             onChange={(event) => setExternalRef(event.target.value)}
             type="text"
             className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300/60"
-            placeholder="np. TWINT / bank"
+            placeholder="z.B. TWINT / Bank / Belegnummer"
           />
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-neutral-300">Notatka</span>
+          <span className="text-sm font-medium text-neutral-300">Notiz</span>
           <input
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             type="text"
             className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-300/60"
-            placeholder="np. wpłata częściowa"
+            placeholder="z.B. Teilzahlung"
           />
         </label>
 
@@ -213,7 +209,7 @@ export default function AddInvoicePaymentForm({
             disabled={isSaving}
             className="rounded-2xl border border-cyan-300/30 bg-cyan-300 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-neutral-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSaving ? "Zapisywanie..." : "Dodaj płatność"}
+            {isSaving ? "Speichern..." : "Zahlung speichern"}
           </button>
         </div>
       </form>

@@ -129,7 +129,7 @@ export default function DashboardScreenSaver() {
     }
 
     const timeout = window.setTimeout(() => {
-      setError("Błędny PIN");
+      setError("Falsche PIN");
       setPin("");
     }, 250);
 
@@ -192,7 +192,7 @@ export default function DashboardScreenSaver() {
 
           {!isPinMode ? (
             <p className="mt-5 text-sm font-semibold uppercase tracking-[0.25em] text-neutral-400">
-              Naciśnij SPACJĘ, aby odblokować
+              Drücken Sie die LEERTASTE zum Entsperren
             </p>
           ) : (
             <div className="mt-7 flex flex-col items-center gap-4">
@@ -219,7 +219,7 @@ export default function DashboardScreenSaver() {
                 </p>
               ) : (
                 <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                  Backspace usuwa cyfrę · Escape wraca do wygaszacza
+                  Backspace löscht eine Ziffer · Escape kehrt zum Bildschirmschoner zurück
                 </p>
               )}
             </div>

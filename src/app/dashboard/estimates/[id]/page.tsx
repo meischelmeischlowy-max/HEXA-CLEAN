@@ -85,15 +85,15 @@ function customerName(customer: {
 
 function statusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
-    DRAFT: "Robocza",
+    DRAFT: "Entwurf",
     AI_REVIEW: "AI sprawdza",
-    NEEDS_PHOTOS: "Potrzebne zdjęcia",
-    NEEDS_HUMAN_REVIEW: "Do kontroli właściciela",
-    READY_TO_SEND: "Gotowa do wysłania",
-    SENT: "Wysłana",
-    ACCEPTED: "Zaakceptowana",
-    REJECTED: "Odrzucona",
-    EXPIRED: "Wygasła",
+    NEEDS_PHOTOS: "Fotos erforderlich",
+    NEEDS_HUMAN_REVIEW: "Zur Kontrolle durch den Eigentümer",
+    READY_TO_SEND: "Bereit zum Senden",
+    SENT: "Versendet",
+    ACCEPTED: "Akzeptiert",
+    REJECTED: "Abgelehnt",
+    EXPIRED: "Abgelaufen",
   };
 
   if (!status) {
@@ -125,8 +125,8 @@ function auditActionLabel(action: string | null | undefined) {
   const labels: Record<string, string> = {
     CREATE: "Utworzono",
     UPDATE: "Zmieniono",
-    DELETE: "Usunięto",
-    SEND: "Wysłano",
+    DELETE: "Gelöscht",
+    SEND: "Gesendet",
     ACCEPT: "Zaakceptowano",
     REJECT: "Odrzucono",
   };
@@ -203,7 +203,7 @@ export default async function DashboardEstimateDetailsPage({
                 href="/dashboard/estimates"
                 className="text-sm font-semibold text-cyan-300 hover:text-cyan-200"
               >
-                ← Wróć do wycen
+                ← Zurück zu den Kalkulationen
               </Link>
 
               <p className="mt-5 text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
@@ -215,7 +215,7 @@ export default async function DashboardEstimateDetailsPage({
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm text-neutral-400">
-                {estimate.title ?? "Robocza wycena"}
+                {estimate.title ?? "Kalkulationsentwurf"}
               </p>
             </div>
 
@@ -240,14 +240,14 @@ export default async function DashboardEstimateDetailsPage({
             href={`/dashboard/estimates/${estimate.id}/offer`}
             className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20"
           >
-            Otwórz ofertę DE
+            Angebot öffnen
           </Link>
 
           <Link
             href={`/dashboard/estimates/${estimate.id}/offer`}
             className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20"
           >
-            Drukuj / PDF
+            Drucken / PDF
           </Link>
 
           <CreateInvoiceFromEstimateButton estimateId={estimate.id} />
@@ -256,32 +256,32 @@ export default async function DashboardEstimateDetailsPage({
             href="/dashboard/estimates/new"
             className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-neutral-200 transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
           >
-            Nowa wycena
+            Neue Kalkulation
           </Link>
         </section>
 
         <section className="grid gap-4 lg:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Klient</p>
+            <p className="text-sm text-neutral-400">Kunde</p>
             <p className="mt-2 text-xl font-semibold">
               {customerName(estimate.customer)}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
               {estimate.customer?.email ??
                 estimate.customer?.phone ??
-                "Brak kontaktu"}
+                "Kein Kontakt"}
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Miejsce usługi</p>
+            <p className="text-sm text-neutral-400">Miejsce Leistungen</p>
             <p className="mt-2 text-xl font-semibold">
               {estimate.serviceCity ?? "—"}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
               {[estimate.serviceStreet, estimate.serviceZipCode]
                 .filter(Boolean)
-                .join(", ") || "Brak adresu"}
+                .join(", ") || "Kein adresu"}
             </p>
           </div>
 
@@ -291,17 +291,17 @@ export default async function DashboardEstimateDetailsPage({
               {formatDate(estimate.createdAt)}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Źródło: {estimate.source ?? "—"}
+              Quelle: {estimate.source ?? "—"}
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Ostatnia aktywność</p>
+            <p className="text-sm text-neutral-400">Letzte Aktivität</p>
             <p className="mt-2 text-xl font-semibold">
               {latestAuditLog ? formatDate(latestAuditLog.createdAt) : "—"}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              {latestAuditLog?.message ?? "Brak historii zmian"}
+              {latestAuditLog?.message ?? "Keine Änderungshistorie"}
             </p>
           </div>
 
@@ -311,7 +311,7 @@ export default async function DashboardEstimateDetailsPage({
               {formatMoney(estimate.total, estimate.currency)}
             </p>
             <p className="mt-1 text-sm text-cyan-100/60">
-              Cena robocza, nieoficjalna
+              Arbeitsbetrag, nicht offiziell
             </p>
           </div>
         </section>
@@ -319,14 +319,14 @@ export default async function DashboardEstimateDetailsPage({
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
           <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Pozycje wyceny</h2>
+              <h2 className="text-xl font-semibold">Kalkulationspositionen</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Kalkulacja z katalogu usług albo z ręcznego formularza.
+                Kalkulation aus dem Leistungskatalog oder aus dem manuellen Formular.
               </p>
             </div>
 
             <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-              Właściciel musi zatwierdzić cenę przed wysłaniem klientowi.
+              Der Eigentümer muss den Preis vor dem Versand an den Kunden freigeben.
             </div>
           </div>
 
@@ -334,10 +334,10 @@ export default async function DashboardEstimateDetailsPage({
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-white/[0.05] text-xs uppercase tracking-[0.18em] text-neutral-400">
                 <tr>
-                  <th className="px-4 py-4">Usługa</th>
-                  <th className="px-4 py-4">Ilość</th>
-                  <th className="px-4 py-4">Cena</th>
-                  <th className="px-4 py-4">Mnożnik</th>
+                  <th className="px-4 py-4">Leistung</th>
+                  <th className="px-4 py-4">Menge</th>
+                  <th className="px-4 py-4">Preis</th>
+                  <th className="px-4 py-4">Faktor</th>
                   <th className="px-4 py-4">Ryzyko</th>
                   <th className="px-4 py-4 text-right">Razem</th>
                 </tr>
@@ -382,7 +382,7 @@ export default async function DashboardEstimateDetailsPage({
 
           {estimate.items.length === 0 ? (
             <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-              Brak pozycji wyceny.
+              Keine Kalkulationspositionen.
             </div>
           ) : null}
         </section>
@@ -426,24 +426,24 @@ export default async function DashboardEstimateDetailsPage({
 
         <section className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">Widełki AI / demo</h2>
+            <h2 className="text-xl font-semibold">AI-Spanne / Demo</h2>
             <p className="mt-4 text-2xl font-black text-cyan-200">
               {formatMoney(estimate.aiMinTotal, estimate.currency)} –{" "}
               {formatMoney(estimate.aiMaxTotal, estimate.currency)}
             </p>
             <p className="mt-3 text-sm leading-6 text-neutral-400">
               {estimate.aiNotes ??
-                "Brak analizy AI. To miejsce jest przygotowane pod przyszłą analizę zdjęć i ryzyka."}
+                "Keine AI-Analyse vorhanden. Dieser Bereich ist für die spätere Analyse von Fotos und Risiken vorbereitet."}
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">Notatki</h2>
+            <h2 className="text-xl font-semibold">Notizen</h2>
 
             <div className="mt-4 space-y-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
-                  Dla klienta
+                  Dla Kunden
                 </p>
                 <p className="mt-2 text-sm leading-6 text-neutral-300">
                   {estimate.notesCustomer ?? "—"}
@@ -452,7 +452,7 @@ export default async function DashboardEstimateDetailsPage({
 
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
-                  Wewnętrzne
+                  Intern
                 </p>
                 <p className="mt-2 text-sm leading-6 text-neutral-300">
                   {estimate.notesInternal ?? "—"}
@@ -464,16 +464,16 @@ export default async function DashboardEstimateDetailsPage({
 
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
           <div className="flex flex-col gap-2">
-            <h2 className="text-xl font-semibold">Historia wyceny</h2>
+            <h2 className="text-xl font-semibold">Kalkulationshistorie</h2>
             <p className="text-sm text-neutral-400">
-              Techniczny audit log: utworzenie wyceny, zmiany statusu i późniejsze
-              decyzje właściciela.
+              Technischer Audit-Log: Erstellung der Kalkulation, Statusänderungen und spätere
+              Entscheidungen des Eigentümers.
             </p>
           </div>
 
           {estimate.auditLogs.length === 0 ? (
             <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-              Brak historii zmian.
+              Keine Änderungshistorie.
             </div>
           ) : (
             <div className="mt-6 flex flex-col gap-4">
@@ -492,7 +492,7 @@ export default async function DashboardEstimateDetailsPage({
                         </p>
 
                         <p className="mt-2 text-sm leading-6 text-neutral-300">
-                          {log.message ?? "Zdarzenie bez opisu."}
+                          {log.message ?? "Ereignis ohne Beschreibung."}
                         </p>
 
                         {statusChange ? (
@@ -520,12 +520,12 @@ export default async function DashboardEstimateDetailsPage({
 
         <section className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-lg font-semibold">Załączniki</h2>
+            <h2 className="text-lg font-semibold">Anhänge</h2>
             <p className="mt-2 text-3xl font-black">
               {estimate.attachments.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Później zdjęcia klienta i Vision AI.
+              Später: Kundenfotos und Vision AI.
             </p>
           </div>
 
@@ -535,7 +535,7 @@ export default async function DashboardEstimateDetailsPage({
               {estimate.notifications.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Później SMS/email do właściciela.
+              Später: SMS/E-Mail an den Eigentümer.
             </p>
           </div>
 

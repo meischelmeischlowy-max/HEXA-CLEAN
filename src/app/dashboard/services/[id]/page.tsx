@@ -121,17 +121,17 @@ export default async function ServiceCatalogItemDetailsPage({
             href="/dashboard/services"
             className="text-sm text-cyan-400 transition hover:text-cyan-300"
           >
-            ← Wróć do cennika
+            ← Zurück zum Leistungsverzeichnis
           </Link>
 
           <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
-            HEXA OS / Cennik
+            HEXA OS / Leistungsverzeichnis
           </p>
 
           <h1 className="mt-3 text-3xl font-bold">{service.name}</h1>
 
           <p className="mt-2 max-w-3xl text-sm text-neutral-500">
-            Szczegóły pozycji cennika oraz powiązania z wycenami.
+            Details zur Leistungsverzeichnisposition und deren Verbindungen zu Kalkulationen.
           </p>
         </div>
 
@@ -140,14 +140,14 @@ export default async function ServiceCatalogItemDetailsPage({
             href={`/dashboard/services/${service.id}/edit`}
             className="rounded-xl border border-cyan-500 bg-cyan-500/15 px-5 py-3 text-sm font-bold text-cyan-100 transition hover:border-cyan-300 hover:bg-cyan-500/25"
           >
-            Edytuj usługę
+            Leistung bearbeiten
           </Link>
 
           <Link
             href="/dashboard/services"
             className="rounded-xl border border-neutral-700 bg-neutral-950 px-5 py-3 text-sm font-bold text-neutral-300 transition hover:border-neutral-500 hover:text-white"
           >
-            Lista usług
+            Leistungen
           </Link>
         </div>
       </div>
@@ -155,29 +155,29 @@ export default async function ServiceCatalogItemDetailsPage({
       <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <InfoCard
           label="Status"
-          value={service.isActive ? "Aktywna" : "Nieaktywna"}
+          value={service.isActive ? "Aktiv" : "Inaktiv"}
         />
         <InfoCard label="Kategoria" value={service.category} />
         <InfoCard label="Jednostka" value={service.unit} />
         <InfoCard label="Slug" value={service.slug} />
 
-        <InfoCard label="Cena bazowa" value={formatMoney(service.basePrice)} />
-        <InfoCard label="Cena minimalna" value={formatMoney(service.minPrice)} />
-        <InfoCard label="Cena maksymalna" value={formatMoney(service.maxPrice)} />
-        <InfoCard label="Ilość domyślna" value={service.defaultQuantity} />
+        <InfoCard label="Basispreis" value={formatMoney(service.basePrice)} />
+        <InfoCard label="Mindestpreis" value={formatMoney(service.minPrice)} />
+        <InfoCard label="Maximalpreis" value={formatMoney(service.maxPrice)} />
+        <InfoCard label="Standardmenge" value={service.defaultQuantity} />
 
-        <InfoCard label="Mnożnik ryzyka" value={service.riskMultiplier} />
+        <InfoCard label="Risikofaktor" value={service.riskMultiplier} />
         <InfoCard label="Sortowanie" value={service.sortOrder} />
         <InfoCard label="Utworzono" value={service.createdAt} />
-        <InfoCard label="Aktualizacja" value={service.updatedAt} />
+<InfoCard label="Aktualisiert am" value={service.updatedAt} />
 
-        <InfoCard label="Opis" value={service.description} wide />
-        <InfoCard label="Notatki" value={service.notes} wide />
+        <InfoCard label="Beschreibung" value={service.description} wide />
+        <InfoCard label="Notizen" value={service.notes} wide />
       </section>
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
         <div className="mb-5 flex items-center justify-between gap-4">
-          <h2 className="text-xl font-bold">Powiązane pozycje wycen</h2>
+          <h2 className="text-xl font-bold">Zugehörige Kalkulationspositionen</h2>
 
           <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-400">
             {service.estimateItems.length}
@@ -186,7 +186,7 @@ export default async function ServiceCatalogItemDetailsPage({
 
         {service.estimateItems.length === 0 ? (
           <p className="text-sm text-neutral-500">
-            Ta usługa nie jest jeszcze użyta w wycenach.
+            Diese Leistung wird noch nicht in Kalkulationen verwendet.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -194,19 +194,19 @@ export default async function ServiceCatalogItemDetailsPage({
               <thead className="text-xs uppercase tracking-[0.2em] text-neutral-500">
                 <tr>
                   <th className="border-b border-neutral-800 px-3 py-3">
-                    Wycena
+                    Kalkulation
                   </th>
                   <th className="border-b border-neutral-800 px-3 py-3">
-                    Opis
+                    Beschreibung
                   </th>
                   <th className="border-b border-neutral-800 px-3 py-3">
-                    Ilość
+                    Menge
                   </th>
                   <th className="border-b border-neutral-800 px-3 py-3">
-                    Cena jednostkowa
+                    Einzelpreis
                   </th>
                   <th className="border-b border-neutral-800 px-3 py-3">
-                    Akcja
+                    Aktion
                   </th>
                 </tr>
               </thead>
@@ -238,7 +238,7 @@ export default async function ServiceCatalogItemDetailsPage({
                           href={`/dashboard/estimates/${item.estimate.id}`}
                           className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-300 transition hover:border-cyan-300 hover:bg-cyan-500/10"
                         >
-                          Otwórz wycenę
+                          Kalkulation öffnen
                         </Link>
                       ) : (
                         <span className="text-xs text-neutral-600">—</span>

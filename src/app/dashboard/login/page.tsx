@@ -26,14 +26,14 @@ export default function DashboardLoginPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Nieprawidłowe hasło albo błąd logowania.");
+        throw new Error("Ungültiges Passwort oder Login-Fehler.");
       }
 
       router.push("/dashboard");
       router.refresh();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Nieznany błąd logowania."
+        error instanceof Error ? error.message : "Unbekannter Login-Fehler."
       );
     } finally {
       setLoading(false);
@@ -47,22 +47,22 @@ export default function DashboardLoginPage() {
           HEXA OS
         </p>
 
-        <h1 className="mt-4 text-3xl font-bold">Logowanie właściciela</h1>
+        <h1 className="mt-4 text-3xl font-bold">Login für den Inhaber</h1>
 
         <p className="mt-3 text-sm text-neutral-400">
-          Dostęp tylko do panelu CRM / Dashboard właściciela.
+          Nur Zugriff auf das CRM-/Dashboard des Inhabers.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
-            <label className="text-sm text-neutral-300">Hasło</label>
+            <label className="text-sm text-neutral-300">Passwort</label>
 
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-white outline-none transition focus:border-cyan-500"
-              placeholder="Wpisz hasło"
+              placeholder="Passwort eingeben"
               autoComplete="current-password"
             />
           </div>
@@ -78,13 +78,13 @@ export default function DashboardLoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-neutral-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Logowanie..." : "Zaloguj do dashboardu"}
+            {loading ? "Anmeldung..." : "Zum Dashboard anmelden"}
           </button>
         </form>
 
         <p className="mt-6 text-xs text-neutral-500">
-          Przed produkcją można później zamienić to na pełne konto użytkownika,
-          ale na tym etapie hasło chroni panel właściciela.
+          Später kann dies durch ein vollständiges Benutzerkonto ersetzt werden,
+          aber derzeit schützt das Passwort das Inhaber-Panel.
         </p>
       </section>
     </main>

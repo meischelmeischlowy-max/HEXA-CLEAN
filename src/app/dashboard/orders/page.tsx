@@ -55,7 +55,7 @@ type DashboardOrdersResponse = {
 };
 
 function formatDate(value?: string | null) {
-  if (!value) return "brak daty";
+  if (!value) return "kein Datum";
 
   const date = new Date(value);
 
@@ -143,7 +143,7 @@ function normalizeStatus(status?: string | null) {
 function getCustomerName(order: Order) {
   const customer = order.customer;
 
-  if (!customer) return "Brak klienta";
+  if (!customer) return "Kein Kunde";
 
   const fullName = [customer.firstName, customer.lastName]
     .filter(Boolean)
@@ -155,7 +155,7 @@ function getCustomerName(order: Order) {
     fullName ||
     customer.email ||
     customer.phone ||
-    "Brak nazwy"
+    "Kein Name"
   );
 }
 
@@ -181,7 +181,7 @@ export default function DashboardOrdersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Dashboard Orders API returned an error");
+        throw new Error("Die Auftrags-API hat einen Fehler zurückgegeben.");
       }
 
       const json: DashboardOrdersResponse = await response.json();
@@ -189,7 +189,7 @@ export default function DashboardOrdersPage() {
       setOrders(json.data.orders ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unknown orders error",
+        error instanceof Error ? error.message : "Unbekannter Auftragsfehler.",
       );
     } finally {
       setLoading(false);
@@ -249,7 +249,7 @@ export default function DashboardOrdersPage() {
   const columns: DashboardTableColumn<Order>[] = [
     {
       key: "order",
-      header: "Zlecenie",
+      header: "Auftrag",
       render: (order) => (
         <div>
           <p className="font-black tracking-tight text-white">
@@ -266,7 +266,7 @@ export default function DashboardOrdersPage() {
     },
     {
       key: "customer",
-      header: "Klient",
+      header: "Kunde",
       render: (order) => {
         const href = getCustomerHref(order);
 
@@ -286,7 +286,7 @@ export default function DashboardOrdersPage() {
     },
     {
       key: "service",
-      header: "Usługa",
+      header: "Leistung",
       render: (order) => (
         <p className="font-semibold text-zinc-200">{getOrderService(order)}</p>
       ),
@@ -318,7 +318,7 @@ export default function DashboardOrdersPage() {
     },
     {
       key: "action",
-      header: "Akcje",
+      header: "Aktionen",
       className: "text-right",
       render: (order) => (
         <div className="flex flex-wrap justify-end gap-2">
@@ -327,7 +327,7 @@ export default function DashboardOrdersPage() {
             variant="primary"
             size="sm"
           >
-            Szczegóły
+            Details
           </PremiumButton>
 
           <PremiumButton
@@ -335,7 +335,7 @@ export default function DashboardOrdersPage() {
             variant="secondary"
             size="sm"
           >
-            Edytuj
+            Bearbeiten
           </PremiumButton>
 
           <PremiumButton
@@ -343,7 +343,7 @@ export default function DashboardOrdersPage() {
             variant="secondary"
             size="sm"
           >
-            Wyceny
+            Kalkulationen
           </PremiumButton>
 
           <PremiumButton
@@ -351,7 +351,7 @@ export default function DashboardOrdersPage() {
             variant="ghost"
             size="sm"
           >
-            Faktury
+            Rechnungen
           </PremiumButton>
         </div>
       ),
@@ -362,60 +362,60 @@ export default function DashboardOrdersPage() {
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
-          eyebrow="HEXA OS CRM / Orders"
-          title="Zlecenia operacyjne"
-          description="Centrum obsługi prac dla klientów: statusy, lokalizacje, kwoty, workflow i przejście do klientów, wycen, faktur oraz płatności."
+          eyebrow="HEXA OS CRM / Aufträge"
+          title="Operative Aufträge"
+          description="Zentrales Arbeitscenter für Kundenaufträge: Status, Orte, Beträge, Workflow und der Übergang zu Kunden, Kalkulationen, Rechnungen und Zahlungen."
         >
           <PremiumButton href="/dashboard/orders/new" variant="primary">
-            Dodaj zlecenie
+            Auftrag erstellen
           </PremiumButton>
 
           <PremiumButton type="button" variant="secondary" onClick={loadOrders}>
-            Odśwież
+            Aktualisieren
           </PremiumButton>
 
           <PremiumButton href="/dashboard/customers" variant="ghost">
-            Klienci
+            Kunden
           </PremiumButton>
 
           <PremiumButton href="/dashboard/invoices" variant="ghost">
-            Faktury
+            Rechnungen
           </PremiumButton>
         </PageHeader>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            title="Wszystkie zlecenia"
+            title="Alle Aufträge"
             value={String(stats.total)}
-            description="Łączna liczba rekordów w module zleceń."
-            trend="Źródło: Orders API"
+            description="Gesamtzahl der Datensätze im Auftragsmodul."
+            trend="Quelle: Auftrags-API"
             tone="cyan"
             icon={<span className="text-lg font-black">JOB</span>}
           />
 
           <MetricCard
-            title="Aktywne"
+            title="Aktiv"
             value={String(stats.open)}
-            description="Zlecenia nowe, otwarte, w trakcie lub oczekujące."
-            trend="Do obsługi"
+            description="Neue, offene, laufende oder wartende Aufträge."
+            trend="Zur Bearbeitung"
             tone="amber"
             icon={<span className="text-lg font-black">↗</span>}
           />
 
           <MetricCard
-            title="Zakończone"
+            title="Abgeschlossen"
             value={String(stats.completed)}
-            description="Prace oznaczone jako zakończone w HEXA OS."
-            trend="Status COMPLETED"
+            description="Aufträge, die in HEXA OS als abgeschlossen markiert sind."
+            trend="Status ABGESCHLOSSEN"
             tone="emerald"
             icon={<span className="text-lg font-black">✓</span>}
           />
 
           <MetricCard
-            title="Wartość"
+            title="Wert"
             value={formatAmount(stats.estimatedValue)}
-            description="Suma znanych kwot zleceń."
-            trend={`${stats.quoted} po wycenie / potwierdzeniu`}
+            description="Summe der bekannten Auftragsbeträge."
+            trend={`${stats.quoted} nach Kalkulation / Bestätigung`}
             tone="violet"
             icon={<span className="text-lg font-black">CHF</span>}
           />
@@ -423,8 +423,8 @@ export default function DashboardOrdersPage() {
 
         {loading ? (
           <DashboardPanel
-            title="Ładowanie zleceń"
-            description="HEXA OS pobiera aktualne dane z modułu Orders."
+            title="Aufträge werden geladen"
+            description="HEXA OS lädt die aktuellen Daten aus dem Auftragsmodul."
           >
             <div className="grid gap-3">
               {[1, 2, 3, 4].map((item) => (
@@ -439,13 +439,13 @@ export default function DashboardOrdersPage() {
 
         {errorMessage ? (
           <DashboardPanel
-            title="Błąd modułu Orders"
-            description="Nie udało się pobrać listy zleceń z API."
+            title="Fehler im Auftragsmodul"
+            description="Die Auftragsliste konnte nicht aus der API geladen werden."
           >
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Błąd: {errorMessage}</p>
+              <p className="font-bold">Fehler: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Sprawdź endpoint /api/dashboard/orders oraz połączenie z bazą.
+                Prüfen Sie den Endpoint /api/dashboard/orders und die Datenbankverbindung.
               </p>
             </div>
           </DashboardPanel>
@@ -453,12 +453,12 @@ export default function DashboardOrdersPage() {
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Lista zleceń"
-            description={`Liczba rekordów: ${orders.length}. Kliknij szczegóły albo edycję, aby przejść do workflow zlecenia.`}
+            title="Auftragsliste"
+            description={`Anzahl Datensätze: ${orders.length}. Öffnen Sie Details oder Bearbeiten, um in den Auftrags-Workflow zu gelangen.`}
             action={
               <StatusBadge
                 status={orders.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={orders.length > 0 ? "Dane aktywne" : "Brak danych"}
+                label={orders.length > 0 ? "Daten aktiv" : "Keine Daten"}
               />
             }
           >
@@ -468,9 +468,9 @@ export default function DashboardOrdersPage() {
               getRowKey={(order) => order.id}
               empty={
                 <EmptyState
-                  title="Brak zleceń w bazie"
-                  description="Dodaj zlecenie ręcznie albo utwórz je później z AI Concierge, formularza albo rozmowy telefonicznej."
-                  actionLabel="Dodaj zlecenie"
+                  title="Keine Aufträge in der Datenbank"
+                  description="Erstellen Sie einen Auftrag manuell oder später über AI Concierge, Formular oder Telefonanruf."
+                  actionLabel="Auftrag erstellen"
                   actionHref="/dashboard/orders/new"
                 />
               }

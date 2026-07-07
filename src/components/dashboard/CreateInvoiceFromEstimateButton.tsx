@@ -46,14 +46,14 @@ export default function CreateInvoiceFromEstimateButton({
         throw new Error(
           json.data?.message ??
             json.message ??
-            "Nie udało się utworzyć faktury."
+            "Die Rechnung konnte nicht erstellt werden.",
         );
       }
 
       const invoiceId = json.data?.invoice?.id;
 
       if (!invoiceId) {
-        throw new Error("API nie zwróciło ID faktury.");
+        throw new Error("Die API hat keine Rechnungs-ID zurückgegeben.");
       }
 
       router.push(`/dashboard/invoices/${invoiceId}`);
@@ -62,7 +62,7 @@ export default function CreateInvoiceFromEstimateButton({
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd tworzenia faktury."
+          : "Unbekannter Fehler beim Erstellen der Rechnung.",
       );
     } finally {
       setLoading(false);
@@ -77,7 +77,7 @@ export default function CreateInvoiceFromEstimateButton({
         disabled={loading}
         className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? "Tworzenie faktury..." : "Utwórz fakturę"}
+        {loading ? "Rechnung wird erstellt..." : "Rechnung erstellen"}
       </button>
 
       {error ? (

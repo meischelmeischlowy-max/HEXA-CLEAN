@@ -16,18 +16,18 @@ export default function NewServiceCatalogItemPage() {
           href="/dashboard/services"
           className="text-sm text-cyan-400 transition hover:text-cyan-300"
         >
-          ← Wróć do cennika
+          ← Zurück zu den Leistungen
         </Link>
 
         <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
-          HEXA OS / Cennik
+          HEXA OS / Leistungen
         </p>
 
-        <h1 className="mt-3 text-3xl font-bold">Dodaj usługę</h1>
+        <h1 className="mt-3 text-3xl font-bold">Leistung hinzufügen</h1>
 
         <p className="mt-2 max-w-3xl text-sm text-neutral-500">
-          Ręczne dodawanie pozycji cennika. Te dane będą później używane w
-          wycenach, ofertach i fakturach.
+          Manuelle Erstellung einer Leistung. Diese Daten werden später verwendet in
+          Kalkulationen, Angebotch i Rechnungenach.
         </p>
       </div>
 

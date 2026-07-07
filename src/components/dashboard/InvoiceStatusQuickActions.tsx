@@ -19,23 +19,23 @@ type ActionButton = {
 
 const actions: ActionButton[] = [
   {
-    label: "Oznacz jako wysłana",
+    label: "Als versendet markieren",
     status: "SENT",
     variant: "default",
   },
   {
-    label: "Oznacz jako opłacona",
+    label: "Als bezahlt markieren",
     status: "PAID",
     variant: "success",
     setPaidFull: true,
   },
   {
-    label: "Częściowo opłacona",
+    label: "Teilweise bezahlt",
     status: "PARTIALLY_PAID",
     variant: "warning",
   },
   {
-    label: "Po terminie",
+    label: "Überfällig",
     status: "OVERDUE",
     variant: "danger",
   },
@@ -64,19 +64,19 @@ function buttonClass(variant: ActionButton["variant"], active: boolean) {
 function statusLabel(status: string) {
   switch (status) {
     case "DRAFT":
-      return "Robocza";
+      return "Entwurf";
     case "SENT":
-      return "Wysłana";
+      return "Versendet";
     case "PAID":
-      return "Opłacona";
+      return "Bezahlt";
     case "PARTIALLY_PAID":
-      return "Częściowo opłacona";
+      return "Teilweise bezahlt";
     case "OVERDUE":
-      return "Po terminie";
+      return "Überfällig";
     case "CANCELLED":
-      return "Anulowana";
+      return "Storniert";
     default:
-      return status || "Brak statusu";
+      return status || "Kein Status";
   }
 }
 
@@ -120,11 +120,11 @@ export default function InvoiceStatusQuickActions({
         throw new Error(`HTTP ${response.status}`);
       }
 
-      setMessage("Status faktury zapisany.");
+      setMessage("Der Rechnungsstatus wurde gespeichert.");
       router.refresh();
     } catch (err) {
       console.error(err);
-      setError("Nie udało się zapisać statusu faktury.");
+      setError("Der Rechnungsstatus konnte nicht gespeichert werden.");
     } finally {
       setLoadingStatus(null);
     }
@@ -135,11 +135,11 @@ export default function InvoiceStatusQuickActions({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
-            Status faktury
+            Rechnungsstatus
           </p>
 
           <h2 className="mt-2 text-xl font-bold text-white">
-            Szybkie akcje płatności
+            Schnelle Zahlungsaktionen
           </h2>
 
           <p className="mt-2 text-sm text-slate-400">
@@ -147,7 +147,7 @@ export default function InvoiceStatusQuickActions({
             <span className="font-semibold text-white">
               {statusLabel(currentStatus)}
             </span>{" "}
-            · Zapłacono:{" "}
+            · Bezahlt:{" "}
             <span className="font-semibold text-emerald-300">
               {paidAmount.toFixed(2)}
             </span>
@@ -167,7 +167,7 @@ export default function InvoiceStatusQuickActions({
                 onClick={() => updateStatus(action)}
                 className={buttonClass(action.variant, active)}
               >
-                {loading ? "Zapisywanie..." : active ? "Aktywne" : action.label}
+                {loading ? "Wird gespeichert..." : active ? "Aktiv" : action.label}
               </button>
             );
           })}

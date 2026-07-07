@@ -64,7 +64,7 @@ function DataSection({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Brak danych.</p>
+        <p className="text-sm text-neutral-500">Keine Daten.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">
@@ -75,13 +75,13 @@ function DataSection({
                   Status / Typ
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Numer / Nazwa
+                  Numer / Name
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
                   Data
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Akcja
+                  Aktion
                 </th>
               </tr>
             </thead>
@@ -128,7 +128,7 @@ function DataSection({
                           href={`${basePath}/${itemId}`}
                           className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-400 transition hover:border-cyan-400 hover:bg-cyan-500/10"
                         >
-                          Szczegóły
+                          Details
                         </Link>
                       ) : (
                         <span className="text-xs text-neutral-600">—</span>
@@ -194,30 +194,30 @@ export default async function QuoteDetailsPage({
             href="/dashboard/quotes"
             className="text-sm text-cyan-400 transition hover:text-cyan-300"
           >
-            ← Wróć do ofert
+            ← Zurück zu Angeboten
           </Link>
 
           <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
             HEXA OS
           </p>
 
-          <h1 className="mt-3 text-3xl font-bold">Szczegóły oferty</h1>
+          <h1 className="mt-3 text-3xl font-bold">Angebotsdetails</h1>
 
           <p className="mt-2 text-sm text-neutral-500">
-            Pełne dane oferty oraz powiązany klient, zlecenie, faktury,
-            płatności, załączniki i historia systemu.
+            Vollständige Angebotsdaten inklusive zugehörigem Kunden, Auftrag, Rechnungen,
+            Zahlungen, Anhängen und Systemverlauf.
           </p>
         </div>
 
         <div className="flex flex-col gap-3 lg:items-end">
           {isAccepted ? (
             <div className="rounded-xl border border-lime-600 bg-lime-950/50 px-4 py-3 text-sm font-semibold text-lime-100">
-              Oferta zaakceptowana
+              Angebot akzeptiert
             </div>
           ) : isSent ? (
             <>
               <div className="rounded-xl border border-sky-600 bg-sky-950/50 px-4 py-3 text-sm font-semibold text-sky-100">
-                Oferta wysłana
+                Angebot versendet
               </div>
 
               <MarkQuoteAsAcceptedButton quoteId={quote.id} />
@@ -226,7 +226,7 @@ export default async function QuoteDetailsPage({
             <MarkQuoteAsSentButton quoteId={quote.id} />
           ) : (
             <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 px-4 py-3 text-sm font-semibold text-neutral-300">
-              Status oferty: {quote.status}
+              Angebotsstatus: {quote.status}
             </div>
           )}
 
@@ -235,7 +235,7 @@ export default async function QuoteDetailsPage({
               href={`/dashboard/invoices/${firstInvoice.id}`}
               className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70"
             >
-              Otwórz fakturę
+              Rechnung öffnen
             </Link>
           ) : (
             <CreateInvoiceFromQuoteButton quoteId={quote.id} />
@@ -248,19 +248,19 @@ export default async function QuoteDetailsPage({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <RecordLink
-            label="Klient"
+            label="Kunde"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
             value={customerName}
           />
 
           <RecordLink
-            label="Zlecenie"
+            label="Auftrag"
             href={order?.id ? `/dashboard/orders/${order.id}` : null}
             value={order?.orderNumber ?? order?.number ?? order?.id}
           />
 
           <RecordLink
-            label="Pierwsza faktura"
+            label="Erste Rechnung"
             href={
               firstInvoice?.id
                 ? `/dashboard/invoices/${firstInvoice.id}`
@@ -274,7 +274,7 @@ export default async function QuoteDetailsPage({
           />
 
           <RecordLink
-            label="Pierwsza płatność"
+            label="Erste Zahlung"
             href={
               firstPayment?.id
                 ? `/dashboard/payments/${firstPayment.id}`
@@ -291,7 +291,7 @@ export default async function QuoteDetailsPage({
       </section>
 
       <section className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-        <h2 className="mb-4 text-xl font-bold">Oferta</h2>
+        <h2 className="mb-4 text-xl font-bold">Angebot</h2>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <InfoCard label="ID" value={quote.id} />
@@ -308,11 +308,11 @@ export default async function QuoteDetailsPage({
             value={formatMoney(quote.taxAmount, currency)}
           />
           <InfoCard label="Total" value={formatMoney(quote.total, currency)} />
-          <InfoCard label="Klient ID" value={quote.customerId} />
-          <InfoCard label="Zlecenie ID" value={quote.orderId} />
+          <InfoCard label="Kunden-ID" value={quote.customerId} />
+          <InfoCard label="Auftrag ID" value={quote.orderId} />
           <InfoCard label="Sesja ID" value={quote.sessionId} />
-          <InfoCard label="Ważna do" value={quote.validUntil ?? quote.dueDate} />
-          <InfoCard label="Wysłano" value={quote.sentAt} />
+          <InfoCard label="Gültig bis" value={quote.validUntil ?? quote.dueDate} />
+          <InfoCard label="Gesendet" value={quote.sentAt} />
           <InfoCard label="Zaakceptowano" value={quote.acceptedAt} />
           <InfoCard label="Utworzono" value={quote.createdAt} />
           <InfoCard label="Aktualizacja" value={quote.updatedAt} />
@@ -321,34 +321,34 @@ export default async function QuoteDetailsPage({
 
       <section className="mb-8 grid gap-6 xl:grid-cols-3">
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Klient</h2>
+          <h2 className="mb-4 text-xl font-bold">Kunde</h2>
 
           {customer ? (
             <div className="grid gap-4">
               <RecordLink
-                label="Otwórz klienta"
+                label="Kunde öffnen"
                 href={`/dashboard/customers/${customer.id}`}
                 value={customerName}
               />
               <InfoCard label="ID" value={customer.id} />
-              <InfoCard label="Imię / nazwa" value={customerName} />
+              <InfoCard label="Name" value={customerName} />
               <InfoCard label="Email" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
-              Brak powiązanego klienta.
+              Kein verknüpfter Kunde.
             </p>
           )}
         </div>
 
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Zlecenie</h2>
+          <h2 className="mb-4 text-xl font-bold">Auftrag</h2>
 
           {order ? (
             <div className="grid gap-4">
               <RecordLink
-                label="Otwórz zlecenie"
+                label="Auftrag öffnen"
                 href={`/dashboard/orders/${order.id}`}
                 value={order.orderNumber ?? order.number ?? order.id}
               />
@@ -359,13 +359,13 @@ export default async function QuoteDetailsPage({
               />
               <InfoCard label="Status" value={order.status} />
               <InfoCard
-                label="Usługa"
+                label="Leistung"
                 value={order.serviceType ?? order.service}
               />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
-              Brak powiązanego zlecenia.
+              Kein verknüpfter Auftrag.
             </p>
           )}
         </div>
@@ -378,28 +378,28 @@ export default async function QuoteDetailsPage({
               <InfoCard label="ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
               <InfoCard label="Utworzono" value={session.createdAt} />
-              <InfoCard label="Zakończono" value={session.endedAt} />
+              <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">Brak powiązanej sesji.</p>
+            <p className="text-sm text-neutral-500">Keine verknüpfte Sitzung.</p>
           )}
         </div>
       </section>
 
       <div className="grid gap-6">
         <DataSection
-          title="Wiadomości rozmów"
+          title="Gesprächsnachrichten"
           items={conversationMessages as Record<string, unknown>[]}
         />
 
         <DataSection
-          title="Faktury"
+          title="Rechnungen"
           items={invoices as Record<string, unknown>[]}
           basePath="/dashboard/invoices"
         />
 
         <DataSection
-          title="Płatności"
+          title="Zahlungen"
           items={payments as Record<string, unknown>[]}
           basePath="/dashboard/payments"
         />
@@ -411,7 +411,7 @@ export default async function QuoteDetailsPage({
         />
 
         <DataSection
-          title="Załączniki"
+          title="Anhänge"
           items={attachments as Record<string, unknown>[]}
           basePath="/dashboard/attachments"
         />

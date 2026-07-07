@@ -103,14 +103,14 @@ function customerName(customer?: {
 
 function statusLabel(status?: string | null) {
   const labels: Record<string, string> = {
-    PENDING: "Oczekująca",
-    PAID: "Opłacona",
+    PENDING: "Ausstehend",
+    PAID: "Bezahlt",
     FAILED: "Nieudana",
-    REFUNDED: "Zwrócona",
+    REFUNDED: "Erstattet",
     CANCELLED: "Anulowana",
-    DRAFT: "Szkic",
-    SENT: "Wysłana",
-    PARTIALLY_PAID: "Częściowo opłacona",
+    DRAFT: "Entwurf",
+    SENT: "Versendet",
+    PARTIALLY_PAID: "Teilweise bezahlt",
     OVERDUE: "Po terminie",
   };
 
@@ -121,11 +121,11 @@ function statusLabel(status?: string | null) {
 
 function methodLabel(method?: string | null) {
   const labels: Record<string, string> = {
-    BANK_TRANSFER: "Przelew bankowy",
-    CASH: "Gotówka",
+    BANK_TRANSFER: "Banküberweisung",
+    CASH: "Barzahlung",
     TWINT: "TWINT",
     CARD: "Karta",
-    OTHER: "Inna metoda",
+    OTHER: "Andere Methode",
   };
 
   const key = String(method || "").toUpperCase();
@@ -254,7 +254,7 @@ export default async function PaymentDetailsPage({
               href="/dashboard/payments"
               className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
             >
-              ← Wróć do płatności
+              ← Zurück zu Zahlungen
             </Link>
 
             <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -262,22 +262,21 @@ export default async function PaymentDetailsPage({
             </p>
 
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
-              Szczegóły płatności
+              Zahlungsdetails
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-              Podgląd wpłaty, powiązanej faktury, klienta, zlecenia oraz historii
-              systemowej.
+              Vorschau der Zahlung, der zugehörigen Rechnung, des Kunden, des Auftrags und des Systemverlaufs.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <ActionLink href="/dashboard/payments" label="Lista płatności" />
+            <ActionLink href="/dashboard/payments" label="Zahlungsliste" />
 
             {invoice?.id ? (
               <ActionLink
                 href={`/dashboard/invoices/${invoice.id}`}
-                label="Otwórz fakturę"
+                label="Rechnung öffnen"
                 variant="primary"
               />
             ) : null}
@@ -285,7 +284,7 @@ export default async function PaymentDetailsPage({
             {invoice?.id ? (
               <ActionLink
                 href={`/dashboard/invoices/${invoice.id}/print`}
-                label="Drukuj fakturę"
+                label="Rechnung drucken"
               />
             ) : null}
           </div>
@@ -293,67 +292,67 @@ export default async function PaymentDetailsPage({
 
         <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <InfoCard label="Status płatności" value={statusLabel(payment.status)} tone="cyan" />
-            <InfoCard label="Kwota wpłaty" value={formatMoney(paymentAmount, currency)} tone="green" />
-            <InfoCard label="Metoda" value={methodLabel(payment.method)} />
-            <InfoCard label="Referencja" value={payment.externalRef} />
+            <InfoCard label="Zahlungsstatus" value={statusLabel(payment.status)} tone="cyan" />
+            <InfoCard label="Zahlungsbetrag" value={formatMoney(paymentAmount, currency)} tone="green" />
+            <InfoCard label="Methode" value={methodLabel(payment.method)} />
+            <InfoCard label="Referenz" value={payment.externalRef} />
           </div>
         </section>
 
         <section className="grid gap-6 xl:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-zinc-950/70 p-6 xl:col-span-2">
-            <h2 className="text-xl font-black text-white">Płatność</h2>
+            <h2 className="text-xl font-black text-white">Zahlung</h2>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <InfoCard label="ID" value={payment.id} />
               <InfoCard label="Status" value={statusLabel(payment.status)} />
-              <InfoCard label="Kwota" value={formatMoney(payment.amount, currency)} />
-              <InfoCard label="Waluta" value={currency} />
-              <InfoCard label="Metoda" value={methodLabel(payment.method)} />
-              <InfoCard label="Referencja" value={payment.externalRef} />
-              <InfoCard label="Notatka" value={payment.notes} />
-              <InfoCard label="Opłacono" value={payment.paidAt} />
-              <InfoCard label="Utworzono" value={payment.createdAt} />
-              <InfoCard label="Aktualizacja" value={payment.updatedAt} />
+              <InfoCard label="Betrag" value={formatMoney(payment.amount, currency)} />
+              <InfoCard label="Währung" value={currency} />
+              <InfoCard label="Methode" value={methodLabel(payment.method)} />
+              <InfoCard label="Referenz" value={payment.externalRef} />
+              <InfoCard label="Notiz" value={payment.notes} />
+              <InfoCard label="Bezahlt am" value={payment.paidAt} />
+              <InfoCard label="Erstellt am" value={payment.createdAt} />
+              <InfoCard label="Aktualisiert am" value={payment.updatedAt} />
             </div>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-zinc-950/70 p-6">
-            <h2 className="text-xl font-black text-white">Powiązania</h2>
+            <h2 className="text-xl font-black text-white">Verknüpfungen</h2>
 
             <div className="mt-5 grid gap-3">
               {invoice?.id ? (
                 <ActionLink
                   href={`/dashboard/invoices/${invoice.id}`}
-                  label={`Faktura ${invoice.invoiceNumber}`}
+                  label={`Rechnung ${invoice.invoiceNumber}`}
                   variant="primary"
                 />
               ) : (
-                <InfoCard label="Faktura" value="Brak powiązanej faktury" />
+                <InfoCard label="Rechnung" value="Keine zugehörige Rechnung" />
               )}
 
               {customer?.id ? (
                 <ActionLink
                   href={`/dashboard/customers/${customer.id}`}
-                  label={`Klient: ${customerName(customer)}`}
+                  label={`Kunde: ${customerName(customer)}`}
                 />
               ) : (
-                <InfoCard label="Klient" value="Brak klienta" />
+                <InfoCard label="Kunde" value="Kein Kunde" />
               )}
 
               {order?.id ? (
                 <ActionLink
                   href={`/dashboard/orders/${order.id}`}
-                  label={`Zlecenie ${order.orderNumber}`}
+                  label={`Auftrag ${order.orderNumber}`}
                 />
               ) : (
-                <InfoCard label="Zlecenie" value="Brak zlecenia" />
+                <InfoCard label="Auftrag" value="Kein Auftrag" />
               )}
 
               {quote?.id ? (
                 <ActionLink
                   href={`/dashboard/quotes/${quote.id}`}
-                  label={`Oferta ${quote.quoteNumber}`}
+                  label={`Angebot ${quote.quoteNumber}`}
                 />
               ) : null}
             </div>
@@ -362,38 +361,38 @@ export default async function PaymentDetailsPage({
 
         <section className="grid gap-6 xl:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-zinc-950/70 p-6">
-            <h2 className="text-xl font-black text-white">Faktura</h2>
+            <h2 className="text-xl font-black text-white">Rechnung</h2>
 
             {invoice ? (
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <InfoCard label="Numer" value={invoice.invoiceNumber} />
                 <InfoCard label="Status" value={statusLabel(invoice.status)} />
                 <InfoCard label="Total" value={formatMoney(invoice.total, currency)} />
-                <InfoCard label="Zapłacono" value={formatMoney(invoice.paidAmount, currency)} />
-                <InfoCard label="Pozostało" value={formatMoney(invoiceRemaining, currency)} tone={invoiceRemaining > 0 ? "red" : "green"} />
+                <InfoCard label="Bezahlt" value={formatMoney(invoice.paidAmount, currency)} />
+                <InfoCard label="Offen" value={formatMoney(invoiceRemaining, currency)} tone={invoiceRemaining > 0 ? "red" : "green"} />
                 <InfoCard label="Termin" value={invoice.dueDate} />
                 <InfoCard label="Wystawiono" value={invoice.issueDate} />
-                <InfoCard label="Opłacono dnia" value={invoice.paidAt} />
+                <InfoCard label="Bezahlt am" value={invoice.paidAt} />
               </div>
             ) : (
-              <p className="mt-4 text-sm text-zinc-500">Brak powiązanej faktury.</p>
+              <p className="mt-4 text-sm text-zinc-500">Keine zugehörige Rechnung.</p>
             )}
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-zinc-950/70 p-6">
-            <h2 className="text-xl font-black text-white">Klient</h2>
+            <h2 className="text-xl font-black text-white">Kunde</h2>
 
             {customer ? (
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <InfoCard label="Nazwa" value={customerName(customer)} />
+                <InfoCard label="Name" value={customerName(customer)} />
                 <InfoCard label="Typ" value={customer.type} />
                 <InfoCard label="Email" value={customer.email} />
                 <InfoCard label="Telefon" value={customer.phone} />
-                <InfoCard label="Ulica" value={customer.street} />
-                <InfoCard label="Kod / miasto" value={[customer.zipCode, customer.city].filter(Boolean).join(" ")} />
+                <InfoCard label="Straße" value={customer.street} />
+                <InfoCard label="PLZ / Ort" value={[customer.zipCode, customer.city].filter(Boolean).join(" ")} />
               </div>
             ) : (
-              <p className="mt-4 text-sm text-zinc-500">Brak powiązanego klienta.</p>
+              <p className="mt-4 text-sm text-zinc-500">Kein zugehöriger Kunde vorhanden.</p>
             )}
           </div>
         </section>
@@ -401,9 +400,9 @@ export default async function PaymentDetailsPage({
         <section className="rounded-3xl border border-white/10 bg-zinc-950/70 p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-black text-white">Historia systemowa</h2>
+              <h2 className="text-xl font-black text-white">Systemverlauf</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Ostatnie wpisy audytu powiązane z płatnością albo fakturą.
+                Neueste Audit-Einträge im Zusammenhang mit Zahlung oder Rechnung.
               </p>
             </div>
 
@@ -418,9 +417,9 @@ export default async function PaymentDetailsPage({
                 <thead className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                   <tr>
                     <th className="border-b border-white/10 px-3 py-3">Data</th>
-                    <th className="border-b border-white/10 px-3 py-3">Akcja</th>
+                    <th className="border-b border-white/10 px-3 py-3">Aktion</th>
                     <th className="border-b border-white/10 px-3 py-3">Typ</th>
-                    <th className="border-b border-white/10 px-3 py-3">Opis</th>
+                    <th className="border-b border-white/10 px-3 py-3">Beschreibung</th>
                   </tr>
                 </thead>
 
@@ -437,7 +436,7 @@ export default async function PaymentDetailsPage({
               </table>
             </div>
           ) : (
-            <p className="mt-5 text-sm text-zinc-500">Brak wpisów audytu.</p>
+            <p className="mt-5 text-sm text-zinc-500">Keine Einträge audytu.</p>
           )}
         </section>
       </section>

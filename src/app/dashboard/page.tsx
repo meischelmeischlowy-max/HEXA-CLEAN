@@ -7,68 +7,68 @@ import StatusBadge from "../../components/dashboard/StatusBadge";
 
 const workflowSteps = [
   {
-    title: "Zlecenie",
-    description: "Nowa sprawa klienta trafia do CRM.",
+    title: "Anfrage",
+    description: "Eine neue Kundenanfrage kommt über Formular, Telefon oder AI Concierge ins System.",
     status: "OPEN",
   },
   {
-    title: "Oferta",
-    description: "System tworzy ofertę z danych zlecenia.",
+    title: "Angebot",
+    description: "Aus Kundendaten, Leistungsort und Leistungen wird ein Angebot vorbereitet.",
     status: "SENT",
   },
   {
-    title: "Faktura",
-    description: "Po akceptacji oferta przechodzi do faktury.",
+    title: "Auftrag",
+    description: "Nach Annahme des Angebots wird daraus ein konkreter Auftrag.",
+    status: "IN_PROGRESS",
+  },
+  {
+    title: "Rechnung",
+    description: "Nach Leistung oder Freigabe wird automatisch eine Rechnung erstellt.",
     status: "DRAFT",
   },
   {
-    title: "Płatność",
-    description: "Płatność oczekuje lub zostaje oznaczona jako opłacona.",
+    title: "Zahlung",
+    description: "Erfasste Zahlungen aktualisieren den Rechnungsstatus automatisch.",
     status: "PENDING",
-  },
-  {
-    title: "Zakończenie",
-    description: "Zlecenie zamknięte po opłaceniu i realizacji.",
-    status: "COMPLETED",
   },
 ];
 
 const activityItems = [
   {
     id: "activity-1",
-    title: "Workflow CRM aktywny",
+    title: "HEXA OS ist aktiv",
     description:
-      "Zlecenie → Oferta → Faktura → Płatność → Zakończenie działa jako główny proces operacyjny.",
+      "Kunden, Aufträge, Angebote, Rechnungen und Zahlungen sind im operativen System verfügbar.",
     status: "IN_PROGRESS",
     time: "HEXA OS",
   },
   {
     id: "activity-2",
-    title: "Quick actions gotowe",
+    title: "Rechnungsmodul erweitert",
     description:
-      "System posiada akcje tworzenia ofert, faktur, płatności oraz oznaczania statusów.",
+      "Rechnungen können aus Angeboten erstellt, geöffnet, gedruckt und mit Zahlungen verbunden werden.",
     status: "ACCEPTED",
-    time: "CRM Automation",
+    time: "Rechnungen",
   },
   {
     id: "activity-3",
-    title: "Redesign panelu rozpoczęty",
+    title: "Automatisierung im Fokus",
     description:
-      "Dashboard przechodzi na wygląd premium SaaS z KPI, workflow, timeline i statusami.",
+      "Statuswerte sollen aus echten Aktionen entstehen, nicht aus manueller Statuspflege.",
     status: "SENT",
-    time: "UI Premium",
+    time: "Workflow",
   },
 ];
 
 const modules = [
-  "Klienci",
-  "Zlecenia",
-  "Oferty",
-  "Faktury",
-  "Płatności",
+  "Kunden",
+  "Aufträge",
+  "Kalkulationen",
+  "Angebote",
+  "Rechnungen",
+  "Zahlungen",
   "AI Concierge",
-  "Automatyzacje",
-  "Audit log",
+  "Audit Log",
 ];
 
 export default function DashboardPage() {
@@ -76,15 +76,15 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <PageHeader
-          eyebrow="HEXA OS / Business Operations Panel"
-          title="Centrum dowodzenia firmy usługowej"
-          description="Profesjonalny panel CRM do obsługi klientów, zleceń, ofert, faktur, płatności, automatyzacji i późniejszego AI Concierge."
+          eyebrow="HEXA OS / Betriebs-Panel"
+          title="Operations-Zentrale für Dienstleistungsbetriebe"
+          description="CRM, Kundenanfragen, Aufträge, Angebote, Rechnungen, Zahlungen und Automatisierung in einem System."
         >
           <PremiumButton href="/dashboard/orders" variant="primary">
-            Zlecenia
+            Aufträge
           </PremiumButton>
           <PremiumButton href="/dashboard/customers" variant="secondary">
-            Klienci
+            Kunden
           </PremiumButton>
         </PageHeader>
 
@@ -92,35 +92,35 @@ export default function DashboardPage() {
           <MetricCard
             title="System"
             value="Online"
-            description="Panel operacyjny HEXA OS działa i jest gotowy do dalszej rozbudowy."
-            trend="Status: stabilny"
+            description="Das HEXA OS Operations Panel ist aktiv und bereit für die weitere Automatisierung."
+            trend="Status: aktiv"
             tone="emerald"
             icon={<span className="text-lg font-black">OS</span>}
           />
 
           <MetricCard
             title="Workflow"
-            value="5 etapów"
-            description="Zlecenie, oferta, faktura, płatność i zakończenie procesu."
-            trend="Automatyzacja CRM"
+            value="5 Schritte"
+            description="Anfrage, Angebot, Auftrag, Rechnung und Zahlung als operativer Hauptprozess."
+            trend="Automation first"
             tone="cyan"
             icon={<span className="text-lg font-black">↗</span>}
           />
 
           <MetricCard
-            title="Moduły"
+            title="Module"
             value="8"
-            description="Klienci, zlecenia, oferty, faktury, płatności, AI i logi."
-            trend="Panel premium SaaS"
+            description="Kunden, Aufträge, Angebote, Rechnungen, Zahlungen, AI und Audit Log."
+            trend="SaaS-Struktur"
             tone="violet"
             icon={<span className="text-lg font-black">◆</span>}
           />
 
           <MetricCard
-            title="Finanse"
-            value="CRM"
-            description="Faktury i płatności są częścią jednego procesu biznesowego."
-            trend="Kontrola płatności"
+            title="Finanzen"
+            value="CHF"
+            description="Rechnungen und Zahlungen sind direkt mit dem Geschäftsprozess verbunden."
+            trend="Zahlungskontrolle"
             tone="amber"
             icon={<span className="text-lg font-black">CHF</span>}
           />
@@ -128,9 +128,9 @@ export default function DashboardPage() {
 
         <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
           <DashboardPanel
-            title="Puls systemu"
-            description="Pokazowy wykres operacyjny. W kolejnym etapie podłączymy tu realne dane z bazy."
-            action={<StatusBadge status="IN_PROGRESS" label="Live preview" />}
+            title="Systempuls"
+            description="Operative Vorschau. Später werden hier echte Kennzahlen aus der Datenbank angezeigt."
+            action={<StatusBadge status="IN_PROGRESS" label="Live-Vorschau" />}
           >
             <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-5">
               <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl" />
@@ -140,14 +140,14 @@ export default function DashboardPage() {
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                      Operacje
+                      Betrieb
                     </p>
                     <p className="mt-2 text-2xl font-black text-white">CRM</p>
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                      Automatyzacja
+                      Automation
                     </p>
                     <p className="mt-2 text-2xl font-black text-white">Ready</p>
                   </div>
@@ -166,7 +166,7 @@ export default function DashboardPage() {
                   viewBox="0 0 900 260"
                   className="h-64 w-full rounded-3xl border border-white/10 bg-zinc-950/80"
                   role="img"
-                  aria-label="Wykres pulsu systemu HEXA OS"
+                  aria-label="HEXA OS Systempuls"
                 >
                   <defs>
                     <linearGradient id="hexaPulse" x1="0" x2="1" y1="0" y2="0">
@@ -223,8 +223,8 @@ export default function DashboardPage() {
           </DashboardPanel>
 
           <DashboardPanel
-            title="Status operacyjny"
-            description="Najważniejsze moduły systemu w jednym miejscu."
+            title="Operativer Status"
+            description="Die wichtigsten Systemmodule auf einen Blick."
           >
             <div className="grid gap-3">
               {modules.map((module) => (
@@ -235,11 +235,11 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-bold text-white">{module}</p>
                     <p className="mt-1 text-xs text-zinc-500">
-                      Moduł HEXA OS
+                      HEXA OS Modul
                     </p>
                   </div>
 
-                  <StatusBadge status="ACCEPTED" label="Aktywny" />
+                  <StatusBadge status="ACCEPTED" label="Aktiv" />
                 </div>
               ))}
             </div>
@@ -248,8 +248,8 @@ export default function DashboardPage() {
 
         <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
           <DashboardPanel
-            title="Workflow sprzedaży"
-            description="Docelowy proces obsługi klienta od zapytania do zamknięcia zlecenia."
+            title="Automatisierter Geschäftsprozess"
+            description="Zielprozess von der Kundenanfrage bis zur Zahlung."
           >
             <div className="space-y-4">
               {workflowSteps.map((step, index) => (
@@ -281,11 +281,11 @@ export default function DashboardPage() {
           </DashboardPanel>
 
           <DashboardPanel
-            title="Ostatnia aktywność"
-            description="Live feed dla akcji CRM, statusów i automatyzacji."
+            title="Letzte Aktivität"
+            description="Live Feed für CRM-Aktionen, Dokumente und Automatisierungen."
             action={
               <PremiumButton href="/dashboard/audit-logs" variant="ghost">
-                Audit log
+                Audit Log
               </PremiumButton>
             }
           >
@@ -294,17 +294,17 @@ export default function DashboardPage() {
         </section>
 
         <DashboardPanel
-          title="HEXA OS — kierunek produktu"
-          description="Ten panel ma wyglądać jak gotowy system premium, który można pokazać klientowi i później sprzedawać jako rozwiązanie dla firm usługowych."
+          title="HEXA OS — Produktbasis"
+          description="Dieses System ist die erste vollständige Basis für spätere wiederverwendbare MM Core Module."
         >
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
               <p className="text-sm font-black text-cyan-100">
-                CRM dla firmy usługowej
+                CRM für Dienstleister
               </p>
               <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                Klienci, zlecenia, oferty, faktury i płatności w jednym
-                panelu.
+                Kunden, Aufträge, Angebote, Rechnungen und Zahlungen in einem
+                Panel.
               </p>
             </div>
 
@@ -313,18 +313,18 @@ export default function DashboardPage() {
                 AI Concierge
               </p>
               <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                Docelowo chatbot z numerem sesji, zbieraniem danych i
-                automatyzacją zapytań.
+                Später mit Sitzungsnummer, Kundendaten, Anfrageaufnahme und
+                automatischer Übergabe an das CRM.
               </p>
             </div>
 
             <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
               <p className="text-sm font-black text-emerald-100">
-                Automatyzacje
+                Automatisierung
               </p>
               <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                Powiadomienia, email, workflow, statusy i pełny ślad działań w
-                audit log.
+                E-Mail, Dokumente, Zahlungen, Erinnerungen und Audit Log sollen
+                aus echten Aktionen entstehen.
               </p>
             </div>
           </div>

@@ -99,38 +99,38 @@ export default function DashboardAttachmentsPage() {
           </p>
 
           <h1 className="mt-3 text-4xl font-bold tracking-tight">
-            Załączniki
+            Anhänge
           </h1>
 
           <p className="mt-3 max-w-2xl text-neutral-400">
-            Lista plików, zdjęć i dokumentów zapisanych w bazie HEXA OS.
+            Liste der Dateien, Fotos und Dokumente in der HEXA-OS-Datenbank.
           </p>
         </div>
 
         {loading && (
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-            Ładowanie załączników...
+            Anhänge werden geladen...
           </div>
         )}
 
         {errorMessage && (
           <div className="rounded-2xl border border-red-800 bg-red-950/40 p-6 text-red-200">
-            Błąd: {errorMessage}
+            Fehler: {errorMessage}
           </div>
         )}
 
         {!loading && !errorMessage && (
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900">
             <div className="border-b border-neutral-800 p-5">
-              <h2 className="text-xl font-semibold">Lista załączników</h2>
+              <h2 className="text-xl font-semibold">Anhangsliste</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Liczba rekordów: {attachments.length}
+                Anzahl Datensätze: {attachments.length}
               </p>
             </div>
 
             {attachments.length === 0 ? (
               <div className="p-6 text-neutral-500">
-                Brak załączników w bazie.
+                Keine Anhänge w bazie.
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -144,7 +144,7 @@ export default function DashboardAttachmentsPage() {
                       <th className="p-4 font-medium">Uploaded by</th>
                       <th className="p-4 font-medium">Link</th>
                       <th className="p-4 font-medium">Dodano</th>
-                      <th className="p-4 font-medium">Akcja</th>
+                      <th className="p-4 font-medium">Aktion</th>
                     </tr>
                   </thead>
 
@@ -182,7 +182,7 @@ export default function DashboardAttachmentsPage() {
                               rel="noreferrer"
                               className="text-cyan-400 hover:text-cyan-300"
                             >
-                              Otwórz
+                              Öffnen
                             </a>
                           ) : (
                             "—"
@@ -198,7 +198,7 @@ export default function DashboardAttachmentsPage() {
                             href={`/dashboard/attachments/${attachment.id}`}
                             className="rounded-xl border border-cyan-700 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400 hover:text-white"
                           >
-                            Szczegóły
+                            Details
                           </Link>
                         </td>
                       </tr>

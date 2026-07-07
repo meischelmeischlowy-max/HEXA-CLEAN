@@ -52,10 +52,10 @@ type InvoiceForm = {
 };
 
 const statusOptions = [
-  { value: "DRAFT", label: "Szkic" },
-  { value: "SENT", label: "Wysłana" },
-  { value: "PAID", label: "Opłacona" },
-  { value: "PARTIALLY_PAID", label: "Częściowo opłacona" },
+  { value: "DRAFT", label: "Entwurf" },
+  { value: "SENT", label: "Versendet" },
+  { value: "PAID", label: "Bezahlt" },
+  { value: "PARTIALLY_PAID", label: "Teilweise bezahlt" },
   { value: "OVERDUE", label: "Po terminie" },
   { value: "CANCELLED", label: "Anulowana" },
 ];
@@ -123,7 +123,7 @@ function apiMessage(data: InvoiceApiResponse) {
     }
   }
 
-  return data.message ?? "Brak komunikatu API.";
+  return data.message ?? "Keine API-Meldung.";
 }
 
 function apiStatus(data: InvoiceApiResponse) {
@@ -240,7 +240,7 @@ export default function DashboardInvoiceEditPage() {
 
       if (!rawText.trim()) {
         throw new Error(
-          `API zwróciło pustą odpowiedź. HTTP status: ${response.status}`
+          `Die API hat eine leere Antwort zurückgegeben. HTTP-Status: ${response.status}`
         );
       }
 
@@ -253,7 +253,7 @@ export default function DashboardInvoiceEditPage() {
 
       if (!loadedInvoice) {
         throw new Error(
-          `API odpowiedziało, ale formularz nie znalazł danych faktury. Komunikat API: ${apiMessage(
+          `Die API hat geantwortet, aber das Formular konnte die Rechnungsdaten nicht finden. API-Meldung: ${apiMessage(
             data
           )}`
         );
@@ -265,7 +265,7 @@ export default function DashboardInvoiceEditPage() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd pobierania faktury."
+          : "Unbekannter Fehler beim Laden der Rechnung."
       );
     } finally {
       setLoading(false);
@@ -316,7 +316,7 @@ export default function DashboardInvoiceEditPage() {
 
       if (!rawText.trim()) {
         throw new Error(
-          `API zwróciło pustą odpowiedź. HTTP status: ${response.status}`
+          `Die API hat eine leere Antwort zurückgegeben. HTTP-Status: ${response.status}`
         );
       }
 
@@ -329,7 +329,7 @@ export default function DashboardInvoiceEditPage() {
 
       if (!updatedInvoice) {
         throw new Error(
-          `API zapisało odpowiedź, ale formularz nie znalazł zapisanej faktury. Komunikat API: ${apiMessage(
+          `Die API hat gespeichert, aber das Formular konnte die gespeicherte Rechnung nicht finden. API-Meldung: ${apiMessage(
             data
           )}`
         );
@@ -337,13 +337,13 @@ export default function DashboardInvoiceEditPage() {
 
       setInvoice(updatedInvoice);
       setForm(createForm(updatedInvoice));
-      setMessage(apiMessage(data) || "Faktura została zapisana.");
+      setMessage(apiMessage(data) || "Die Rechnung wurde gespeichert.");
       router.refresh();
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd zapisu faktury."
+          : "Unbekannter Fehler beim Speichern der Rechnung."
       );
     } finally {
       setSaving(false);
@@ -354,7 +354,7 @@ export default function DashboardInvoiceEditPage() {
     return (
       <main className="min-h-screen px-6 py-8 text-white">
         <div className="mx-auto max-w-6xl rounded-3xl border border-white/10 bg-white/[0.03] p-8">
-          Ładowanie faktury...
+          Rechnung wird geladen...
         </div>
       </main>
     );
@@ -364,7 +364,7 @@ export default function DashboardInvoiceEditPage() {
     return (
       <main className="min-h-screen px-6 py-8 text-white">
         <div className="mx-auto max-w-6xl rounded-3xl border border-red-400/20 bg-red-500/10 p-8 text-red-100">
-          {error || "Nie znaleziono faktury."}
+          {error || "Rechnung wurde nicht gefunden."}
         </div>
       </main>
     );
@@ -380,7 +380,7 @@ export default function DashboardInvoiceEditPage() {
                 href={`/dashboard/invoices/${invoice.id}`}
                 className="text-sm font-semibold text-cyan-300 hover:text-cyan-200"
               >
-                ← Wróć do szczegółów faktury
+                ← Zurück zu den Rechnungsdetails
               </Link>
 
               <p className="mt-5 text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
@@ -388,11 +388,11 @@ export default function DashboardInvoiceEditPage() {
               </p>
 
               <h1 className="mt-3 text-3xl font-black tracking-tight">
-                Edycja faktury
+                Rechnung bearbeiten
               </h1>
 
               <p className="mt-2 text-sm text-neutral-400">
-                Klient: {customerName(invoice)}
+                Kunde: {customerName(invoice)}
               </p>
             </div>
 
@@ -403,7 +403,7 @@ export default function DashboardInvoiceEditPage() {
                 href={`/dashboard/invoices/${invoice.id}/print`}
                 variant="ghost"
               >
-                Drukuj
+                Drucken
               </PremiumButton>
             </div>
           </div>
@@ -411,11 +411,11 @@ export default function DashboardInvoiceEditPage() {
 
         <section className="grid gap-6 lg:grid-cols-[1fr_340px]">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">Dane faktury</h2>
+            <h2 className="text-xl font-semibold">Rechnungsdaten</h2>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Numer faktury</span>
+                <span className="text-sm text-neutral-400">Rechnungsnummer</span>
                 <input
                   value={form.invoiceNumber}
                   onChange={(event) =>
@@ -441,7 +441,7 @@ export default function DashboardInvoiceEditPage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Data faktury</span>
+                <span className="text-sm text-neutral-400">Rechnungsdatum</span>
                 <input
                   type="date"
                   value={form.issueDate}
@@ -453,7 +453,7 @@ export default function DashboardInvoiceEditPage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Termin płatności</span>
+                <span className="text-sm text-neutral-400">Zahlungsfrist</span>
                 <input
                   type="date"
                   value={form.dueDate}
@@ -512,7 +512,7 @@ export default function DashboardInvoiceEditPage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Zapłacono</span>
+                <span className="text-sm text-neutral-400">Bezahlt</span>
                 <input
                   value={form.paidAmount}
                   onChange={(event) =>
@@ -525,7 +525,7 @@ export default function DashboardInvoiceEditPage() {
 
             <label className="mt-4 flex flex-col gap-2">
               <span className="text-sm text-neutral-400">
-                Notatki / treść dla faktury
+                Notizen / Rechnungstext
               </span>
               <textarea
                 value={form.notes}
@@ -583,7 +583,7 @@ export default function DashboardInvoiceEditPage() {
               disabled={saving}
               className="mt-3 w-full rounded-2xl border border-emerald-300/30 bg-emerald-400/15 px-4 py-3 text-sm font-black text-emerald-100 hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Zapisywanie..." : "Zapisz fakturę"}
+              {saving ? "Wird gespeichert..." : "Rechnung speichern"}
             </button>
 
             {message ? (

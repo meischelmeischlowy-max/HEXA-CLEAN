@@ -116,29 +116,29 @@ function formatPaymentMethod(method?: string | null) {
   if (!method) return "—";
 
   const labels: Record<string, string> = {
-    BANK_TRANSFER: "Przelew bankowy",
-    CASH: "Gotówka",
-    CARD: "Karta",
+    BANK_TRANSFER: "Banküberweisung",
+    CASH: "Barzahlung",
+    CARD: "Karte",
     TWINT: "TWINT",
-    OTHER: "Inna metoda",
+    OTHER: "Andere Methode",
   };
 
   return labels[method.toUpperCase()] ?? method;
 }
 
 function customerName(customer?: Customer | null) {
-  if (!customer) return "Brak klienta";
+  if (!customer) return "Kein Kunde";
   if (customer.companyName) return customer.companyName;
 
   const fullName = [customer.firstName, customer.lastName]
     .filter(Boolean)
     .join(" ");
 
-  return fullName || "Brak klienta";
+  return fullName || "Kein Kunde";
 }
 
 function invoiceLabel(invoice?: InvoiceOption | null) {
-  if (!invoice) return "Brak faktury";
+  if (!invoice) return "Keine Rechnung";
 
   return `${invoice.invoiceNumber || invoice.id} · ${customerName(invoice.customer)}`;
 }
@@ -169,7 +169,7 @@ export default function DashboardPaymentsPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Dashboard Payments API returned an error");
+        throw new Error("Die Zahlungs-API hat einen Fehler zurückgegeben.");
       }
 
       const json: DashboardPaymentsResponse = await response.json();
@@ -178,7 +178,7 @@ export default function DashboardPaymentsPage() {
       setInvoices(json.data.invoices ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unknown payments error",
+        error instanceof Error ? error.message : "Unbekannter Zahlungsfehler",
       );
     } finally {
       setLoading(false);
@@ -274,14 +274,14 @@ export default function DashboardPaymentsPage() {
       setAmount("");
       setExternalRef("");
       setNotes("");
-      setMessage("Płatność została zapisana i faktura została zaktualizowana.");
+      setMessage("Die Zahlung wurde gespeichert und die Rechnung aktualisiert.");
 
       await loadPayments();
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nie udało się zapisać płatności.",
+          : "Die Zahlung konnte nicht gespeichert werden.",
       );
     } finally {
       setSaving(false);
@@ -297,7 +297,7 @@ export default function DashboardPaymentsPage() {
   const columns: DashboardTableColumn<Payment>[] = [
     {
       key: "payment",
-      header: "Płatność",
+      header: "Zahlung",
       render: (payment) => (
         <div>
           <p className="max-w-xs truncate font-black tracking-tight text-white">
@@ -314,7 +314,7 @@ export default function DashboardPaymentsPage() {
     },
     {
       key: "amount",
-      header: "Kwota",
+      header: "Betrag",
       render: (payment) => (
         <p className="font-black text-emerald-100">
           {formatMoney(payment.amount, payment.currency ?? "CHF")}
@@ -323,7 +323,7 @@ export default function DashboardPaymentsPage() {
     },
     {
       key: "method",
-      header: "Metoda",
+      header: "Methode",
       render: (payment) => (
         <div>
           <p className="font-semibold text-zinc-200">
@@ -337,7 +337,7 @@ export default function DashboardPaymentsPage() {
     },
     {
       key: "invoice",
-      header: "Faktura",
+      header: "Rechnung",
       render: (payment) => (
         <div>
           <p className="max-w-xs truncate font-semibold text-zinc-200">
@@ -351,7 +351,7 @@ export default function DashboardPaymentsPage() {
     },
     {
       key: "paidAt",
-      header: "Zapłacono",
+      header: "Bezahlt am",
       render: (payment) => (
         <p className="text-sm font-medium text-zinc-400">
           {formatDate(payment.paidAt)}
@@ -360,7 +360,7 @@ export default function DashboardPaymentsPage() {
     },
     {
       key: "created",
-      header: "Dodano",
+      header: "Erstellt am",
       render: (payment) => (
         <p className="text-sm font-medium text-zinc-400">
           {formatDate(payment.createdAt)}
@@ -369,7 +369,7 @@ export default function DashboardPaymentsPage() {
     },
     {
       key: "action",
-      header: "Akcja",
+      header: "Aktion",
       className: "text-right",
       render: (payment) => (
         <div className="flex justify-end gap-2">
@@ -378,7 +378,7 @@ export default function DashboardPaymentsPage() {
             variant="primary"
             size="sm"
           >
-            Szczegóły
+            Details
           </PremiumButton>
 
           {payment.invoiceId ? (
@@ -387,7 +387,7 @@ export default function DashboardPaymentsPage() {
               variant="secondary"
               size="sm"
             >
-              Faktura
+              Rechnung
             </PremiumButton>
           ) : null}
         </div>
@@ -400,8 +400,8 @@ export default function DashboardPaymentsPage() {
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
           eyebrow="HEXA OS CRM / Payments"
-          title="Płatności"
-          description="Rejestruj realne wpłaty do faktur. Każda opłacona płatność aktualizuje kwotę zapłaconą i status faktury."
+          title="Zahlungen"
+          description="Erfassen Sie reale Zahlungseingänge zu Rechnungen. Jede bezahlte Zahlung aktualisiert den bezahlten Betrag und den Rechnungsstatus."
         >
           <PremiumButton
             type="button"
@@ -409,69 +409,69 @@ export default function DashboardPaymentsPage() {
             onClick={loadPayments}
             disabled={loading}
           >
-            Odśwież
+            Aktualisieren
           </PremiumButton>
           <PremiumButton href="/dashboard/invoices" variant="ghost">
-            Faktury
+            Rechnungen
           </PremiumButton>
         </PageHeader>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            title="Wszystkie płatności"
+            title="Alle Zahlungen"
             value={String(stats.total)}
-            description="Łączna liczba płatności zapisanych w bazie."
+            description="Gesamtzahl der in der Datenbank gespeicherten Zahlungen."
             trend={formatMoney(stats.totalValue, "CHF")}
             tone="cyan"
             icon={<span className="text-lg font-black">PAY</span>}
           />
 
           <MetricCard
-            title="Oczekujące"
+            title="Ausstehend"
             value={String(stats.pending)}
-            description="Płatności utworzone, ale jeszcze nieopłacone."
+            description="Erfasste Zahlungen, die noch nicht bezahlt wurden."
             trend={formatMoney(stats.pendingValue, "CHF")}
             tone="amber"
             icon={<span className="text-lg font-black">…</span>}
           />
 
           <MetricCard
-            title="Opłacone"
+            title="Bezahlt"
             value={String(stats.paid)}
-            description="Płatności oznaczone jako PAID."
+            description="Zahlungen, die als bezahlt markiert sind."
             trend={formatMoney(stats.paidValue, "CHF")}
             tone="emerald"
             icon={<span className="text-lg font-black">✓</span>}
           />
 
           <MetricCard
-            title="Problemy"
+            title="Probleme"
             value={String(stats.failed)}
-            description="Płatności anulowane lub nieudane."
-            trend="Do kontroli ręcznej"
+            description="Stornierte oder fehlgeschlagene Zahlungen."
+            trend="Zur manuellen Kontrolle"
             tone={stats.failed > 0 ? "red" : "zinc"}
             icon={<span className="text-lg font-black">!</span>}
           />
         </section>
 
         <DashboardPanel
-          title="Dodaj płatność do faktury"
-          description="Wpisana wpłata utworzy rekord Payment i automatycznie zaktualizuje fakturę."
+          title="Zahlung zu Rechnung hinzufügen"
+          description="Eine erfasste Zahlung erstellt einen Zahlungseintrag und aktualisiert die Rechnung automatisch."
         >
           <div className="grid gap-4 xl:grid-cols-[1.5fr_0.7fr_0.7fr_1fr]">
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Faktura
+                Rechnung
               </span>
               <select
                 value={invoiceId}
                 onChange={(event) => setInvoiceId(event.target.value)}
                 className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-cyan-400"
               >
-                <option value="">Wybierz fakturę</option>
+                <option value="">Rechnung auswählen</option>
                 {invoices.map((invoice) => (
                   <option key={invoice.id} value={invoice.id}>
-                    {invoiceLabel(invoice)} · pozostało{" "}
+                    {invoiceLabel(invoice)} · offen{" "}
                     {formatMoney(
                       Math.max(
                         toNumber(invoice.total) - toNumber(invoice.paidAmount),
@@ -486,7 +486,7 @@ export default function DashboardPaymentsPage() {
 
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Kwota
+                Betrag
               </span>
               <input
                 value={amount}
@@ -498,18 +498,18 @@ export default function DashboardPaymentsPage() {
 
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Metoda
+                Methode
               </span>
               <select
                 value={method}
                 onChange={(event) => setMethod(event.target.value)}
                 className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-cyan-400"
               >
-                <option value="BANK_TRANSFER">Przelew bankowy</option>
-                <option value="CASH">Gotówka</option>
+                <option value="BANK_TRANSFER">Banküberweisung</option>
+                <option value="CASH">Barzahlung</option>
                 <option value="TWINT">TWINT</option>
                 <option value="CARD">Karta</option>
-                <option value="OTHER">Inna metoda</option>
+                <option value="OTHER">Andere Methode</option>
               </select>
             </label>
 
@@ -520,7 +520,7 @@ export default function DashboardPaymentsPage() {
                 onClick={fillRemainingAmount}
                 disabled={!selectedInvoice || selectedRemaining <= 0}
               >
-                Reszta
+                Restbetrag
               </PremiumButton>
 
               <PremiumButton
@@ -529,7 +529,7 @@ export default function DashboardPaymentsPage() {
                 onClick={createPayment}
                 disabled={saving || !invoiceId || !amount}
               >
-                {saving ? "Zapisywanie..." : "Zapisz płatność"}
+                {saving ? "Wird gespeichert..." : "Zahlung speichern"}
               </PremiumButton>
             </div>
           </div>
@@ -537,24 +537,24 @@ export default function DashboardPaymentsPage() {
           <div className="mt-4 grid gap-4 xl:grid-cols-2">
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Referencja / numer transakcji
+                Referenz / Transaktionsnummer
               </span>
               <input
                 value={externalRef}
                 onChange={(event) => setExternalRef(event.target.value)}
-                placeholder="np. przelew bankowy, TWINT, gotówka"
+                placeholder="z. B. Banküberweisung, TWINT, Barzahlung"
                 className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-400"
               />
             </label>
 
             <label className="grid gap-2">
               <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Notatka
+                Notiz
               </span>
               <input
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="np. wpłata częściowa, klient zapłacił gotówką"
+                placeholder="z. B. Teilzahlung, Kunde zahlte bar"
                 className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-400"
               />
             </label>
@@ -566,12 +566,12 @@ export default function DashboardPaymentsPage() {
               <p className="mt-1 text-cyan-100/75">
                 Total:{" "}
                 {formatMoney(selectedInvoice.total, selectedInvoice.currency ?? "CHF")} ·
-                Zapłacono:{" "}
+                Bezahlt:{" "}
                 {formatMoney(
                   selectedInvoice.paidAmount,
                   selectedInvoice.currency ?? "CHF",
                 )}{" "}
-                · Pozostało:{" "}
+                · Offen:{" "}
                 {formatMoney(selectedRemaining, selectedInvoice.currency ?? "CHF")}
               </p>
             </div>
@@ -592,8 +592,8 @@ export default function DashboardPaymentsPage() {
 
         {loading ? (
           <DashboardPanel
-            title="Ładowanie płatności"
-            description="HEXA OS pobiera aktualne dane z modułu Payments."
+            title="Zahlungen werden geladen"
+            description="HEXA OS lädt die aktuellen Daten aus dem Zahlungsmodul."
           >
             <div className="grid gap-3">
               {[1, 2, 3, 4].map((item) => (
@@ -608,13 +608,13 @@ export default function DashboardPaymentsPage() {
 
         {!loading ? (
           <DashboardPanel
-            title="Lista płatności"
-            description={`Liczba rekordów: ${payments.length}. Płatność aktualizuje fakturę i zamyka etap finansowy procesu.`}
+            title="Zahlungsliste"
+            description={`Anzahl Datensätze: ${payments.length}. Eine Zahlung aktualisiert die Rechnung und schließt den finanziellen Schritt des Prozesses ab.`}
             action={
               <StatusBadge
                 status={payments.length > 0 ? "ACCEPTED" : "PENDING"}
                 label={
-                  payments.length > 0 ? "Płatności aktywne" : "Brak płatności"
+                  payments.length > 0 ? "Aktive Zahlungen" : "Keine Zahlungen"
                 }
               />
             }
@@ -625,9 +625,9 @@ export default function DashboardPaymentsPage() {
               getRowKey={(payment) => payment.id}
               empty={
                 <EmptyState
-                  title="Brak płatności w bazie"
-                  description="Pierwsza płatność pojawi się tutaj po utworzeniu jej z faktury."
-                  actionLabel="Przejdź do faktur"
+                  title="Keine Zahlungen in der Datenbank"
+                  description="Die erste Zahlung erscheint hier nach der Erstellung über eine Rechnung."
+                  actionLabel="Zu den Rechnungen"
                   actionHref="/dashboard/invoices"
                 />
               }
@@ -636,34 +636,34 @@ export default function DashboardPaymentsPage() {
         ) : null}
 
         <DashboardPanel
-          title="Zasada rozliczenia"
-          description="Payment jest oddzielnym rekordem historii wpłat. Faktura trzyma sumę paidAmount i status płatności."
+          title="Abwicklungsprinzip"
+          description="Eine Zahlung ist ein separater Datensatz zur Zahlungshistorie. Die Rechnung enthält die Summe der bezahlten Beträge und den Zahlungsstatus."
         >
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
               <p className="text-sm font-black text-cyan-100">
-                1. Wybierz fakturę
+                1. Rechnung auswählen
               </p>
               <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                System pokazuje total, zapłacono i kwotę pozostałą.
+                Das System zeigt Gesamtbetrag, bereits bezahlten Betrag und den Restbetrag.
               </p>
             </div>
 
             <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
               <p className="text-sm font-black text-violet-100">
-                2. Wpisz wpłatę
+                2. Zahlung erfassen
               </p>
               <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                Możesz dodać przelew, gotówkę, TWINT, kartę albo inną metodę.
+                Sie können Banküberweisung, Barzahlung, TWINT, Kartenzahlung oder eine andere Methode erfassen.
               </p>
             </div>
 
             <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
               <p className="text-sm font-black text-emerald-100">
-                3. Faktura się aktualizuje
+                3. Die Rechnung wird aktualisiert
               </p>
               <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                Po pełnej wpłacie status faktury przechodzi na PAID.
+                Nach vollständiger Zahlung wechselt der Rechnungsstatus auf BEZAHLT.
               </p>
             </div>
           </div>
@@ -674,7 +674,7 @@ export default function DashboardPaymentsPage() {
             href="/dashboard/invoices"
             className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.07]"
           >
-            Wróć do faktur
+            Zurück zu Rechnungen
           </Link>
         </div>
       </section>

@@ -23,20 +23,20 @@ export default function CreatePaymentFromInvoiceButton({
         `/api/dashboard/invoices/${invoiceId}/create-payment`,
         {
           method: "POST",
-        }
+        },
       );
 
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK" || !result.paymentId) {
-        setError("Nie udało się utworzyć płatności.");
+        setError("Die Zahlung konnte nicht erstellt werden.");
         return;
       }
 
       router.push(`/dashboard/payments/${result.paymentId}`);
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -50,10 +50,10 @@ export default function CreatePaymentFromInvoiceButton({
         disabled={isLoading}
         className="rounded-xl border border-violet-600 bg-violet-950/50 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:border-violet-300 hover:bg-violet-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Tworzę płatność..." : "Dodaj płatność"}
+        {isLoading ? "Zahlung wird erstellt..." : "Zahlung erfassen"}
       </button>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error ? <p className="text-xs text-red-400">{error}</p> : null}
     </div>
   );
 }

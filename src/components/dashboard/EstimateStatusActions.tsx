@@ -29,28 +29,28 @@ type ApiResponse = {
 const statusOptions: StatusOption[] = [
   {
     value: "DRAFT",
-    label: "Robocza",
-    description: "Wycena jest jeszcze przygotowywana.",
+    label: "Entwurf",
+    description: "Die Kalkulation wird noch vorbereitet.",
   },
   {
     value: "READY_TO_SEND",
-    label: "Gotowa do wysłania",
-    description: "Właściciel zaakceptował roboczą cenę.",
+    label: "Bereit zum Senden",
+    description: "Der Eigentümer hat den Arbeitspreis akzeptiert.",
   },
   {
     value: "SENT",
-    label: "Wysłana",
-    description: "Oferta została wysłana klientowi.",
+    label: "Versendet",
+    description: "Das Angebot wurde an den Kunden gesendet.",
   },
   {
     value: "ACCEPTED",
-    label: "Zaakceptowana",
-    description: "Klient zaakceptował wycenę.",
+    label: "Akzeptiert",
+    description: "Der Kunde hat die Kalkulation akzeptiert.",
   },
   {
     value: "REJECTED",
-    label: "Odrzucona",
-    description: "Klient odrzucił wycenę.",
+    label: "Abgelehnt",
+    description: "Der Kunde hat die Kalkulation abgelehnt.",
   },
 ];
 
@@ -73,7 +73,7 @@ export default function EstimateStatusActions({
 
     if (!rawText.trim()) {
       throw new Error(
-        `API zwróciło pustą odpowiedź. HTTP status: ${response.status}`
+        `Die API hat eine leere Antwort zurückgegeben. HTTP-Status: ${response.status}`
       );
     }
 
@@ -81,9 +81,9 @@ export default function EstimateStatusActions({
       return JSON.parse(rawText) as ApiResponse;
     } catch {
       throw new Error(
-        `API nie zwróciło JSON. HTTP status: ${
+        `Die API hat kein JSON zurückgegeben. HTTP-Status: ${
           response.status
-        }. Odpowiedź: ${rawText.slice(0, 300)}`
+        }. Antwort: ${rawText.slice(0, 300)}`
       );
     }
   }
@@ -112,17 +112,17 @@ export default function EstimateStatusActions({
 
       if (!response.ok || data.data?.status === "error") {
         throw new Error(
-          data.data?.message ?? data.message ?? "Nie udało się zmienić statusu."
+          data.data?.message ?? data.message ?? "Der Status konnte nicht geändert werden."
         );
       }
 
-      setMessage(data.data?.message ?? "Status został zmieniony.");
+      setMessage(data.data?.message ?? "Der Status wurde geändert.");
       router.refresh();
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd zmiany statusu."
+          : "Unbekannter Fehler beim Ändern des Status."
       );
     } finally {
       setIsUpdating("");
@@ -147,14 +147,14 @@ export default function EstimateStatusActions({
 
       if (!response.ok || data.data?.status === "error") {
         throw new Error(
-          data.data?.message ?? data.message ?? "Nie udało się utworzyć faktury."
+          data.data?.message ?? data.message ?? "Die Rechnung konnte nicht erstellt werden."
         );
       }
 
       const invoiceId = data.data?.invoice?.id;
 
       if (!invoiceId) {
-        throw new Error("API nie zwróciło ID faktury.");
+        throw new Error("Die API hat keine Rechnungs-ID zurückgegeben.");
       }
 
       router.push(`/dashboard/invoices/${invoiceId}`);
@@ -163,7 +163,7 @@ export default function EstimateStatusActions({
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Nieznany błąd tworzenia faktury."
+          : "Unbekannter Fehler beim Erstellen der Rechnung."
       );
     } finally {
       setIsCreatingInvoice(false);
@@ -174,10 +174,10 @@ export default function EstimateStatusActions({
     <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Zmiana statusu</h2>
+          <h2 className="text-xl font-semibold">Statusänderung</h2>
           <p className="mt-2 text-sm text-neutral-400">
-            Status steruje etapem wyceny: robocza, gotowa, wysłana,
-            zaakceptowana albo odrzucona.
+            Der Status steuert den Verlauf der Kalkulation: Entwurf, bereit,
+            versendet, akzeptiert oder abgelehnt.
           </p>
         </div>
 
@@ -187,14 +187,13 @@ export default function EstimateStatusActions({
           disabled={!canCreateInvoice || isCreatingInvoice}
           className="rounded-2xl border border-emerald-300/30 bg-emerald-400/15 px-5 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-neutral-500"
         >
-          {isCreatingInvoice ? "Tworzenie..." : "Utwórz fakturę"}
+          {isCreatingInvoice ? "Erstellen..." : "Rechnung erstellen"}
         </button>
       </div>
 
       {!canCreateInvoice ? (
         <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Fakturę można utworzyć dopiero z wyceny gotowej, wysłanej albo
-          zaakceptowanej.
+          Eine Rechnung kann erst aus einer bereiten, versendeten oder akzeptierten Kalkulation erstellt werden.
         </div>
       ) : null}
 
@@ -217,7 +216,7 @@ export default function EstimateStatusActions({
             >
               <span className="block text-sm font-black">{option.label}</span>
               <span className="mt-2 block text-xs leading-5 text-neutral-400">
-                {isThisUpdating ? "Zapisywanie..." : option.description}
+                {isThisUpdating ? "Wird gespeichert..." : option.description}
               </span>
             </button>
           );

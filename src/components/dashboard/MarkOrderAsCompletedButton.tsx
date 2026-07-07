@@ -16,7 +16,7 @@ export default function MarkOrderAsCompletedButton({
 
   async function handleMarkAsCompleted() {
     const confirmed = window.confirm(
-      "Czy na pewno oznaczyć to zlecenie jako zakończone?"
+      "Möchten Sie diesen Auftrag wirklich als abgeschlossen markieren?"
     );
 
     if (!confirmed) {
@@ -37,13 +37,13 @@ export default function MarkOrderAsCompletedButton({
       const result = await response.json();
 
       if (!response.ok || result.status !== "OK") {
-        setError("Nie udało się oznaczyć zlecenia jako zakończonego.");
+        setError("Der Auftrag konnte nicht als abgeschlossen markiert werden.");
         return;
       }
 
       router.refresh();
     } catch {
-      setError("Błąd połączenia z API.");
+      setError("Verbindungsfehler zur API.");
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +57,7 @@ export default function MarkOrderAsCompletedButton({
         disabled={isLoading}
         className="rounded-xl border border-orange-600 bg-orange-950/50 px-4 py-3 text-sm font-semibold text-orange-100 transition hover:border-orange-300 hover:bg-orange-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Oznaczam..." : "Oznacz jako zakończone"}
+        {isLoading ? "Wird markiert..." : "Als abgeschlossen markieren"}
       </button>
 
       {error && <p className="text-xs text-red-400">{error}</p>}

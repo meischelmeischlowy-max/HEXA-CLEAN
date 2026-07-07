@@ -41,7 +41,7 @@ type DashboardCustomersResponse = {
 };
 
 function formatDate(value?: string) {
-  if (!value) return "brak daty";
+  if (!value) return "kein Datum";
 
   const date = new Date(value);
 
@@ -96,14 +96,14 @@ function hasLocationData(customer: Customer) {
 
 function customerProfileLabel(customer: Customer) {
   if (hasContactData(customer) && hasLocationData(customer)) {
-    return "Profil OK";
+    return "Profil vollständig";
   }
 
   if (hasContactData(customer)) {
-    return "Brak adresu";
+    return "Adressese fehlt";
   }
 
-  return "Uzupełnić";
+  return "Ergänzen";
 }
 
 function customerProfileStatus(customer: Customer) {
@@ -134,7 +134,7 @@ export default function DashboardCustomersPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Dashboard Customers API returned an error");
+        throw new Error("Die Kunden-API hat einen Fehler zurückgegeben.");
       }
 
       const json: DashboardCustomersResponse = await response.json();
@@ -142,7 +142,7 @@ export default function DashboardCustomersPage() {
       setCustomers(json.data.customers ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unknown customers error",
+        error instanceof Error ? error.message : "Unbekannter Kundenfehler.",
       );
     } finally {
       setLoading(false);
@@ -176,7 +176,7 @@ export default function DashboardCustomersPage() {
   const columns: DashboardTableColumn<Customer>[] = [
     {
       key: "customer",
-      header: "Klient",
+      header: "Kunde",
       render: (customer) => (
         <div>
           <p className="font-black tracking-tight text-white">
@@ -185,7 +185,7 @@ export default function DashboardCustomersPage() {
           <p className="mt-1 text-xs text-zinc-500">ID: {customer.id}</p>
           {customer.type ? (
             <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70">
-              {customer.type === "COMPANY" ? "Firma" : "Prywatny"}
+              {customer.type === "COMPANY" ? "Firma" : "Privatkunde"}
             </p>
           ) : null}
         </div>
@@ -197,17 +197,17 @@ export default function DashboardCustomersPage() {
       render: (customer) => (
         <div className="space-y-1">
           <p className="font-semibold text-zinc-200">
-            {customer.email ?? "Brak emaila"}
+            {customer.email ?? "Keine E-Mail"}
           </p>
           <p className="text-sm text-zinc-500">
-            {customer.phone ?? "Brak telefonu"}
+            {customer.phone ?? "Kein Telefon"}
           </p>
         </div>
       ),
     },
     {
       key: "location",
-      header: "Miasto / adres",
+      header: "Ort / Adressese",
       render: (customer) => (
         <div>
           <p className="font-semibold text-zinc-200">
@@ -218,7 +218,7 @@ export default function DashboardCustomersPage() {
               {getCustomerAddress(customer)}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-zinc-600">Brak adresu</p>
+            <p className="mt-1 text-sm text-zinc-600">Keine Adressese</p>
           )}
         </div>
       ),
@@ -235,7 +235,7 @@ export default function DashboardCustomersPage() {
     },
     {
       key: "created",
-      header: "Dodano",
+      header: "Erstellt",
       render: (customer) => (
         <p className="text-sm font-medium text-zinc-400">
           {formatDate(customer.createdAt)}
@@ -244,7 +244,7 @@ export default function DashboardCustomersPage() {
     },
     {
       key: "action",
-      header: "Akcje",
+      header: "Aktionen",
       className: "text-right",
       render: (customer) => (
         <div className="flex flex-wrap justify-end gap-2">
@@ -253,7 +253,7 @@ export default function DashboardCustomersPage() {
             variant="primary"
             size="sm"
           >
-            Szczegóły
+            Öffnen
           </PremiumButton>
 
           <PremiumButton
@@ -261,7 +261,7 @@ export default function DashboardCustomersPage() {
             variant="secondary"
             size="sm"
           >
-            Edytuj
+            Bearbeiten
           </PremiumButton>
 
           <PremiumButton
@@ -269,7 +269,7 @@ export default function DashboardCustomersPage() {
             variant="secondary"
             size="sm"
           >
-            Faktury
+            Rechnungen
           </PremiumButton>
 
           <PremiumButton
@@ -277,7 +277,7 @@ export default function DashboardCustomersPage() {
             variant="ghost"
             size="sm"
           >
-            Zlecenia
+            Aufträge
           </PremiumButton>
         </div>
       ),
@@ -288,12 +288,12 @@ export default function DashboardCustomersPage() {
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
-          eyebrow="HEXA OS CRM / Customers"
-          title="Baza klientów"
-          description="Centralne miejsce dla klientów HEXA OS: dane kontaktowe, lokalizacje, historia zleceń, wyceny, faktury i płatności."
+          eyebrow="HEXA OS CRM / Kunden"
+          title="Kundendatenbank"
+          description="Zentrale Übersicht für Kunden, Kontaktdaten, Standorte, Aufträge, Angebote, Rechnungen und Zahlungen."
         >
           <PremiumButton href="/dashboard/customers/new" variant="primary">
-            Dodaj klienta
+            Kunde erstellen
           </PremiumButton>
 
           <PremiumButton
@@ -302,51 +302,51 @@ export default function DashboardCustomersPage() {
             onClick={loadCustomers}
             disabled={loading}
           >
-            Odśwież
+            Aktualisieren
           </PremiumButton>
 
           <PremiumButton href="/dashboard/orders" variant="ghost">
-            Zlecenia
+            Aufträge
           </PremiumButton>
 
           <PremiumButton href="/dashboard/invoices" variant="ghost">
-            Faktury
+            Rechnungen
           </PremiumButton>
         </PageHeader>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            title="Wszyscy klienci"
+            title="Alle Kunden"
             value={String(stats.total)}
-            description="Łączna liczba klientów zapisanych w bazie."
-            trend={`${stats.companies} firm`}
+            description="Gesamtzahl der Kunden in der Datenbank."
+            trend={`${stats.companies} Firmen`}
             tone="cyan"
             icon={<span className="text-lg font-black">CRM</span>}
           />
 
           <MetricCard
-            title="Z emailem"
+            title="Mit E-Mail"
             value={String(stats.withEmail)}
-            description="Klienci gotowi pod wysyłkę ofert i faktur."
-            trend="Email automation"
+            description="Kunden, die für Angebote und Rechnungen per E-Mail erreichbar sind."
+            trend="E-Mail Automation"
             tone="violet"
             icon={<span className="text-lg font-black">@</span>}
           />
 
           <MetricCard
-            title="Z telefonem"
+            title="Mit Telefon"
             value={String(stats.withPhone)}
-            description="Kontakty pod rozmowy telefoniczne i SMS."
-            trend="SMS / phone workflow"
+            description="Kunden mit Telefonnummer für Rückfragen und SMS."
+            trend="Telefon / SMS"
             tone="amber"
             icon={<span className="text-lg font-black">☎</span>}
           />
 
           <MetricCard
-            title="Pełne profile"
+            title="Vollständige Profile"
             value={String(stats.completeProfiles)}
-            description="Klienci z kontaktem oraz lokalizacją."
-            trend="Gotowe do zleceń"
+            description="Kunden mit Kontakt- und Adressesdaten."
+            trend="Bereit für Aufträge"
             tone="emerald"
             icon={<span className="text-lg font-black">✓</span>}
           />
@@ -354,8 +354,8 @@ export default function DashboardCustomersPage() {
 
         {loading ? (
           <DashboardPanel
-            title="Ładowanie klientów"
-            description="HEXA OS pobiera aktualne dane z modułu Customers."
+            title="Kunden werden geladen"
+            description="HEXA OS lädt die aktuellen Kundendaten aus dem CRM."
           >
             <div className="grid gap-3">
               {[1, 2, 3, 4].map((item) => (
@@ -370,13 +370,14 @@ export default function DashboardCustomersPage() {
 
         {errorMessage ? (
           <DashboardPanel
-            title="Błąd modułu Customers"
-            description="Nie udało się pobrać listy klientów z API."
+            title="Fehler im Kundenmodul"
+            description="Die Kundenliste konnte nicht aus der API geladen werden."
           >
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Błąd: {errorMessage}</p>
+              <p className="font-bold">Fehler: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Sprawdź endpoint /api/dashboard/customers oraz połączenie z bazą.
+                Prüfen Sie den Endpoint /api/dashboard/customers und die
+                Datenbankverbindung.
               </p>
             </div>
           </DashboardPanel>
@@ -384,12 +385,12 @@ export default function DashboardCustomersPage() {
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Lista klientów"
-            description={`Liczba rekordów: ${customers.length}. Klienci są fundamentem pod zlecenia, wyceny, oferty, faktury i historię CRM.`}
+            title="Kundenliste"
+            description={`Anzahl Datensätze: ${customers.length}. Kunden sind die Basis für Aufträge, Angebote, Rechnungen und CRM-Historie.`}
             action={
               <StatusBadge
                 status={customers.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={customers.length > 0 ? "Baza aktywna" : "Brak danych"}
+                label={customers.length > 0 ? "Daten aktiv" : "Keine Daten"}
               />
             }
           >
@@ -399,9 +400,9 @@ export default function DashboardCustomersPage() {
               getRowKey={(customer) => customer.id}
               empty={
                 <EmptyState
-                  title="Brak klientów w bazie"
-                  description="Dodaj klienta ręcznie albo utwórz go później z formularza kontaktowego, zlecenia lub AI Concierge."
-                  actionLabel="Dodaj klienta"
+                  title="Keine Kunden in der Datenbank"
+                  description="Erstellen Sie den ersten Kunden manuell oder später über Formular, Auftrag oder AI Concierge."
+                  actionLabel="Kunde erstellen"
                   actionHref="/dashboard/customers/new"
                 />
               }
@@ -411,36 +412,37 @@ export default function DashboardCustomersPage() {
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Rola modułu Customers"
-            description="Ten moduł łączy dane z telefonu, formularza, AI Concierge, wycen, ofert, faktur i płatności."
+            title="Rolle des Kundenmoduls"
+            description="Dieses Modul verbindet Telefon, Formular, AI Concierge, Aufträge, Angebote, Rechnungen und Zahlungen."
           >
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
                 <p className="text-sm font-black text-cyan-100">
-                  Dane kontaktowe
+                  Kontaktdaten
                 </p>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  Email i telefon będą używane do wysyłki wycen, faktur oraz
-                  powiadomień.
+                  E-Mail und Telefon werden für Angebote, Rechnungen und
+                  Benachrichtigungen verwendet.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
                 <p className="text-sm font-black text-violet-100">
-                  Historia klienta
+                  Kundenhistorie
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Klient ma mieć powiązane zlecenia, wyceny, faktury i płatności.
+                  Jeder Kunde kann mit Aufträgen, Angeboten, Rechnungen und
+                  Zahlungen verbunden werden.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
                 <p className="text-sm font-black text-emerald-100">
-                  Szybkie akcje CRM
+                  Schnelle CRM-Aktionen
                 </p>
                 <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Z listy klienta można szybko przejść do edycji, szczegółów,
-                  faktur i zleceń.
+                  Aus der Kundenliste gelangen Sie direkt zu Details, Bearbeitung,
+                  Rechnungen und Aufträgen.
                 </p>
               </div>
             </div>

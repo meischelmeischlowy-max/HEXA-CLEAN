@@ -64,10 +64,11 @@ export default function DashboardTable<T>({
                   {empty ?? (
                     <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-6 text-center">
                       <p className="text-sm font-bold text-white">
-                        Brak danych
+                        Keine Daten
                       </p>
                       <p className="mt-2 text-sm text-zinc-400">
-                        Dane pojawią się tutaj po dodaniu pierwszych rekordów.
+                        Daten werden hier angezeigt, sobald die ersten Einträge
+                        vorhanden sind.
                       </p>
                     </div>
                   )}

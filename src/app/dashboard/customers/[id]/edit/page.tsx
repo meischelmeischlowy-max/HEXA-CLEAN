@@ -60,7 +60,7 @@ export default async function EditCustomerPage({ params }: PageProps) {
             href={`/dashboard/customers/${customer.id}`}
             className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
           >
-            ← Wróć do klienta
+            ← Zurück zum Kunden
           </Link>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -68,11 +68,11 @@ export default async function EditCustomerPage({ params }: PageProps) {
           </p>
 
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
-            Edytuj klienta
+            Kunde bearbeiten
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            Popraw dane kontaktowe, adresowe i notatki klienta.
+            Kontakt-, Adressesdaten und Notizen des Kunden bearbeiten.
           </p>
         </div>
 

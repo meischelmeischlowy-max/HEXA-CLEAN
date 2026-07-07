@@ -17,7 +17,7 @@ type PaymentMethod = {
 
 const paymentMethods: PaymentMethod[] = [
   { value: "BANK_TRANSFER", label: "Przelew" },
-  { value: "CASH", label: "Gotówka" },
+  { value: "CASH", label: "Barzahlung" },
   { value: "TWINT", label: "TWINT" },
   { value: "CARD", label: "Karta" },
   { value: "OTHER", label: "Inna" },
@@ -67,7 +67,7 @@ export default function InvoicePaymentRecorder({
     setError(null);
 
     if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
-      setError("Wpisz poprawną kwotę wpłaty.");
+      setError("Bitte einen gültigen Zahlungsbetrag eingeben.");
       return;
     }
 
@@ -98,11 +98,11 @@ export default function InvoicePaymentRecorder({
       setAmount("");
       setExternalRef("");
       setNotes("");
-      setMessage("Wpłata została zapisana jako płatność i faktura została zaktualizowana.");
+      setMessage("Die Zahlung wurde als Zahlung gespeichert und die Rechnung aktualisiert.");
       router.refresh();
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "Nie udało się zapisać wpłaty.");
+      setError(err instanceof Error ? err.message : "Die Zahlung konnte nicht gespeichert werden.");
     } finally {
       setLoading(false);
     }
@@ -123,11 +123,11 @@ export default function InvoicePaymentRecorder({
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-400">
-              Rozliczenie faktury
+              Rechnungsausgleich
             </p>
 
             <h2 className="mt-2 text-xl font-bold text-white">
-              Wpłata / rozliczenie
+              Zahlung / Ausgleich
             </h2>
 
             <div className="mt-3 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
@@ -142,7 +142,7 @@ export default function InvoicePaymentRecorder({
 
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/70">
-                  Zapłacono
+                  Bezahlt
                 </p>
                 <p className="mt-1 font-bold text-emerald-300">
                   {formatMoney(currentPaid, safeCurrency)}
@@ -151,7 +151,7 @@ export default function InvoicePaymentRecorder({
 
               <div className="rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-300/70">
-                  Pozostało
+                  Offen
                 </p>
                 <p className="mt-1 font-bold text-rose-300">
                   {formatMoney(remaining, safeCurrency)}
@@ -211,7 +211,7 @@ export default function InvoicePaymentRecorder({
                 onClick={savePayment}
                 className="rounded-xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Zapisywanie..." : "Zapisz wpłatę"}
+                {loading ? "Wird gespeichert..." : "Zahlung speichern"}
               </button>
 
               <button
@@ -220,7 +220,7 @@ export default function InvoicePaymentRecorder({
                 onClick={markAsFullyPaid}
                 className="rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Opłacona w całości
+                Vollständig bezahlt
               </button>
             </div>
           </div>
@@ -230,14 +230,14 @@ export default function InvoicePaymentRecorder({
           <input
             value={externalRef}
             onChange={(event) => setExternalRef(event.target.value)}
-            placeholder="Referencja / numer transakcji"
+            placeholder="Referenz / Transaktionsnummer"
             className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
           />
 
           <input
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Notatka do płatności"
+            placeholder="Notiz zur Zahlung"
             className="rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
           />
         </div>

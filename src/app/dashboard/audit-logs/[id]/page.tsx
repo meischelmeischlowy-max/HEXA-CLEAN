@@ -86,7 +86,7 @@ function DataSection({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Brak danych.</p>
+        <p className="text-sm text-neutral-500">Keine Daten.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left text-sm">
@@ -97,13 +97,13 @@ function DataSection({
                   Typ / Rola
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Treść / Akcja
+                  Inhalt / Aktion
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
                   Data
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Akcja
+                  Aktion
                 </th>
               </tr>
             </thead>
@@ -145,7 +145,7 @@ function DataSection({
                           href={`${basePath}/${itemId}`}
                           className="rounded-full border border-cyan-500/50 px-3 py-1 text-xs font-medium text-cyan-400 transition hover:border-cyan-400 hover:bg-cyan-500/10"
                         >
-                          Szczegóły
+                          Details
                         </Link>
                       ) : (
                         <span className="text-xs text-neutral-600">—</span>
@@ -194,18 +194,18 @@ export default async function AuditLogDetailsPage({
             href="/dashboard/audit-logs"
             className="text-sm text-cyan-400 transition hover:text-cyan-300"
           >
-            ← Wróć do audit logów
+            ← Zurück zu Audit-Logs
           </Link>
 
           <p className="mt-4 text-xs uppercase tracking-[0.35em] text-cyan-400">
             HEXA OS
           </p>
 
-          <h1 className="mt-3 text-3xl font-bold">Szczegóły audit logu</h1>
+          <h1 className="mt-3 text-3xl font-bold">Audit-Log-Details</h1>
 
           <p className="mt-2 text-sm text-neutral-500">
-            Pełny zapis zdarzenia systemowego oraz powiązany klient, zlecenie,
-            sesja, wiadomości rozmów i podobne logi.
+            Vollständiger Eintrag eines Systemereignisses inklusive zugehörigem Kunden, Auftrag,
+            Sitzung, Gesprächsnachrichten und ähnlichen Logs.
           </p>
         </div>
       </div>
@@ -215,25 +215,25 @@ export default async function AuditLogDetailsPage({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <RecordLink
-            label="Powiązany rekord"
+            label="Verknüpfter Datensatz"
             href={entityHref}
             value={auditLog.entityType ?? auditLog.entityId}
           />
 
           <RecordLink
-            label="Klient"
+            label="Kunde"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
             value={customer?.name ?? customer?.email ?? customer?.id}
           />
 
           <RecordLink
-            label="Zlecenie"
+            label="Auftrag"
             href={order?.id ? `/dashboard/orders/${order.id}` : null}
             value={order?.orderNumber ?? order?.number ?? order?.id}
           />
 
           <RecordLink
-            label="Powiązany audit log"
+            label="Verknüpfter Audit-Log"
             href={
               relatedAuditLogs[0]?.id
                 ? `/dashboard/audit-logs/${relatedAuditLogs[0].id}`
@@ -249,11 +249,11 @@ export default async function AuditLogDetailsPage({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <InfoCard label="ID" value={auditLog.id} />
-          <InfoCard label="Akcja" value={auditLog.action} />
+          <InfoCard label="Aktion" value={auditLog.action} />
           <InfoCard label="Entity Type" value={auditLog.entityType} />
           <InfoCard label="Entity ID" value={auditLog.entityId} />
-          <InfoCard label="Klient ID" value={auditLog.customerId} />
-          <InfoCard label="Zlecenie ID" value={auditLog.orderId} />
+          <InfoCard label="Kunden-ID" value={auditLog.customerId} />
+          <InfoCard label="Auftrag ID" value={auditLog.orderId} />
           <InfoCard label="Sesja ID" value={auditLog.sessionId} />
           <InfoCard label="User ID" value={auditLog.userId} />
           <InfoCard label="Actor ID" value={auditLog.actorId} />
@@ -262,7 +262,7 @@ export default async function AuditLogDetailsPage({
           <InfoCard label="Aktualizacja" value={auditLog.updatedAt} />
 
           <JsonCard
-            label="Dane / Metadata"
+            label="Daten / Metadata"
             value={auditLog.data ?? auditLog.metadata ?? auditLog.payload}
           />
 
@@ -279,34 +279,34 @@ export default async function AuditLogDetailsPage({
 
       <section className="mb-8 grid gap-6 xl:grid-cols-3">
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Klient</h2>
+          <h2 className="mb-4 text-xl font-bold">Kunde</h2>
 
           {customer ? (
             <div className="grid gap-4">
               <RecordLink
-                label="Otwórz klienta"
+                label="Kunde öffnen"
                 href={`/dashboard/customers/${customer.id}`}
                 value={customer.name ?? customer.email ?? customer.id}
               />
               <InfoCard label="ID" value={customer.id} />
-              <InfoCard label="Imię / nazwa" value={customer.name} />
+              <InfoCard label="Name" value={customer.name} />
               <InfoCard label="Email" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
-              Brak powiązanego klienta.
+              Kein verknüpfter Kunde.
             </p>
           )}
         </div>
 
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Zlecenie</h2>
+          <h2 className="mb-4 text-xl font-bold">Auftrag</h2>
 
           {order ? (
             <div className="grid gap-4">
               <RecordLink
-                label="Otwórz zlecenie"
+                label="Auftrag öffnen"
                 href={`/dashboard/orders/${order.id}`}
                 value={order.orderNumber ?? order.number ?? order.id}
               />
@@ -317,13 +317,13 @@ export default async function AuditLogDetailsPage({
               />
               <InfoCard label="Status" value={order.status} />
               <InfoCard
-                label="Usługa"
+                label="Leistung"
                 value={order.serviceType ?? order.service}
               />
             </div>
           ) : (
             <p className="text-sm text-neutral-500">
-              Brak powiązanego zlecenia.
+              Kein verknüpfter Auftrag.
             </p>
           )}
         </div>
@@ -336,22 +336,22 @@ export default async function AuditLogDetailsPage({
               <InfoCard label="ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
               <InfoCard label="Utworzono" value={session.createdAt} />
-              <InfoCard label="Zakończono" value={session.endedAt} />
+              <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">Brak powiązanej sesji.</p>
+            <p className="text-sm text-neutral-500">Keine verknüpfte Sitzung.</p>
           )}
         </div>
       </section>
 
       <div className="grid gap-6">
         <DataSection
-          title="Wiadomości rozmów"
+          title="Gesprächsnachrichten"
           items={conversationMessages as Record<string, unknown>[]}
         />
 
         <DataSection
-          title="Powiązane Audit Logi"
+          title="Verknüpfte Audit-Logs"
           items={relatedAuditLogs as Record<string, unknown>[]}
           basePath="/dashboard/audit-logs"
         />
