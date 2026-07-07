@@ -162,15 +162,16 @@ model Customer {
 
   notes String?
 
-  sessions      Session[]
-  messages      ConversationMessage[]
-  orders        Order[]
-  estimates     Estimate[]
-  quotes        Quote[]
-  invoices      Invoice[]
-  notifications Notification[]
-  attachments   Attachment[]
-  auditLogs     AuditLog[]
+  sessions         Session[]
+  messages         ConversationMessage[]
+  orders           Order[]
+  estimates        Estimate[]
+  quotes           Quote[]
+  invoices         Invoice[]
+  notifications    Notification[]
+  attachments      Attachment[]
+  auditLogs        AuditLog[]
+  publicOfferLinks PublicOfferLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -411,8 +412,9 @@ model Quote {
   sentAt     DateTime?
   acceptedAt DateTime?
 
-  invoice     Invoice?
-  attachments Attachment[]
+  invoice          Invoice?
+  attachments      Attachment[]
+  publicOfferLinks PublicOfferLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -422,6 +424,38 @@ model Quote {
   @@index([sessionId])
   @@index([status])
   @@map("quotes")
+}
+
+model PublicOfferLink {
+  id String @id @default(uuid()) @db.Uuid
+
+  tokenHash   String  @unique
+  tokenPrefix String?
+
+  quoteId String @db.Uuid
+  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  customerId String   @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+  lastViewedAt DateTime?
+  viewCount    Int       @default(0)
+
+  createdBy String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([quoteId])
+  @@index([customerId])
+  @@index([expiresAt])
+  @@index([acceptedAt])
+  @@index([revokedAt])
+  @@map("public_offer_links")
 }
 
 model Invoice {

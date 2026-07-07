@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import CreateInvoiceFromQuoteButton from "@/components/dashboard/CreateInvoiceFromQuoteButton";
+import GeneratePublicOfferLinkButton from "@/components/dashboard/GeneratePublicOfferLinkButton";
 import MarkQuoteAsAcceptedButton from "@/components/dashboard/MarkQuoteAsAcceptedButton";
 import MarkQuoteAsSentButton from "@/components/dashboard/MarkQuoteAsSentButton";
 import RecordLink from "@/components/dashboard/RecordLink";
@@ -209,7 +210,7 @@ export default async function QuoteDetailsPage({
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 lg:items-end">
+        <div className="flex w-full flex-col gap-3 lg:w-[420px] lg:items-stretch">
           {isAccepted ? (
             <div className="rounded-xl border border-lime-600 bg-lime-950/50 px-4 py-3 text-sm font-semibold text-lime-100">
               Angebot akzeptiert
@@ -229,6 +230,11 @@ export default async function QuoteDetailsPage({
               Angebotsstatus: {quote.status}
             </div>
           )}
+
+          <GeneratePublicOfferLinkButton
+            quoteId={quote.id}
+            quoteStatus={quote.status}
+          />
 
           {firstInvoice?.id ? (
             <Link
