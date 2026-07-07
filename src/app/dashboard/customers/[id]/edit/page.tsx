@@ -72,7 +72,7 @@ export default async function EditCustomerPage({ params }: PageProps) {
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            Kontakt-, Adressesdaten und Notizen des Kunden bearbeiten.
+            Kontakt-, Adressdaten und Notizen des Kunden bearbeiten.
           </p>
         </div>
 

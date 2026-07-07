@@ -100,7 +100,7 @@ function customerProfileLabel(customer: Customer) {
   }
 
   if (hasContactData(customer)) {
-    return "Adressese fehlt";
+    return "Adressesese fehlt";
   }
 
   return "Ergänzen";
@@ -207,7 +207,7 @@ export default function DashboardCustomersPage() {
     },
     {
       key: "location",
-      header: "Ort / Adressese",
+      header: "Ort / Adressesese",
       render: (customer) => (
         <div>
           <p className="font-semibold text-zinc-200">
@@ -218,7 +218,7 @@ export default function DashboardCustomersPage() {
               {getCustomerAddress(customer)}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-zinc-600">Keine Adressese</p>
+            <p className="mt-1 text-sm text-zinc-600">Keine Adressesese</p>
           )}
         </div>
       ),
@@ -345,7 +345,7 @@ export default function DashboardCustomersPage() {
           <MetricCard
             title="Vollständige Profile"
             value={String(stats.completeProfiles)}
-            description="Kunden mit Kontakt- und Adressesdaten."
+            description="Kunden mit Kontakt- und Adressdaten."
             trend="Bereit für Aufträge"
             tone="emerald"
             icon={<span className="text-lg font-black">✓</span>}

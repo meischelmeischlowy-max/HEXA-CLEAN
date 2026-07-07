@@ -143,7 +143,7 @@ export default function DashboardAttachmentsPage() {
                       <th className="p-4 font-medium">Rozmiar</th>
                       <th className="p-4 font-medium">Uploaded by</th>
                       <th className="p-4 font-medium">Link</th>
-                      <th className="p-4 font-medium">Dodano</th>
+                      <th className="p-4 font-medium">Erstellt</th>
                       <th className="p-4 font-medium">Aktion</th>
                     </tr>
                   </thead>

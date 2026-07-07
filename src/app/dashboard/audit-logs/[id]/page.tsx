@@ -258,8 +258,8 @@ export default async function AuditLogDetailsPage({
           <InfoCard label="User ID" value={auditLog.userId} />
           <InfoCard label="Actor ID" value={auditLog.actorId} />
           <InfoCard label="IP" value={auditLog.ipAddress} />
-          <InfoCard label="Utworzono" value={auditLog.createdAt} />
-          <InfoCard label="Aktualizacja" value={auditLog.updatedAt} />
+          <InfoCard label="Erstellt" value={auditLog.createdAt} />
+          <InfoCard label="Aktualisierung" value={auditLog.updatedAt} />
 
           <JsonCard
             label="Daten / Metadata"
@@ -335,7 +335,7 @@ export default async function AuditLogDetailsPage({
             <div className="grid gap-4">
               <InfoCard label="ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
-              <InfoCard label="Utworzono" value={session.createdAt} />
+              <InfoCard label="Erstellt" value={session.createdAt} />
               <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (

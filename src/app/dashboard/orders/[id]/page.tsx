@@ -538,7 +538,7 @@ export default async function OrderDetailsPage({
                 <InfoCard label="Email" value={customer.email} />
                 <InfoCard label="Telefon" value={customer.phone} />
                 <InfoCard
-                  label="Adresse"
+                  label="Adressese"
                   value={[
                     customer.street,
                     customer.zipCode,
@@ -633,12 +633,12 @@ export default async function OrderDetailsPage({
               value: (item) => statusLabel(item.status),
             },
             {
-              label: "Kwota",
+              label: "Betrag",
               value: (item) => item.totalAmount ?? item.amount,
               money: true,
             },
             {
-              label: "Utworzono",
+              label: "Erstellt",
               value: (item) => item.createdAt,
             },
           ]}
@@ -696,7 +696,7 @@ export default async function OrderDetailsPage({
               value: (item) => statusLabel(item.status),
             },
             {
-              label: "Kwota",
+              label: "Betrag",
               value: (item) => item.amount ?? item.paidAmount,
               money: true,
             },
@@ -721,7 +721,7 @@ export default async function OrderDetailsPage({
                 item.content ?? item.message ?? item.text ?? item.body,
             },
             {
-              label: "Utworzono",
+              label: "Erstellt",
               value: (item) => item.createdAt,
             },
           ]}
@@ -745,7 +745,7 @@ export default async function OrderDetailsPage({
               value: (item) => item.subject ?? item.title ?? item.message,
             },
             {
-              label: "Utworzono",
+              label: "Erstellt",
               value: (item) => item.createdAt,
             },
           ]}
@@ -769,7 +769,7 @@ export default async function OrderDetailsPage({
               value: (item) => item.size ?? item.fileSize,
             },
             {
-              label: "Utworzono",
+              label: "Erstellt",
               value: (item) => item.createdAt,
             },
           ]}

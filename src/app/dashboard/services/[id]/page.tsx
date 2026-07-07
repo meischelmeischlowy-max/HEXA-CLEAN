@@ -168,7 +168,7 @@ export default async function ServiceCatalogItemDetailsPage({
 
         <InfoCard label="Risikofaktor" value={service.riskMultiplier} />
         <InfoCard label="Sortowanie" value={service.sortOrder} />
-        <InfoCard label="Utworzono" value={service.createdAt} />
+        <InfoCard label="Erstellt" value={service.createdAt} />
 <InfoCard label="Aktualisiert am" value={service.updatedAt} />
 
         <InfoCard label="Beschreibung" value={service.description} wide />

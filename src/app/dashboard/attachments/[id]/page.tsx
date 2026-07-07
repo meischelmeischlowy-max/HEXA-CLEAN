@@ -379,7 +379,7 @@ export default async function AttachmentDetailsPage({
             <div className="grid gap-4">
               <InfoCard label="ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
-              <InfoCard label="Utworzono" value={session.createdAt} />
+              <InfoCard label="Erstellt" value={session.createdAt} />
               <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (
@@ -395,7 +395,7 @@ export default async function AttachmentDetailsPage({
         />
 
         <DataSection
-          title="Powiadomienia"
+          title="Benachrichtigungen"
           items={notifications as Record<string, unknown>[]}
           basePath="/dashboard/notifications"
         />

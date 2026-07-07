@@ -235,9 +235,9 @@ export default async function NotificationDetailsPage({
           <InfoCard label="Kunden-ID" value={notification.customerId} />
           <InfoCard label="Auftrag ID" value={notification.orderId} />
           <InfoCard label="Sesja ID" value={notification.sessionId} />
-          <InfoCard label="Utworzono" value={notification.createdAt} />
+          <InfoCard label="Erstellt" value={notification.createdAt} />
           <InfoCard label="Gesendet" value={notification.sentAt} />
-          <InfoCard label="Aktualizacja" value={notification.updatedAt} />
+          <InfoCard label="Aktualisierung" value={notification.updatedAt} />
 
           <TextCard
             label="Temat"
@@ -314,7 +314,7 @@ export default async function NotificationDetailsPage({
             <div className="grid gap-4">
               <InfoCard label="ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
-              <InfoCard label="Utworzono" value={session.createdAt} />
+              <InfoCard label="Erstellt" value={session.createdAt} />
               <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (

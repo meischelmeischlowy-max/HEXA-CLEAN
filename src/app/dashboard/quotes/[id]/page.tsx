@@ -314,8 +314,8 @@ export default async function QuoteDetailsPage({
           <InfoCard label="Gültig bis" value={quote.validUntil ?? quote.dueDate} />
           <InfoCard label="Gesendet" value={quote.sentAt} />
           <InfoCard label="Zaakceptowano" value={quote.acceptedAt} />
-          <InfoCard label="Utworzono" value={quote.createdAt} />
-          <InfoCard label="Aktualizacja" value={quote.updatedAt} />
+          <InfoCard label="Erstellt" value={quote.createdAt} />
+          <InfoCard label="Aktualisierung" value={quote.updatedAt} />
         </div>
       </section>
 
@@ -377,7 +377,7 @@ export default async function QuoteDetailsPage({
             <div className="grid gap-4">
               <InfoCard label="ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
-              <InfoCard label="Utworzono" value={session.createdAt} />
+              <InfoCard label="Erstellt" value={session.createdAt} />
               <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (
@@ -405,7 +405,7 @@ export default async function QuoteDetailsPage({
         />
 
         <DataSection
-          title="Powiadomienia"
+          title="Benachrichtigungen"
           items={notifications as Record<string, unknown>[]}
           basePath="/dashboard/notifications"
         />

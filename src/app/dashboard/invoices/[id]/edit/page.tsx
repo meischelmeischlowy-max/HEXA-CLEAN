@@ -492,7 +492,7 @@ export default function DashboardInvoiceEditPage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Kwota podatku</span>
+                <span className="text-sm text-neutral-400">Steuerbetrag</span>
                 <input
                   value={form.taxAmount}
                   onChange={(event) =>

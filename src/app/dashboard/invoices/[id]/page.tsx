@@ -358,7 +358,7 @@ export default async function DashboardInvoiceDetailsPage({
                 {customerName(invoice.customer)}
               </p>
               <p>
-                <span className="text-neutral-500">Adressese: </span>
+                <span className="text-neutral-500">Adressesese: </span>
                 {customerAddress || "—"}
               </p>
               <p>

@@ -27,7 +27,7 @@ export default function NewServiceCatalogItemPage() {
 
         <p className="mt-2 max-w-3xl text-sm text-neutral-500">
           Manuelle Erstellung einer Leistung. Diese Daten werden später verwendet in
-          Kalkulationen, Angebotch i Rechnungenach.
+          Kalkulationen, Angebotch und Rechnungenach.
         </p>
       </div>
 

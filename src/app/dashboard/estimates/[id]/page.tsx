@@ -123,7 +123,7 @@ function metadataText(metadata: unknown, key: string) {
 
 function auditActionLabel(action: string | null | undefined) {
   const labels: Record<string, string> = {
-    CREATE: "Utworzono",
+    CREATE: "Erstellt",
     UPDATE: "Zmieniono",
     DELETE: "Gelöscht",
     SEND: "Gesendet",
@@ -274,7 +274,7 @@ export default async function DashboardEstimateDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Miejsce Leistungen</p>
+            <p className="text-sm text-neutral-400">Leistungsort</p>
             <p className="mt-2 text-xl font-semibold">
               {estimate.serviceCity ?? "—"}
             </p>
@@ -286,7 +286,7 @@ export default async function DashboardEstimateDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Utworzono</p>
+            <p className="text-sm text-neutral-400">Erstellt</p>
             <p className="mt-2 text-xl font-semibold">
               {formatDate(estimate.createdAt)}
             </p>
@@ -306,7 +306,7 @@ export default async function DashboardEstimateDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
-            <p className="text-sm text-cyan-100/70">Suma</p>
+            <p className="text-sm text-cyan-100/70">Summe</p>
             <p className="mt-2 text-3xl font-black text-cyan-100">
               {formatMoney(estimate.total, estimate.currency)}
             </p>
@@ -338,8 +338,8 @@ export default async function DashboardEstimateDetailsPage({
                   <th className="px-4 py-4">Menge</th>
                   <th className="px-4 py-4">Preis</th>
                   <th className="px-4 py-4">Faktor</th>
-                  <th className="px-4 py-4">Ryzyko</th>
-                  <th className="px-4 py-4 text-right">Razem</th>
+                  <th className="px-4 py-4">Risiko</th>
+                  <th className="px-4 py-4 text-right">Total</th>
                 </tr>
               </thead>
 
@@ -396,14 +396,14 @@ export default async function DashboardEstimateDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Ryzyko</p>
+            <p className="text-sm text-neutral-400">Risiko</p>
             <p className="mt-2 text-xl font-semibold">
               {formatMoney(estimate.riskAmount, estimate.currency)}
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Dojazd</p>
+            <p className="text-sm text-neutral-400">Anfahrt</p>
             <p className="mt-2 text-xl font-semibold">
               {formatMoney(estimate.travelFee, estimate.currency)}
             </p>
@@ -507,7 +507,7 @@ export default async function DashboardEstimateDetailsPage({
                           {formatDate(log.createdAt)}
                         </p>
                         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-neutral-500">
-                          {log.actorType ?? "system"} · {log.entityType ?? "Estimate"}
+                          {log.actorType ?? "System"} · {log.entityType ?? "Estimate"}
                         </p>
                       </div>
                     </div>
@@ -530,7 +530,7 @@ export default async function DashboardEstimateDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-lg font-semibold">Powiadomienia</h2>
+            <h2 className="text-lg font-semibold">Benachrichtigungen</h2>
             <p className="mt-2 text-3xl font-black">
               {estimate.notifications.length}
             </p>
@@ -545,7 +545,7 @@ export default async function DashboardEstimateDetailsPage({
               {estimate.auditLogs.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Historia zmian i decyzji.
+              Historia zmian und decyzji.
             </p>
           </div>
         </section>

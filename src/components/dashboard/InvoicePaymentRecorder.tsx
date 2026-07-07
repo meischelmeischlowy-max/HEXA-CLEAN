@@ -164,7 +164,7 @@ export default function InvoicePaymentRecorder({
             <div className="grid gap-3 lg:grid-cols-[160px_1fr_auto_auto] lg:items-end">
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Kwota
+                  Betrag
                 </label>
                 <input
                   type="number"

@@ -508,7 +508,7 @@ export default function NewEstimatePage() {
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-                Kalkulations-MVP: Kunde, Adresse, Positionen aus dem Leistungskatalog, manuelle Korrektur
+                Kalkulations-MVP: Kunde, Adressese, Positionen aus dem Leistungskatalog, manuelle Korrektur
                 von Menge, Preis, Risiko und schneller Summenvorschau.
               </p>
             </div>
@@ -553,7 +553,7 @@ export default function NewEstimatePage() {
                         form.customerType === "PRIVATE"
                       )}
                     >
-                      Osoba prywatna
+                      Person prywatna
                     </button>
 
                     <button
@@ -628,7 +628,7 @@ export default function NewEstimatePage() {
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-              <h2 className="text-xl font-semibold">Adresse Leistungen</h2>
+              <h2 className="text-xl font-semibold">Adressese Leistungen</h2>
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <label className="flex flex-col gap-2 md:col-span-3">
@@ -988,7 +988,7 @@ export default function NewEstimatePage() {
 
               <div className="mt-5 grid gap-4 md:grid-cols-3">
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm text-neutral-400">Dojazd CHF</span>
+                  <span className="text-sm text-neutral-400">Anfahrt CHF</span>
                   <input
                     value={form.travelFee}
                     onChange={(event) =>
@@ -1096,12 +1096,12 @@ export default function NewEstimatePage() {
               </div>
 
               <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
-                <span className="text-neutral-400">Ryzyko/minimum</span>
+                <span className="text-neutral-400">Risiko/Minimum</span>
                 <span className="font-semibold">{money(preview.riskAmount)}</span>
               </div>
 
               <div className="flex justify-between gap-4 border-b border-white/10 pb-3">
-                <span className="text-neutral-400">Dojazd</span>
+                <span className="text-neutral-400">Anfahrt</span>
                 <span className="font-semibold">{money(preview.travelFee)}</span>
               </div>
 
@@ -1119,7 +1119,7 @@ export default function NewEstimatePage() {
             </div>
 
             <div className="mt-6 rounded-2xl border border-cyan-300/20 bg-neutral-950/70 p-5">
-              <p className="text-sm text-cyan-100/70">Razem</p>
+              <p className="text-sm text-cyan-100/70">Total</p>
               <p className="mt-2 text-4xl font-black text-cyan-100">
                 {money(preview.total)}
               </p>

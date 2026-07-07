@@ -336,7 +336,7 @@ export default function DashboardServicesPage() {
     },
     {
       key: "updated",
-      header: "Aktualizacja",
+      header: "Aktualisierung",
       render: (service) => (
         <p className="text-sm font-medium text-zinc-400">
           {formatDate(service.updatedAt ?? service.createdAt)}

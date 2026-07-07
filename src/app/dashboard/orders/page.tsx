@@ -293,14 +293,14 @@ export default function DashboardOrdersPage() {
     },
     {
       key: "location",
-      header: "Miejsce",
+      header: "Ort",
       render: (order) => (
         <p className="max-w-xs text-zinc-400">{getOrderLocation(order)}</p>
       ),
     },
     {
       key: "amount",
-      header: "Kwota",
+      header: "Betrag",
       render: (order) => (
         <p className="font-black text-emerald-100">
           {formatAmount(getOrderAmount(order), order.currency)}
@@ -309,7 +309,7 @@ export default function DashboardOrdersPage() {
     },
     {
       key: "created",
-      header: "Dodano",
+      header: "Erstellt",
       render: (order) => (
         <p className="text-sm font-medium text-zinc-400">
           {formatDate(order.createdAt)}

@@ -53,11 +53,11 @@ function normalizeAction(action?: string | null) {
 }
 
 function formatAction(action?: string | null) {
-  if (!action) return "Unbekannte akcja";
+  if (!action) return "Unbekannte Aktion";
 
   const labels: Record<string, string> = {
-    CREATE: "Utworzono",
-    CREATED: "Utworzono",
+    CREATE: "Erstellt",
+    CREATED: "Erstellt",
     UPDATE: "Zaktualizowano",
     UPDATED: "Zaktualizowano",
     DELETE: "Gelöscht",
@@ -324,7 +324,7 @@ export default function DashboardAuditLogsPage() {
           <MetricCard
             title="Utworzone rekordy"
             value={String(stats.created)}
-            description="Angebote, Rechnung, Zahlungen i inne rekordy."
+            description="Angebote, Rechnung, Zahlungen und inne rekordy."
             trend="CRM automation"
             tone="emerald"
             icon={<span className="text-lg font-black">+</span>}
@@ -418,7 +418,7 @@ export default function DashboardAuditLogsPage() {
 
               <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
                 <p className="text-sm font-black text-violet-100">
-                  Debug i kontrola
+                  Debug und kontrola
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
                   Logs helfen zu prüfen, was das System, ein Benutzer oder

@@ -72,7 +72,7 @@ export default async function EditServiceCatalogItemPage({
 
         <p className="mt-2 max-w-3xl text-sm text-neutral-500">
           Leistungsdaten bearbeiten. Änderungen werden bei späteren
-          Kalkulationen, Angebotch i Rechnungenach.
+          Kalkulationen, Angebotch und Rechnungenach.
         </p>
       </div>
 

@@ -211,7 +211,7 @@ export default function CustomerForm({ mode, customer }: CustomerFormProps) {
         </div>
 
         <div>
-          <label className={labelClass()}>Strasse / Adressese</label>
+          <label className={labelClass()}>Strasse / Adressesese</label>
           <input
             value={form.street}
             onChange={(event) => updateField("street", event.target.value)}

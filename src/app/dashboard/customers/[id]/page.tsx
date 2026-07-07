@@ -99,7 +99,7 @@ function formatValue(value: unknown) {
 
 function statusLabel(status?: string | null) {
   const labels: Record<string, string> = {
-    PRIVATE: "Prywatny",
+    PRIVATE: "Privat",
     COMPANY: "Firma",
     ACTIVE: "Aktywna",
     COMPLETED: "Abgeschlossen",
@@ -246,7 +246,7 @@ function DataTable({
               <tr>
                 <th className="px-4 py-3">Name / numer</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Kwota</th>
+                <th className="px-4 py-3">Betrag</th>
                 <th className="px-4 py-3">Data</th>
                 <th className="px-4 py-3 text-right">Aktion</th>
               </tr>
@@ -506,8 +506,8 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-              Kundendetails, kontakt, lokalizacja, Aufträge, Kalkulation, Rechnung,
-              Zahlungen i historia systemowa.
+              Kundendetails, Kontakt, Standort, Aufträge, Kalkulationen, Rechnungen,
+              Zahlungen und Systemhistorie.
             </p>
           </div>
 
@@ -537,7 +537,7 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
             <div>
               <h2 className="text-xl font-black text-white">Kundendaten</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Kontakt- und Adressesdaten des Kunden.
+                Kontakt- und Adressdaten des Kunden.
               </p>
             </div>
 
@@ -551,13 +551,13 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
             <InfoCard label="ID" value={customer.id} />
             <InfoCard label="Name" value={name} />
             <InfoCard label="Firma" value={customer.companyName} />
-            <InfoCard label="Osoba" value={[customer.firstName, customer.lastName].filter(Boolean).join(" ")} />
+            <InfoCard label="Person" value={[customer.firstName, customer.lastName].filter(Boolean).join(" ")} />
             <InfoCard label="Email" value={customer.email} />
             <InfoCard label="Telefon" value={customer.phone} />
-            <InfoCard label="Adresse" value={address} />
+            <InfoCard label="Adressese" value={address} />
             <InfoCard label="Notizen" value={customer.notes} />
-            <InfoCard label="Utworzono" value={customer.createdAt} />
-            <InfoCard label="Aktualizacja" value={customer.updatedAt} />
+            <InfoCard label="Erstellt" value={customer.createdAt} />
+            <InfoCard label="Aktualisierung" value={customer.updatedAt} />
           </div>
         </section>
 
@@ -606,7 +606,7 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
           />
 
           <DataTable
-            title="Powiadomienia"
+            title="Benachrichtigungen"
             description="Historie der gesendeten oder ausstehenden Benachrichtigungen."
             items={notificationItems}
           />
