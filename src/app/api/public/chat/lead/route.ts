@@ -689,14 +689,23 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => null)) as ChatLeadBody | null;
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
+      logPublicSecurityEvent(request, {
+        scope: "ai_chat_lead",
+        reason: "invalid_request_body",
+        severity: "info",
+      });
+
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid request body.",
+          error: "Die Anfrage konnte nicht verarbeitet werden.",
         },
         {
           status: 400,
-          headers: rateLimit.headers,
+          headers: {
+            ...rateLimit.headers,
+            "Cache-Control": "no-store",
+          },
         },
       );
     }
@@ -704,14 +713,26 @@ export async function POST(request: NextRequest) {
     const { lead, error } = normalizeChatLeadBody(body);
 
     if (!lead) {
+      logPublicSecurityEvent(request, {
+        scope: "ai_chat_lead",
+        reason: "validation_failed",
+        severity: "info",
+        extra: {
+          validationError: error ?? "Invalid chat lead request.",
+        },
+      });
+
       return NextResponse.json(
         {
           success: false,
-          error: error ?? "Invalid chat lead request.",
+          error: error ?? "Die Anfrage konnte nicht verarbeitet werden.",
         },
         {
           status: 400,
-          headers: rateLimit.headers,
+          headers: {
+            ...rateLimit.headers,
+            "Cache-Control": "no-store",
+          },
         },
       );
     }
@@ -972,20 +993,36 @@ export async function POST(request: NextRequest) {
       },
       {
         status: 201,
-        headers: rateLimit.headers,
+        headers: {
+          ...rateLimit.headers,
+          "Cache-Control": "no-store",
+        },
       },
     );
   } catch (error) {
     console.error("AI Chat lead error:", error);
 
+    logPublicSecurityEvent(request, {
+      scope: "ai_chat_lead",
+      reason: "server_error",
+      severity: "critical",
+      extra: {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      },
+    });
+
     return NextResponse.json(
       {
         success: false,
-        error: "Server error.",
+        error:
+          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
       },
       {
         status: 500,
-        headers: rateLimit.headers,
+        headers: {
+          ...rateLimit.headers,
+          "Cache-Control": "no-store",
+        },
       },
     );
   }

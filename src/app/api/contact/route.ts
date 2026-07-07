@@ -493,14 +493,23 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => null)) as QuickOfferBody | null;
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
+      logPublicSecurityEvent(request, {
+        scope: "quick_offer_contact",
+        reason: "invalid_request_body",
+        severity: "info",
+      });
+
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid request body.",
+          error: "Die Anfrage konnte nicht verarbeitet werden.",
         },
         {
           status: 400,
-          headers: rateLimit.headers,
+          headers: {
+            ...rateLimit.headers,
+            "Cache-Control": "no-store",
+          },
         },
       );
     }
@@ -508,14 +517,26 @@ export async function POST(request: NextRequest) {
     const { offer, error } = normalizeQuickOfferBody(body);
 
     if (!offer) {
+      logPublicSecurityEvent(request, {
+        scope: "quick_offer_contact",
+        reason: "validation_failed",
+        severity: "info",
+        extra: {
+          validationError: error ?? "Invalid QuickOffer request.",
+        },
+      });
+
       return NextResponse.json(
         {
           success: false,
-          error: error ?? "Invalid QuickOffer request.",
+          error: error ?? "Die Anfrage konnte nicht verarbeitet werden.",
         },
         {
           status: 400,
-          headers: rateLimit.headers,
+          headers: {
+            ...rateLimit.headers,
+            "Cache-Control": "no-store",
+          },
         },
       );
     }
@@ -778,20 +799,36 @@ export async function POST(request: NextRequest) {
       },
       {
         status: 201,
-        headers: rateLimit.headers,
+        headers: {
+          ...rateLimit.headers,
+          "Cache-Control": "no-store",
+        },
       },
     );
   } catch (error) {
     console.error("QuickOffer contact error:", error);
 
+    logPublicSecurityEvent(request, {
+      scope: "quick_offer_contact",
+      reason: "server_error",
+      severity: "critical",
+      extra: {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      },
+    });
+
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Server error",
+        error:
+          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
       },
       {
         status: 500,
-        headers: rateLimit.headers,
+        headers: {
+          ...rateLimit.headers,
+          "Cache-Control": "no-store",
+        },
       },
     );
   }

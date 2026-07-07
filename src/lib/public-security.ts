@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash, createHmac } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 type RateLimitBucket = {
@@ -32,6 +32,15 @@ type PublicSecurityEvent = {
 };
 
 const RATE_LIMIT_STORE_MAX_SIZE = 5000;
+const MAX_SCOPE_LENGTH = 80;
+const MAX_HEADER_LENGTH = 240;
+const MAX_PATH_LENGTH = 500;
+
+const PUBLIC_SECURITY_HASH_SECRET =
+  process.env.HEXA_PUBLIC_SECURITY_SECRET ||
+  process.env.AUTH_SECRET ||
+  process.env.NEXTAUTH_SECRET ||
+  null;
 
 const globalForSecurity = globalThis as unknown as {
   hexaPublicRateLimitStore?: Map<string, RateLimitBucket>;
@@ -69,33 +78,113 @@ function cleanupRateLimitStore(now: number) {
   }
 }
 
+function safeText(value: unknown, maxLength = 500) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.replace(/\s+/g, " ").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.slice(0, maxLength);
+}
+
+function safeScope(value: string) {
+  return (
+    safeText(value, MAX_SCOPE_LENGTH)
+      ?.replace(/[^a-zA-Z0-9:_-]/g, "_")
+      .slice(0, MAX_SCOPE_LENGTH) || "public"
+  );
+}
+
+function safeHeaderValue(value: string | null) {
+  return safeText(value, MAX_HEADER_LENGTH) ?? "unknown";
+}
+
+function safePath(value: string) {
+  return safeText(value, MAX_PATH_LENGTH) ?? "/";
+}
+
+function safeExtraValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return safeText(value, 500);
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map(safeExtraValue);
+  }
+
+  if (typeof value === "object") {
+    const output: Record<string, unknown> = {};
+
+    for (const [key, item] of Object.entries(value).slice(0, 30)) {
+      output[safeScope(key)] = safeExtraValue(item);
+    }
+
+    return output;
+  }
+
+  return String(value).slice(0, 200);
+}
+
+function safeExtra(extra: Record<string, unknown> | undefined) {
+  if (!extra) {
+    return {};
+  }
+
+  return safeExtraValue(extra) as Record<string, unknown>;
+}
+
 export function hashPublicSecurityValue(value: string) {
-  return createHash("sha256").update(value, "utf8").digest("hex");
+  const input = String(value ?? "");
+
+  if (PUBLIC_SECURITY_HASH_SECRET && PUBLIC_SECURITY_HASH_SECRET.length >= 16) {
+    return createHmac("sha256", PUBLIC_SECURITY_HASH_SECRET)
+      .update(input, "utf8")
+      .digest("hex");
+  }
+
+  return createHash("sha256").update(input, "utf8").digest("hex");
 }
 
 export function getPublicRequestIp(request: NextRequest) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const realIp = request.headers.get("x-real-ip");
-  const cloudflareIp = request.headers.get("cf-connecting-ip");
+  const cloudflareIp = safeHeaderValue(request.headers.get("cf-connecting-ip"));
+  const realIp = safeHeaderValue(request.headers.get("x-real-ip"));
+  const forwardedFor = safeHeaderValue(request.headers.get("x-forwarded-for"));
+
+  const forwardedIp = forwardedFor.split(",")[0]?.trim();
 
   const ip =
-    forwardedFor?.split(",")[0]?.trim() ||
-    realIp?.trim() ||
-    cloudflareIp?.trim() ||
-    "unknown";
+    cloudflareIp !== "unknown"
+      ? cloudflareIp
+      : realIp !== "unknown"
+        ? realIp
+        : forwardedIp || "unknown";
 
-  return ip || "unknown";
+  return ip.slice(0, 80) || "unknown";
 }
 
 export function getPublicRequestUserAgent(request: NextRequest) {
-  return request.headers.get("user-agent")?.slice(0, 240) || "unknown";
+  return safeHeaderValue(request.headers.get("user-agent"));
 }
 
 export function getPublicRequestFingerprint(request: NextRequest) {
   const ip = getPublicRequestIp(request);
   const userAgent = getPublicRequestUserAgent(request);
+  const acceptLanguage = safeHeaderValue(request.headers.get("accept-language"));
 
-  return hashPublicSecurityValue(`${ip}|${userAgent}`);
+  return hashPublicSecurityValue(`${ip}|${userAgent}|${acceptLanguage}`);
 }
 
 export function getPublicTokenPrefixForLog(token: string | null | undefined) {
@@ -103,7 +192,7 @@ export function getPublicTokenPrefixForLog(token: string | null | undefined) {
     return null;
   }
 
-  return token.slice(0, 10);
+  return token.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 10) || null;
 }
 
 export function checkPublicRateLimit(
@@ -115,9 +204,14 @@ export function checkPublicRateLimit(
 
   cleanupRateLimitStore(now);
 
+  const scope = safeScope(options.scope);
+  const limit = Math.max(1, Math.floor(options.limit));
+  const windowMs = Math.max(1000, Math.floor(options.windowMs));
   const fingerprint = getPublicRequestFingerprint(request);
-  const tokenPart = options.token ? hashPublicSecurityValue(options.token).slice(0, 24) : "global";
-  const key = `${options.scope}:${fingerprint}:${tokenPart}`;
+  const tokenPart = options.token
+    ? hashPublicSecurityValue(options.token).slice(0, 24)
+    : "global";
+  const key = `${scope}:${fingerprint}:${tokenPart}`;
 
   const existingBucket = store.get(key);
 
@@ -126,26 +220,27 @@ export function checkPublicRateLimit(
       ? existingBucket
       : {
           count: 0,
-          resetAt: now + options.windowMs,
+          resetAt: now + windowMs,
         };
 
   bucket.count += 1;
   store.set(key, bucket);
 
-  const remaining = Math.max(options.limit - bucket.count, 0);
+  const remaining = Math.max(limit - bucket.count, 0);
   const retryAfterSeconds = Math.max(Math.ceil((bucket.resetAt - now) / 1000), 1);
 
   const headers = {
-    "X-RateLimit-Limit": String(options.limit),
+    "X-RateLimit-Limit": String(limit),
     "X-RateLimit-Remaining": String(remaining),
     "X-RateLimit-Reset": String(Math.ceil(bucket.resetAt / 1000)),
+    "Cache-Control": "no-store",
   };
 
-  if (bucket.count > options.limit) {
+  if (bucket.count > limit) {
     return {
       allowed: false,
       key,
-      limit: options.limit,
+      limit,
       remaining: 0,
       resetAt: bucket.resetAt,
       retryAfterSeconds,
@@ -159,7 +254,7 @@ export function checkPublicRateLimit(
   return {
     allowed: true,
     key,
-    limit: options.limit,
+    limit,
     remaining,
     resetAt: bucket.resetAt,
     retryAfterSeconds,
@@ -171,6 +266,7 @@ export function createPublicRateLimitResponse(result: PublicRateLimitResult) {
   return NextResponse.json(
     {
       ok: false,
+      success: false,
       message: "Too many requests. Please try again later.",
     },
     {
@@ -182,17 +278,17 @@ export function createPublicRateLimitResponse(result: PublicRateLimitResult) {
 
 export function logPublicSecurityEvent(request: NextRequest, event: PublicSecurityEvent) {
   const payload = {
-    scope: event.scope,
-    reason: event.reason,
+    scope: safeScope(event.scope),
+    reason: safeText(event.reason, 160) ?? "unknown",
     severity: event.severity ?? "warning",
     ipHash: hashPublicSecurityValue(getPublicRequestIp(request)),
     fingerprintHash: getPublicRequestFingerprint(request),
     userAgentHash: hashPublicSecurityValue(getPublicRequestUserAgent(request)),
     tokenPrefix: getPublicTokenPrefixForLog(event.token),
-    path: request.nextUrl.pathname,
-    method: request.method,
+    path: safePath(request.nextUrl.pathname),
+    method: safeText(request.method, 20) ?? "UNKNOWN",
     createdAt: new Date().toISOString(),
-    extra: event.extra ?? {},
+    extra: safeExtra(event.extra),
   };
 
   console.warn("[HEXA_PUBLIC_SECURITY_EVENT]", JSON.stringify(payload));
@@ -202,22 +298,62 @@ export function createSafePublicNotFoundResponse() {
   return NextResponse.json(
     {
       ok: false,
-      message: "Offer link is not available.",
+      success: false,
+      message: "Resource is not available.",
     },
     {
       status: 404,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     },
   );
 }
 
-export function createSafePublicGoneResponse(message = "Offer link is no longer available.") {
+export function createSafePublicGoneResponse(message = "Resource is no longer available.") {
   return NextResponse.json(
     {
       ok: false,
+      success: false,
       message,
     },
     {
       status: 410,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    },
+  );
+}
+
+export function createSafePublicErrorResponse(message = "Request could not be processed.") {
+  return NextResponse.json(
+    {
+      ok: false,
+      success: false,
+      message,
+    },
+    {
+      status: 400,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    },
+  );
+}
+
+export function createSafePublicServerErrorResponse() {
+  return NextResponse.json(
+    {
+      ok: false,
+      success: false,
+      message: "Server error.",
+    },
+    {
+      status: 500,
+      headers: {
+        "Cache-Control": "no-store",
+      },
     },
   );
 }
