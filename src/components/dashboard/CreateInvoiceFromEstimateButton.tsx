@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 type CreateInvoiceResponse = {
+  layer?: string;
+  message?: string;
   data?: {
     status?: string;
     message?: string;
+    created?: boolean;
     invoice?: {
       id: string;
       invoiceNumber?: string | null;
     } | null;
   };
-  message?: string;
 };
 
 export default function CreateInvoiceFromEstimateButton({
@@ -25,20 +27,25 @@ export default function CreateInvoiceFromEstimateButton({
   const [error, setError] = useState("");
 
   async function createInvoice() {
+    const confirmed = window.confirm(
+      "Rechnung wirklich aus dieser akzeptierten Kalkulation erstellen?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch("/api/dashboard/invoices", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          estimateId,
-        }),
-      });
+      const response = await fetch(
+        `/api/dashboard/estimates/${estimateId}/invoice`,
+        {
+          method: "POST",
+          credentials: "same-origin",
+        }
+      );
 
       const json = (await response.json()) as CreateInvoiceResponse;
 
@@ -46,7 +53,7 @@ export default function CreateInvoiceFromEstimateButton({
         throw new Error(
           json.data?.message ??
             json.message ??
-            "Die Rechnung konnte nicht erstellt werden.",
+            "Die Rechnung konnte nicht erstellt werden."
         );
       }
 
@@ -62,7 +69,7 @@ export default function CreateInvoiceFromEstimateButton({
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Unbekannter Fehler beim Erstellen der Rechnung.",
+          : "Unbekannter Fehler beim Erstellen der Rechnung."
       );
     } finally {
       setLoading(false);
@@ -77,7 +84,9 @@ export default function CreateInvoiceFromEstimateButton({
         disabled={loading}
         className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? "Rechnung wird erstellt..." : "Rechnung erstellen"}
+        {loading
+          ? "Rechnung wird erstellt..."
+          : "Rechnung aus akzeptierter Kalkulation erstellen"}
       </button>
 
       {error ? (
