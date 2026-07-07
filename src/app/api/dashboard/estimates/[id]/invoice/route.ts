@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { EstimateStatus, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextResponse } from "next/server";
 
@@ -19,12 +19,10 @@ function getPrisma() {
       throw new Error("DATABASE_URL is missing");
     }
 
-    const adapter = new PrismaPg({
-      connectionString: databaseUrl,
-    });
-
     globalForPrisma.hexaPrisma = new PrismaClient({
-      adapter,
+      adapter: new PrismaPg({
+        connectionString: databaseUrl,
+      }),
     });
   }
 
@@ -101,7 +99,7 @@ export async function POST(
       );
     }
 
-    if (!["ACCEPTED", "SENT", "READY_TO_SEND"].includes(estimate.status)) {
+    if (estimate.status !== EstimateStatus.ACCEPTED) {
       return NextResponse.json(
         {
           layer: "estimate-invoice-api",
@@ -109,21 +107,25 @@ export async function POST(
           data: {
             status: "error",
             message:
-              "Fakturę twórz dopiero z wyceny gotowej, wysłanej albo zaakceptowanej.",
+              "Fakturę można utworzyć dopiero z zaakceptowanej wyceny.",
+            currentStatus: estimate.status,
+            requiredStatus: EstimateStatus.ACCEPTED,
             invoice: null,
           },
         },
         {
-          status: 400,
+          status: 409,
         }
       );
     }
+
+    const estimateReference = `Estimate ID: ${estimate.id}`;
 
     const existingInvoice = await prisma.invoice.findFirst({
       where: {
         customerId: estimate.customerId,
         notes: {
-          contains: `Estimate ID: ${estimate.id}`,
+          contains: estimateReference,
         },
       },
       orderBy: {
@@ -138,69 +140,113 @@ export async function POST(
         data: {
           status: "success",
           message: "Faktura dla tej wyceny już istnieje.",
+          created: false,
           invoice: existingInvoice,
         },
       });
     }
 
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber: createInvoiceNumber(),
-        customerId: estimate.customerId,
-        orderId: estimate.orderId,
-        status: "DRAFT",
-        issueDate: new Date(),
-        dueDate: dueDateInDays(14),
-        subtotal: money(estimate.subtotal),
-        taxRate: "0.00",
-        taxAmount: "0.00",
-        total: money(estimate.total),
-        paidAmount: "0.00",
-        currency: estimate.currency ?? "CHF",
-        notes: [
-          `Invoice generated from estimate ${estimate.estimateNumber}.`,
-          `Estimate ID: ${estimate.id}`,
-          estimate.notesCustomer ? `Customer notes: ${estimate.notesCustomer}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        customerId: estimate.customerId,
-        orderId: estimate.orderId,
-        sessionId: estimate.sessionId,
-    action: "CREATE",
-        entityType: "Invoice",
-        entityId: invoice.id,
-        actorType: "admin",
-        message: `Invoice ${invoice.invoiceNumber} created from estimate ${estimate.estimateNumber}.`,
-        after: {
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          estimateId: estimate.id,
-          estimateNumber: estimate.estimateNumber,
+    const invoice = await prisma.$transaction(async (tx) => {
+      const createdInvoice = await tx.invoice.create({
+        data: {
+          invoiceNumber: createInvoiceNumber(),
+          customerId: estimate.customerId,
+          orderId: estimate.orderId,
+          status: "DRAFT",
+          issueDate: new Date(),
+          dueDate: dueDateInDays(14),
+          subtotal: money(estimate.subtotal),
+          taxRate: "0.00",
+          taxAmount: "0.00",
           total: money(estimate.total),
+          paidAmount: "0.00",
+          currency: estimate.currency ?? "CHF",
+          notes: [
+            `Invoice generated directly from accepted estimate ${estimate.estimateNumber}.`,
+            estimateReference,
+            estimate.notesCustomer
+              ? `Customer notes: ${estimate.notesCustomer}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          items: {
+            create: estimate.items.map((item) => ({
+              serviceCatalogItemId: item.serviceCatalogItemId,
+              name: item.name,
+              description: item.description,
+              category: item.category,
+              unit: item.unit,
+              quantity: money(item.quantity),
+              unitPrice: money(item.unitPrice),
+              subtotal: money(item.subtotal),
+              taxRate: "0.00",
+              taxAmount: "0.00",
+              discountAmount: money(item.discountAmount),
+              total: money(item.total),
+              sortOrder: item.sortOrder,
+              metadata: {
+                source: "estimate-invoice-api",
+                estimateId: estimate.id,
+                estimateItemId: item.id,
+              },
+            })),
+          },
         },
-        metadata: {
-          source: "estimate-invoice-api",
+        include: {
+          items: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          customerId: estimate.customerId,
+          orderId: estimate.orderId,
           estimateId: estimate.id,
-          estimateNumber: estimate.estimateNumber,
+          sessionId: estimate.sessionId,
+          action: "CREATE",
+          entityType: "Invoice",
+          entityId: createdInvoice.id,
+          actorType: "dashboard",
+          message: `Invoice ${createdInvoice.invoiceNumber} created directly from accepted estimate ${estimate.estimateNumber}.`,
+          after: {
+            invoiceId: createdInvoice.id,
+            invoiceNumber: createdInvoice.invoiceNumber,
+            estimateId: estimate.id,
+            estimateNumber: estimate.estimateNumber,
+            total: money(estimate.total),
+          },
+          metadata: {
+            source: "estimate-invoice-api",
+            estimateId: estimate.id,
+            estimateNumber: estimate.estimateNumber,
+            invoiceId: createdInvoice.id,
+          },
         },
-      },
+      });
+
+      return createdInvoice;
     });
 
-    return NextResponse.json({
-      layer: "estimate-invoice-api",
-      message: "Invoice created from estimate",
-      data: {
-        status: "success",
-        message: "Faktura została utworzona z wyceny.",
-        invoice,
+    return NextResponse.json(
+      {
+        layer: "estimate-invoice-api",
+        message: "Invoice created from accepted estimate",
+        data: {
+          status: "success",
+          message: "Faktura została utworzona z zaakceptowanej wyceny.",
+          created: true,
+          invoice,
+        },
       },
-    });
+      {
+        status: 201,
+      }
+    );
   } catch (error) {
     console.error("Create invoice from estimate error:", error);
 

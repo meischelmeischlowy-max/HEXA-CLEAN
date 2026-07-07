@@ -1,0 +1,309 @@
+import { EstimateStatus, PrismaClient, QuoteStatus } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const TENANT_KEY = "hexa-clean";
+
+const quoteCreationAllowedStatuses: readonly EstimateStatus[] = [
+  EstimateStatus.READY_TO_SEND,
+  EstimateStatus.SENT,
+  EstimateStatus.ACCEPTED,
+];
+
+const globalForPrisma = globalThis as unknown as {
+  hexaPrisma?: PrismaClient;
+};
+
+function getPrisma() {
+  if (!globalForPrisma.hexaPrisma) {
+    const databaseUrl = process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is missing");
+    }
+
+    globalForPrisma.hexaPrisma = new PrismaClient({
+      adapter: new PrismaPg({
+        connectionString: databaseUrl,
+      }),
+    });
+  }
+
+  return globalForPrisma.hexaPrisma;
+}
+
+function money(value: unknown) {
+  const number =
+    typeof value === "object" && value !== null && "toString" in value
+      ? Number(value.toString())
+      : Number(value ?? 0);
+
+  if (!Number.isFinite(number)) {
+    return "0.00";
+  }
+
+  return (Math.round((number + Number.EPSILON) * 100) / 100).toFixed(2);
+}
+
+function createQuoteNumber() {
+  const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const random = Math.floor(1000 + Math.random() * 9000);
+
+  return `QUO-${date}-${random}`;
+}
+
+function serializeDate(value: Date | null) {
+  return value ? value.toISOString() : null;
+}
+
+export async function POST(
+  _request: Request,
+  context: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  try {
+    const { id } = await context.params;
+    const prisma = getPrisma();
+
+    const estimate = await prisma.estimate.findFirst({
+      where: {
+        id,
+        tenantKey: TENANT_KEY,
+      },
+      include: {
+        customer: true,
+        order: true,
+        session: true,
+        items: {
+          include: {
+            serviceCatalogItem: true,
+          },
+          orderBy: {
+            sortOrder: "asc",
+          },
+        },
+      },
+    });
+
+    if (!estimate) {
+      return NextResponse.json(
+        {
+          layer: "estimate-quote-api",
+          message: "Estimate not found",
+          data: {
+            status: "error",
+            message: "Nie znaleziono wyceny.",
+            quote: null,
+          },
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    if (!quoteCreationAllowedStatuses.includes(estimate.status)) {
+      return NextResponse.json(
+        {
+          layer: "estimate-quote-api",
+          message: "Estimate status does not allow quote creation",
+          data: {
+            status: "error",
+            message:
+              "Ofertę można utworzyć dopiero z wyceny gotowej do wysłania, wysłanej albo zaakceptowanej.",
+            currentStatus: estimate.status,
+            requiredStatuses: quoteCreationAllowedStatuses,
+            quote: null,
+          },
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    const estimateReference = `Estimate ID: ${estimate.id}`;
+
+    const existingQuote = await prisma.quote.findFirst({
+      where: {
+        customerId: estimate.customerId,
+        notes: {
+          contains: estimateReference,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (existingQuote) {
+      return NextResponse.json({
+        layer: "estimate-quote-api",
+        message: "Quote already exists for this estimate",
+        data: {
+          status: "success",
+          message: "Oferta dla tej wyceny już istnieje.",
+          created: false,
+          quote: existingQuote,
+        },
+      });
+    }
+
+    let quoteStatus: QuoteStatus = QuoteStatus.DRAFT;
+
+    if (estimate.status === EstimateStatus.SENT) {
+      quoteStatus = QuoteStatus.SENT;
+    }
+
+    if (estimate.status === EstimateStatus.ACCEPTED) {
+      quoteStatus = QuoteStatus.ACCEPTED;
+    }
+
+    const now = new Date();
+
+    const quoteSentAt =
+      quoteStatus === QuoteStatus.SENT || quoteStatus === QuoteStatus.ACCEPTED
+        ? estimate.sentAt ?? now
+        : null;
+
+    const quoteAcceptedAt =
+      quoteStatus === QuoteStatus.ACCEPTED ? estimate.acceptedAt ?? now : null;
+
+    const quoteItems = {
+      source: "estimate-quote-api",
+      estimateId: estimate.id,
+      estimateNumber: estimate.estimateNumber,
+      title: estimate.title,
+      description: estimate.description,
+      totals: {
+        subtotal: money(estimate.subtotal),
+        riskMultiplier: money(estimate.riskMultiplier),
+        riskAmount: money(estimate.riskAmount),
+        travelFee: money(estimate.travelFee),
+        materialFee: money(estimate.materialFee),
+        discountAmount: money(estimate.discountAmount),
+        total: money(estimate.total),
+        currency: estimate.currency ?? "CHF",
+      },
+      items: estimate.items.map((item) => ({
+        estimateItemId: item.id,
+        serviceCatalogItemId: item.serviceCatalogItemId,
+        serviceName: item.serviceCatalogItem?.name ?? null,
+        name: item.name,
+        description: item.description,
+        category: item.category,
+        unit: item.unit,
+        quantity: money(item.quantity),
+        unitPrice: money(item.unitPrice),
+        subtotal: money(item.subtotal),
+        riskMultiplier: money(item.riskMultiplier),
+        riskAmount: money(item.riskAmount),
+        discountAmount: money(item.discountAmount),
+        total: money(item.total),
+        sortOrder: item.sortOrder,
+      })),
+    };
+
+    const quote = await prisma.$transaction(async (tx) => {
+      const createdQuote = await tx.quote.create({
+        data: {
+          quoteNumber: createQuoteNumber(),
+          customerId: estimate.customerId,
+          orderId: estimate.orderId,
+          sessionId: estimate.sessionId,
+          status: quoteStatus,
+          subtotal: money(estimate.subtotal),
+          taxRate: "0.00",
+          taxAmount: "0.00",
+          total: money(estimate.total),
+          currency: estimate.currency ?? "CHF",
+          items: quoteItems,
+          notes: [
+            `Quote generated from estimate ${estimate.estimateNumber}.`,
+            estimateReference,
+            estimate.notesCustomer
+              ? `Customer notes: ${estimate.notesCustomer}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          validUntil: estimate.validUntil,
+          sentAt: quoteSentAt,
+          acceptedAt: quoteAcceptedAt,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          customerId: estimate.customerId,
+          orderId: estimate.orderId,
+          estimateId: estimate.id,
+          sessionId: estimate.sessionId,
+          action: "CREATE",
+          entityType: "Quote",
+          entityId: createdQuote.id,
+          actorType: "dashboard",
+          message: `Quote ${createdQuote.quoteNumber} created from estimate ${estimate.estimateNumber}.`,
+          after: {
+            quoteId: createdQuote.id,
+            quoteNumber: createdQuote.quoteNumber,
+            quoteStatus: createdQuote.status,
+            estimateId: estimate.id,
+            estimateNumber: estimate.estimateNumber,
+            total: money(estimate.total),
+            sentAt: serializeDate(createdQuote.sentAt),
+            acceptedAt: serializeDate(createdQuote.acceptedAt),
+          },
+          metadata: {
+            source: "estimate-quote-api",
+            estimateId: estimate.id,
+            estimateNumber: estimate.estimateNumber,
+            quoteId: createdQuote.id,
+          },
+        },
+      });
+
+      return createdQuote;
+    });
+
+    return NextResponse.json(
+      {
+        layer: "estimate-quote-api",
+        message: "Quote created from estimate",
+        data: {
+          status: "success",
+          message: "Oferta została utworzona z wyceny.",
+          created: true,
+          quote,
+        },
+      },
+      {
+        status: 201,
+      }
+    );
+  } catch (error) {
+    console.error("Create quote from estimate error:", error);
+
+    return NextResponse.json(
+      {
+        layer: "estimate-quote-api",
+        message: "Create quote from estimate error",
+        data: {
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unknown create quote from estimate error",
+          quote: null,
+        },
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
