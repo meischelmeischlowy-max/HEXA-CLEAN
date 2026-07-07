@@ -15,6 +15,7 @@ import {
 } from "@/lib/public-security";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const PUBLIC_OFFER_PAGE_RATE_LIMIT = 30;
 const PUBLIC_OFFER_PAGE_RATE_WINDOW_MS = 60 * 1000;
@@ -140,7 +141,10 @@ function serializeCustomerName(customer: {
     return customer.companyName || "Kunde";
   }
 
-  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ").trim();
+  const fullName = [customer.firstName, customer.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
   return fullName || "Kunde";
 }
@@ -231,6 +235,44 @@ function ErrorView({
       </div>
     </main>
   );
+}
+
+function DecisionStatusBox({
+  status,
+  acceptedAt,
+}: {
+  status: QuoteStatus;
+  acceptedAt: Date | null;
+}) {
+  if (status === QuoteStatus.ACCEPTED) {
+    return (
+      <section className="rounded-[2rem] border border-emerald-400/30 bg-emerald-500/10 p-6 text-emerald-100 shadow-[0_25px_90px_rgba(16,185,129,0.16)]">
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-200">
+          Offerte akzeptiert
+        </p>
+        <p className="mt-3 text-sm leading-7 text-emerald-50">
+          Diese Offerte wurde bereits akzeptiert
+          {acceptedAt ? ` am ${formatDateTime(acceptedAt)}` : ""}.
+        </p>
+      </section>
+    );
+  }
+
+  if (status === QuoteStatus.REJECTED) {
+    return (
+      <section className="rounded-[2rem] border border-red-400/30 bg-red-500/10 p-6 text-red-100 shadow-[0_25px_90px_rgba(239,68,68,0.14)]">
+        <p className="text-xs font-black uppercase tracking-[0.25em] text-red-200">
+          Offerte abgelehnt
+        </p>
+        <p className="mt-3 text-sm leading-7 text-red-50">
+          Diese Offerte wurde bereits abgelehnt. Für eine neue Offerte kontaktieren
+          Sie bitte HEXA CLEAN.
+        </p>
+      </section>
+    );
+  }
+
+  return null;
 }
 
 export default async function PublicOfferPage({
@@ -382,16 +424,20 @@ export default async function PublicOfferPage({
     );
   }
 
-  if (link.quote.status === QuoteStatus.REJECTED || link.quote.status === QuoteStatus.EXPIRED) {
+  if (link.quote.status === QuoteStatus.EXPIRED) {
     return (
       <ErrorView
         title="Offerte nicht mehr verfügbar"
-        message="Diese Offerte ist nicht mehr aktiv."
+        message="Diese Offerte ist abgelaufen."
       />
     );
   }
 
-  if (link.quote.status !== QuoteStatus.SENT && link.quote.status !== QuoteStatus.ACCEPTED) {
+  if (
+    link.quote.status !== QuoteStatus.SENT &&
+    link.quote.status !== QuoteStatus.ACCEPTED &&
+    link.quote.status !== QuoteStatus.REJECTED
+  ) {
     logPublicSecurityEvent(securityRequest, {
       scope: "public_offer_page",
       reason: "quote_not_publicly_viewable",
@@ -426,7 +472,7 @@ export default async function PublicOfferPage({
   const customerName = serializeCustomerName(link.quote.customer);
   const quoteAcceptedAt = link.quote.acceptedAt ?? link.acceptedAt;
   const items = normalizeOfferItems(link.quote.items);
-  const canAccept = link.quote.status === QuoteStatus.SENT && !quoteAcceptedAt;
+  const canDecide = link.quote.status === QuoteStatus.SENT && !quoteAcceptedAt;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_35%),linear-gradient(135deg,_#020617,_#0f172a_55%,_#111827)] px-5 py-8 text-white md:px-8">
@@ -441,7 +487,8 @@ export default async function PublicOfferPage({
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
               Guten Tag {customerName}. Bitte prüfen Sie die Offerte sorgfältig. Über
-              diesen geschützten Link können Sie die Offerte verbindlich akzeptieren.
+              diesen geschützten Link können Sie die Offerte verbindlich akzeptieren
+              oder ablehnen.
             </p>
           </div>
 
@@ -454,7 +501,9 @@ export default async function PublicOfferPage({
             </p>
             <p className="mt-4 text-xs text-slate-400">
               Link gültig bis:{" "}
-              <span className="font-bold text-slate-200">{formatDate(link.expiresAt)}</span>
+              <span className="font-bold text-slate-200">
+                {formatDate(link.expiresAt)}
+              </span>
             </p>
           </div>
         </header>
@@ -467,7 +516,9 @@ export default async function PublicOfferPage({
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
                     Kunde
                   </p>
-                  <p className="mt-2 text-base font-bold text-slate-100">{customerName}</p>
+                  <p className="mt-2 text-base font-bold text-slate-100">
+                    {customerName}
+                  </p>
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5">
@@ -504,7 +555,9 @@ export default async function PublicOfferPage({
                     <article key={`${item.name}-${index}`} className="p-6">
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div>
-                          <p className="text-lg font-black text-white">{item.name}</p>
+                          <p className="text-lg font-black text-white">
+                            {item.name}
+                          </p>
                           {item.description ? (
                             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">
                               {item.description}
@@ -576,11 +629,18 @@ export default async function PublicOfferPage({
               </div>
             </section>
 
-            <PublicOfferAcceptButton
-              token={rawToken}
-              disabled={!canAccept}
-              acceptedAt={quoteAcceptedAt?.toISOString() ?? null}
-            />
+            {canDecide ? (
+              <PublicOfferAcceptButton
+                token={rawToken}
+                disabled={!canDecide}
+              acceptedAt={null}
+              />
+            ) : (
+              <DecisionStatusBox
+                status={link.quote.status}
+                acceptedAt={quoteAcceptedAt}
+              />
+            )}
 
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 text-xs leading-6 text-slate-400">
               <p className="font-bold text-slate-200">Datenschutz-Hinweis</p>

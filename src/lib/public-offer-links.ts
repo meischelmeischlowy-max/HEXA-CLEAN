@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 
 const PUBLIC_OFFER_TOKEN_BYTES = 32;
 const PUBLIC_OFFER_TOKEN_MIN_LENGTH = 32;
@@ -39,11 +39,29 @@ export function createPublicOfferTokenHash(rawToken: string): string {
   return createHash("sha256").update(rawToken, "utf8").digest("hex");
 }
 
+export function verifyPublicOfferTokenHash(
+  rawToken: string,
+  expectedTokenHash: string,
+): boolean {
+  const tokenHash = createPublicOfferTokenHash(rawToken);
+
+  const tokenHashBuffer = Buffer.from(tokenHash, "hex");
+  const expectedTokenHashBuffer = Buffer.from(expectedTokenHash, "hex");
+
+  if (tokenHashBuffer.length !== expectedTokenHashBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(tokenHashBuffer, expectedTokenHashBuffer);
+}
+
 export function createPublicOfferTokenPrefix(rawToken: string): string {
   return rawToken.slice(0, 10);
 }
 
-export function createPublicOfferExpiresAt(days = DEFAULT_PUBLIC_OFFER_EXPIRES_DAYS): Date {
+export function createPublicOfferExpiresAt(
+  days = DEFAULT_PUBLIC_OFFER_EXPIRES_DAYS,
+): Date {
   const safeDays =
     Number.isFinite(days) && days > 0 && days <= 90
       ? Math.floor(days)
@@ -68,7 +86,10 @@ export function createPublicOfferTokenData(
   };
 }
 
-export function isPublicOfferLinkExpired(expiresAt: Date, now = new Date()): boolean {
+export function isPublicOfferLinkExpired(
+  expiresAt: Date,
+  now = new Date(),
+): boolean {
   return expiresAt.getTime() <= now.getTime();
 }
 

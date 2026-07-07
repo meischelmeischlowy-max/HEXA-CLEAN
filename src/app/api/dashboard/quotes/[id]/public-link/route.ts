@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  AuditAction,
   NotificationChannel,
   NotificationStatus,
   PrismaClient,
@@ -11,6 +12,9 @@ import {
   createPublicOfferTokenData,
   isPublicOfferLinkExpired,
 } from "@/lib/public-offer-links";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -37,14 +41,27 @@ function getPrisma() {
   return globalForPrisma.hexaPrisma;
 }
 
-function jsonError(message: string, status = 400, details?: Record<string, unknown>) {
+function responseHeaders() {
+  return {
+    "Cache-Control": "no-store",
+  };
+}
+
+function jsonError(
+  message: string,
+  status = 400,
+  details?: Record<string, unknown>,
+) {
   return NextResponse.json(
     {
       ok: false,
       message,
       ...(details ? { details } : {}),
     },
-    { status },
+    {
+      status,
+      headers: responseHeaders(),
+    },
   );
 }
 
@@ -99,7 +116,9 @@ function isDashboardRequestAuthorized(request: NextRequest) {
   };
 }
 
-async function readJsonObject(request: NextRequest): Promise<Record<string, unknown>> {
+async function readJsonObject(
+  request: NextRequest,
+): Promise<Record<string, unknown>> {
   try {
     const body = await request.json();
 
@@ -167,7 +186,11 @@ function serializePublicOfferLink(link: {
   };
 }
 
-function buildMaskedPublicOfferUrl(publicUrl: string, rawToken: string, tokenPrefix: string) {
+function buildMaskedPublicOfferUrl(
+  publicUrl: string,
+  rawToken: string,
+  tokenPrefix: string,
+) {
   return publicUrl.replace(rawToken, `${tokenPrefix}...`);
 }
 
@@ -197,49 +220,223 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const auth = isDashboardRequestAuthorized(request);
+  try {
+    const auth = isDashboardRequestAuthorized(request);
 
-  if (!auth.ok) {
-    return jsonError("Unauthorized dashboard request.", 401, {
-      reason: auth.reason,
-    });
-  }
+    if (!auth.ok) {
+      return jsonError("Nicht autorisierte Dashboard-Anfrage.", 401, {
+        reason: auth.reason,
+      });
+    }
 
-  const { id } = await context.params;
-  const quoteId = normalizeUuid(id);
+    const { id } = await context.params;
+    const quoteId = normalizeUuid(id);
 
-  if (!quoteId) {
-    return jsonError("Invalid quote id.", 400);
-  }
+    if (!quoteId) {
+      return jsonError("Ungültige Angebots-ID.", 400);
+    }
 
-  const prisma = getPrisma();
+    const prisma = getPrisma();
 
-  const quote = await prisma.quote.findUnique({
-    where: {
-      id: quoteId,
-    },
-    select: {
-      id: true,
-      quoteNumber: true,
-      status: true,
-      validUntil: true,
-      sentAt: true,
-      acceptedAt: true,
-      customer: {
-        select: {
-          id: true,
-          type: true,
-          firstName: true,
-          lastName: true,
-          companyName: true,
-          email: true,
+    const quote = await prisma.quote.findUnique({
+      where: {
+        id: quoteId,
+      },
+      select: {
+        id: true,
+        quoteNumber: true,
+        status: true,
+        validUntil: true,
+        sentAt: true,
+        acceptedAt: true,
+        customer: {
+          select: {
+            id: true,
+            type: true,
+            firstName: true,
+            lastName: true,
+            companyName: true,
+            email: true,
+          },
+        },
+        publicOfferLinks: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 10,
+          select: {
+            id: true,
+            tokenPrefix: true,
+            expiresAt: true,
+            acceptedAt: true,
+            revokedAt: true,
+            lastViewedAt: true,
+            viewCount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
       },
-      publicOfferLinks: {
-        orderBy: {
-          createdAt: "desc",
+    });
+
+    if (!quote) {
+      return jsonError("Das Angebot wurde nicht gefunden.", 404);
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        quote: {
+          id: quote.id,
+          quoteNumber: quote.quoteNumber,
+          status: quote.status,
+          validUntil: quote.validUntil?.toISOString() ?? null,
+          sentAt: quote.sentAt?.toISOString() ?? null,
+          acceptedAt: quote.acceptedAt?.toISOString() ?? null,
+          customer: quote.customer,
         },
-        take: 10,
+        links: quote.publicOfferLinks.map(serializePublicOfferLink),
+        securityNote:
+          "Vollständige Public-Offer-Tokens werden nie gespeichert und können später nicht erneut angezeigt werden. Erstellen Sie einen neuen Link, wenn der Kunde die URL verloren hat.",
+      },
+      {
+        headers: responseHeaders(),
+      },
+    );
+  } catch (error) {
+    console.error("Public offer link list error:", error);
+
+    return jsonError(
+      "Die öffentlichen Angebotslinks konnten nicht geladen werden.",
+      500,
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const auth = isDashboardRequestAuthorized(request);
+
+    if (!auth.ok) {
+      return jsonError("Nicht autorisierte Dashboard-Anfrage.", 401, {
+        reason: auth.reason,
+      });
+    }
+
+    const { id } = await context.params;
+    const quoteId = normalizeUuid(id);
+
+    if (!quoteId) {
+      return jsonError("Ungültige Angebots-ID.", 400);
+    }
+
+    const body = await readJsonObject(request);
+    const expiresInDays = normalizeExpiresInDays(body.expiresInDays);
+    const revokeExisting = normalizeBoolean(body.revokeExisting, true);
+
+    const prisma = getPrisma();
+
+    const quote = await prisma.quote.findUnique({
+      where: {
+        id: quoteId,
+      },
+      select: {
+        id: true,
+        quoteNumber: true,
+        status: true,
+        customerId: true,
+        orderId: true,
+        sessionId: true,
+        validUntil: true,
+        sentAt: true,
+        acceptedAt: true,
+        customer: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            companyName: true,
+          },
+        },
+      },
+    });
+
+    if (!quote) {
+      return jsonError("Das Angebot wurde nicht gefunden.", 404);
+    }
+
+    if (quote.status === QuoteStatus.ACCEPTED) {
+      return jsonError("Das Angebot wurde bereits akzeptiert.", 409, {
+        quoteStatus: quote.status,
+      });
+    }
+
+    if (quote.status !== QuoteStatus.SENT) {
+      return jsonError(
+        "Ein öffentlicher Angebotslink kann nur für ein versendetes Angebot erstellt werden.",
+        409,
+        {
+          quoteStatus: quote.status,
+          requiredStatus: QuoteStatus.SENT,
+        },
+      );
+    }
+
+    const now = new Date();
+
+    if (quote.validUntil && quote.validUntil.getTime() <= now.getTime()) {
+      return jsonError("Die Gültigkeit des Angebots ist bereits abgelaufen.", 409, {
+        validUntil: quote.validUntil.toISOString(),
+      });
+    }
+
+    const tokenData = createPublicOfferTokenData(expiresInDays);
+    const publicUrl = buildPublicOfferUrl(tokenData.rawToken);
+    const maskedPublicUrl = buildMaskedPublicOfferUrl(
+      publicUrl,
+      tokenData.rawToken,
+      tokenData.tokenPrefix,
+    );
+
+    const finalExpiresAt =
+      quote.validUntil && quote.validUntil.getTime() < tokenData.expiresAt.getTime()
+        ? quote.validUntil
+        : tokenData.expiresAt;
+
+    const result = await prisma.$transaction(async (tx) => {
+      if (revokeExisting) {
+        await tx.publicOfferLink.updateMany({
+          where: {
+            quoteId: quote.id,
+            acceptedAt: null,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: now,
+          },
+        });
+      }
+
+      const link = await tx.publicOfferLink.create({
+        data: {
+          tokenHash: tokenData.tokenHash,
+          tokenPrefix: tokenData.tokenPrefix,
+          quoteId: quote.id,
+          customerId: quote.customerId,
+          expiresAt: finalExpiresAt,
+          createdBy: "dashboard",
+          metadata: {
+            expiresInDays,
+            revokeExisting,
+            rawTokenStored: false,
+            fullPublicUrlStored: false,
+            maskedPublicUrl,
+          },
+        },
         select: {
           id: true,
           tokenPrefix: true,
@@ -251,250 +448,116 @@ export async function GET(
           createdAt: true,
           updatedAt: true,
         },
-      },
-    },
-  });
-
-  if (!quote) {
-    return jsonError("Quote not found.", 404);
-  }
-
-  return NextResponse.json({
-    ok: true,
-    quote: {
-      id: quote.id,
-      quoteNumber: quote.quoteNumber,
-      status: quote.status,
-      validUntil: quote.validUntil?.toISOString() ?? null,
-      sentAt: quote.sentAt?.toISOString() ?? null,
-      acceptedAt: quote.acceptedAt?.toISOString() ?? null,
-      customer: quote.customer,
-    },
-    links: quote.publicOfferLinks.map(serializePublicOfferLink),
-    securityNote:
-      "Raw public offer tokens are never stored and cannot be shown again. Generate a new link if the customer lost the URL.",
-  });
-}
-
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
-  const auth = isDashboardRequestAuthorized(request);
-
-  if (!auth.ok) {
-    return jsonError("Unauthorized dashboard request.", 401, {
-      reason: auth.reason,
-    });
-  }
-
-  const { id } = await context.params;
-  const quoteId = normalizeUuid(id);
-
-  if (!quoteId) {
-    return jsonError("Invalid quote id.", 400);
-  }
-
-  const body = await readJsonObject(request);
-  const expiresInDays = normalizeExpiresInDays(body.expiresInDays);
-  const revokeExisting = normalizeBoolean(body.revokeExisting, true);
-
-  const prisma = getPrisma();
-
-  const quote = await prisma.quote.findUnique({
-    where: {
-      id: quoteId,
-    },
-    select: {
-      id: true,
-      quoteNumber: true,
-      status: true,
-      customerId: true,
-      orderId: true,
-      sessionId: true,
-      validUntil: true,
-      sentAt: true,
-      acceptedAt: true,
-      customer: {
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          companyName: true,
-        },
-      },
-    },
-  });
-
-  if (!quote) {
-    return jsonError("Quote not found.", 404);
-  }
-
-  if (quote.status === QuoteStatus.ACCEPTED) {
-    return jsonError("Quote is already accepted.", 409, {
-      quoteStatus: quote.status,
-    });
-  }
-
-  if (quote.status !== QuoteStatus.SENT) {
-    return jsonError("Public offer link can only be generated for a sent quote.", 409, {
-      quoteStatus: quote.status,
-      requiredStatus: QuoteStatus.SENT,
-    });
-  }
-
-  const now = new Date();
-
-  if (quote.validUntil && quote.validUntil.getTime() <= now.getTime()) {
-    return jsonError("Quote validity date has already expired.", 409, {
-      validUntil: quote.validUntil.toISOString(),
-    });
-  }
-
-  const tokenData = createPublicOfferTokenData(expiresInDays);
-  const publicUrl = buildPublicOfferUrl(tokenData.rawToken);
-  const maskedPublicUrl = buildMaskedPublicOfferUrl(
-    publicUrl,
-    tokenData.rawToken,
-    tokenData.tokenPrefix,
-  );
-
-  const finalExpiresAt =
-    quote.validUntil && quote.validUntil.getTime() < tokenData.expiresAt.getTime()
-      ? quote.validUntil
-      : tokenData.expiresAt;
-
-  const result = await prisma.$transaction(async (tx) => {
-    if (revokeExisting) {
-      await tx.publicOfferLink.updateMany({
-        where: {
-          quoteId: quote.id,
-          acceptedAt: null,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: now,
-        },
       });
-    }
 
-    const link = await tx.publicOfferLink.create({
-      data: {
-        tokenHash: tokenData.tokenHash,
-        tokenPrefix: tokenData.tokenPrefix,
-        quoteId: quote.id,
-        customerId: quote.customerId,
-        expiresAt: finalExpiresAt,
-        createdBy: "dashboard",
-        metadata: {
-          expiresInDays,
-          revokeExisting,
-          rawTokenStored: false,
-          maskedPublicUrl,
-        },
-      },
-      select: {
-        id: true,
-        tokenPrefix: true,
-        expiresAt: true,
-        acceptedAt: true,
-        revokedAt: true,
-        lastViewedAt: true,
-        viewCount: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    const notification = quote.customer.email
-      ? await tx.notification.create({
-          data: {
-            customerId: quote.customerId,
-            orderId: quote.orderId,
-            sessionId: quote.sessionId,
-            channel: NotificationChannel.EMAIL,
-            status: NotificationStatus.PENDING,
-            recipient: quote.customer.email,
-            subject: buildOfferEmailSubject(quote.quoteNumber),
-            message: buildOfferEmailLogMessage(maskedPublicUrl),
-            metadata: {
-              source: "public_offer_link_generation",
-              quoteId: quote.id,
-              quoteNumber: quote.quoteNumber,
-              publicOfferLinkId: link.id,
-              tokenPrefix: tokenData.tokenPrefix,
-              maskedPublicUrl,
-              rawTokenStored: false,
-              fullPublicUrlStored: false,
-              draftOnly: true,
-              requiresManualSend: true,
+      const notification = quote.customer.email
+        ? await tx.notification.create({
+            data: {
+              customerId: quote.customerId,
+              orderId: quote.orderId,
+              sessionId: quote.sessionId,
+              channel: NotificationChannel.EMAIL,
+              status: NotificationStatus.PENDING,
+              recipient: quote.customer.email,
+              subject: buildOfferEmailSubject(quote.quoteNumber),
+              message: buildOfferEmailLogMessage(maskedPublicUrl),
+              metadata: {
+                source: "public_offer_link_generation",
+                quoteId: quote.id,
+                quoteNumber: quote.quoteNumber,
+                publicOfferLinkId: link.id,
+                tokenPrefix: tokenData.tokenPrefix,
+                maskedPublicUrl,
+                rawTokenStored: false,
+                fullPublicUrlStored: false,
+                draftOnly: true,
+                requiresManualSend: true,
+              },
             },
-          },
-          select: {
-            id: true,
-            recipient: true,
-            subject: true,
-            status: true,
-            createdAt: true,
-          },
-        })
-      : null;
+            select: {
+              id: true,
+              recipient: true,
+              subject: true,
+              status: true,
+              createdAt: true,
+            },
+          })
+        : null;
 
-    await tx.auditLog.create({
-      data: {
-        customerId: quote.customerId,
-        orderId: quote.orderId,
-        sessionId: quote.sessionId,
-        action: "CREATE",
-        entityType: "PublicOfferLink",
-        entityId: link.id,
-        actorType: "dashboard",
-        message: `Public offer link generated for quote ${quote.quoteNumber}.`,
-        after: {
-          quoteId: quote.id,
-          quoteNumber: quote.quoteNumber,
-          tokenPrefix: tokenData.tokenPrefix,
-          expiresAt: finalExpiresAt.toISOString(),
-          rawTokenStored: false,
-          fullPublicUrlStored: false,
-          previousOpenLinksRevoked: revokeExisting,
-          notificationCreated: Boolean(notification),
-          notificationId: notification?.id ?? null,
-          maskedPublicUrl,
-        },
-      },
-    });
-
-    return {
-      link,
-      notification,
-    };
-  });
-
-  return NextResponse.json(
-    {
-      ok: true,
-      message:
-        "Public offer link generated. Copy this URL now because the raw token is not stored.",
-      publicUrl,
-      rawTokenShownOnce: true,
-      link: serializePublicOfferLink(result.link),
-      notification: result.notification
-        ? {
-            id: result.notification.id,
-            recipient: result.notification.recipient,
-            subject: result.notification.subject,
-            status: result.notification.status,
-            createdAt: result.notification.createdAt.toISOString(),
+      await tx.auditLog.create({
+        data: {
+          customerId: quote.customerId,
+          orderId: quote.orderId,
+          sessionId: quote.sessionId,
+          action: AuditAction.CREATE,
+          entityType: "PublicOfferLink",
+          entityId: link.id,
+          actorType: "dashboard",
+          message: `Öffentlicher Angebotslink für Angebot ${quote.quoteNumber} wurde erstellt.`,
+          after: {
+            quoteId: quote.id,
+            quoteNumber: quote.quoteNumber,
+            tokenPrefix: tokenData.tokenPrefix,
+            expiresAt: finalExpiresAt.toISOString(),
             rawTokenStored: false,
             fullPublicUrlStored: false,
-          }
-        : null,
-      notificationNote: result.notification
-        ? "Notification EMAIL/PENDING was created with masked URL only."
-        : "Notification was not created because the customer has no email address.",
-    },
-    { status: 201 },
-  );
+            previousOpenLinksRevoked: revokeExisting,
+            notificationCreated: Boolean(notification),
+            notificationId: notification?.id ?? null,
+            maskedPublicUrl,
+          },
+          metadata: {
+            source: "public_offer_link_api",
+            quoteId: quote.id,
+            quoteNumber: quote.quoteNumber,
+            publicOfferLinkId: link.id,
+            tokenPrefix: tokenData.tokenPrefix,
+            rawTokenStored: false,
+            fullPublicUrlStored: false,
+          },
+        },
+      });
+
+      return {
+        link,
+        notification,
+      };
+    });
+
+    return NextResponse.json(
+      {
+        ok: true,
+        message:
+          "Der öffentliche Angebotslink wurde erstellt. Kopieren Sie diese URL jetzt, da der vollständige Token nicht gespeichert wird.",
+        publicUrl,
+        rawTokenShownOnce: true,
+        link: serializePublicOfferLink(result.link),
+        notification: result.notification
+          ? {
+              id: result.notification.id,
+              recipient: result.notification.recipient,
+              subject: result.notification.subject,
+              status: result.notification.status,
+              createdAt: result.notification.createdAt.toISOString(),
+              rawTokenStored: false,
+              fullPublicUrlStored: false,
+            }
+          : null,
+        notificationNote: result.notification
+          ? "Eine E-Mail-Notification mit Status PENDING wurde erstellt. Sie enthält nur die maskierte URL."
+          : "Es wurde keine Notification erstellt, weil der Kunde keine E-Mail-Adresse hat.",
+      },
+      {
+        status: 201,
+        headers: responseHeaders(),
+      },
+    );
+  } catch (error) {
+    console.error("Public offer link generation error:", error);
+
+    return jsonError(
+      "Der öffentliche Angebotslink konnte nicht erstellt werden.",
+      500,
+    );
+  }
 }

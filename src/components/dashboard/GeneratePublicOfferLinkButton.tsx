@@ -127,7 +127,10 @@ export default function GeneratePublicOfferLinkButton({
   const canGenerate = quoteStatus === "SENT";
 
   const activeLinks = useMemo(
-    () => links.filter((link) => link.isActive && !link.acceptedAt && !link.revokedAt),
+    () =>
+      links.filter(
+        (link) => link.isActive && !link.acceptedAt && !link.revokedAt,
+      ),
     [links],
   );
 
@@ -139,21 +142,31 @@ export default function GeneratePublicOfferLinkButton({
     setIsLoadingLinks(true);
 
     try {
-      const response = await fetch(`/api/dashboard/quotes/${quoteId}/public-link`, {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/dashboard/quotes/${quoteId}/public-link`,
+        {
+          method: "GET",
+          cache: "no-store",
+          credentials: "same-origin",
+        },
+      );
 
-      const data = (await response.json().catch(() => null)) as PublicLinkResponse | null;
+      const data = (await response
+        .json()
+        .catch(() => null)) as PublicLinkResponse | null;
 
       if (!response.ok || !data?.ok) {
-        setErrorMessage(data?.message || "Public links could not be loaded.");
+        setErrorMessage(
+          data?.message || "Öffentliche Angebotslinks konnten nicht geladen werden.",
+        );
         return;
       }
 
       setLinks(data.links ?? []);
     } catch {
-      setErrorMessage("Network error. Public links could not be loaded.");
+      setErrorMessage(
+        "Verbindungsfehler. Öffentliche Angebotslinks konnten nicht geladen werden.",
+      );
     } finally {
       setIsLoadingLinks(false);
     }
@@ -185,30 +198,40 @@ export default function GeneratePublicOfferLinkButton({
     setEmailCopied(false);
 
     try {
-      const response = await fetch(`/api/dashboard/quotes/${quoteId}/public-link`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/dashboard/quotes/${quoteId}/public-link`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          cache: "no-store",
+          credentials: "same-origin",
+          body: JSON.stringify({
+            expiresInDays: 14,
+            revokeExisting: true,
+          }),
         },
-        cache: "no-store",
-        body: JSON.stringify({
-          expiresInDays: 14,
-          revokeExisting: true,
-        }),
-      });
+      );
 
-      const data = (await response.json().catch(() => null)) as PublicLinkResponse | null;
+      const data = (await response
+        .json()
+        .catch(() => null)) as PublicLinkResponse | null;
 
       if (!response.ok || !data?.ok || !data.publicUrl) {
-        setErrorMessage(data?.message || "Public link could not be generated.");
+        setErrorMessage(
+          data?.message || "Der öffentliche Angebotslink konnte nicht erstellt werden.",
+        );
         return;
       }
 
       setPublicUrl(data.publicUrl);
-      setMessage(data.message || "Public offer link generated.");
+      setMessage(data.message || "Der öffentliche Angebotslink wurde erstellt.");
       await loadLinks();
     } catch {
-      setErrorMessage("Network error. Public link could not be generated.");
+      setErrorMessage(
+        "Verbindungsfehler. Der öffentliche Angebotslink konnte nicht erstellt werden.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -237,20 +260,27 @@ export default function GeneratePublicOfferLinkButton({
         {
           method: "POST",
           cache: "no-store",
+          credentials: "same-origin",
         },
       );
 
-      const data = (await response.json().catch(() => null)) as PublicLinkResponse | null;
+      const data = (await response
+        .json()
+        .catch(() => null)) as PublicLinkResponse | null;
 
       if (!response.ok || !data?.ok) {
-        setErrorMessage(data?.message || "Public link could not be revoked.");
+        setErrorMessage(
+          data?.message || "Der öffentliche Angebotslink konnte nicht deaktiviert werden.",
+        );
         return;
       }
 
-      setMessage(data.message || "Public offer link revoked.");
+      setMessage(data.message || "Der öffentliche Angebotslink wurde deaktiviert.");
       await loadLinks();
     } catch {
-      setErrorMessage("Network error. Public link could not be revoked.");
+      setErrorMessage(
+        "Verbindungsfehler. Der öffentliche Angebotslink konnte nicht deaktiviert werden.",
+      );
     } finally {
       setRevokingLinkId(null);
     }
@@ -280,7 +310,7 @@ export default function GeneratePublicOfferLinkButton({
       setEmailCopied(true);
     } catch {
       setEmailCopied(false);
-      setErrorMessage("E-Mail Text konnte nicht automatisch kopiert werden.");
+      setErrorMessage("E-Mail-Text konnte nicht automatisch kopiert werden.");
     }
   }
 
@@ -288,7 +318,9 @@ export default function GeneratePublicOfferLinkButton({
     <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.05] p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-black text-emerald-100">Public offer links</p>
+          <p className="text-sm font-black text-emerald-100">
+            Öffentliche Angebotslinks
+          </p>
           <p className="mt-1 text-xs leading-5 text-slate-400">
             Geschützte Kundenlinks mit Ablaufdatum, Zugriffszählung und Deaktivierung.
           </p>
@@ -301,7 +333,7 @@ export default function GeneratePublicOfferLinkButton({
             disabled={!canGenerate || isLoading}
             className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
           >
-            {isLoading ? "Erstelle..." : "Kundenlink erstellen"}
+            {isLoading ? "Wird erstellt..." : "Kundenlink erstellen"}
           </button>
 
           <button
@@ -310,7 +342,7 @@ export default function GeneratePublicOfferLinkButton({
             disabled={isLoadingLinks}
             className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-slate-600"
           >
-            {isLoadingLinks ? "Lade..." : "Links aktualisieren"}
+            {isLoadingLinks ? "Wird geladen..." : "Links aktualisieren"}
           </button>
         </div>
       </div>
@@ -344,7 +376,7 @@ export default function GeneratePublicOfferLinkButton({
 
           <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.05] p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-              E-Mail Entwurf
+              E-Mail-Entwurf
             </p>
 
             <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-xs leading-6 text-slate-200">
@@ -360,7 +392,7 @@ export default function GeneratePublicOfferLinkButton({
                 onClick={copyEmailText}
                 className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
               >
-                {emailCopied ? "E-Mail kopiert" : "E-Mail Text kopieren"}
+                {emailCopied ? "E-Mail kopiert" : "E-Mail-Text kopieren"}
               </button>
 
               <a
@@ -373,8 +405,8 @@ export default function GeneratePublicOfferLinkButton({
 
             <p className="mt-3 text-xs leading-5 text-slate-500">
               Sicherheitsregel: Der vollständige Token wird nicht in der Datenbank
-              gespeichert. Deshalb kann dieser E-Mail Text nur direkt nach dem Generieren
-              des Links erstellt werden.
+              gespeichert. Deshalb kann dieser E-Mail-Text nur direkt nach dem
+              Generieren des Links erstellt werden.
             </p>
           </div>
         </div>
@@ -387,7 +419,7 @@ export default function GeneratePublicOfferLinkButton({
           </p>
 
           <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-400">
-            aktiv: {activeLinks.length} / gesamt: {links.length}
+            Aktiv: {activeLinks.length} / Gesamt: {links.length}
           </span>
         </div>
 
@@ -437,7 +469,9 @@ export default function GeneratePublicOfferLinkButton({
                         disabled={revokingLinkId === link.id}
                         className="w-fit rounded-xl border border-red-400/30 px-4 py-2 text-xs font-bold text-red-200 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:text-red-900"
                       >
-                        {revokingLinkId === link.id ? "Deaktiviere..." : "Link deaktivieren"}
+                        {revokingLinkId === link.id
+                          ? "Wird deaktiviert..."
+                          : "Link deaktivieren"}
                       </button>
                     ) : null}
                   </div>

@@ -17,8 +17,8 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const PUBLIC_OFFER_ACCEPT_RATE_LIMIT = 8;
-const PUBLIC_OFFER_ACCEPT_RATE_WINDOW_MS = 5 * 60 * 1000;
+const PUBLIC_OFFER_REJECT_RATE_LIMIT = 8;
+const PUBLIC_OFFER_REJECT_RATE_WINDOW_MS = 5 * 60 * 1000;
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
@@ -96,12 +96,12 @@ async function readJsonObject(
   }
 }
 
-function normalizeAcceptanceValue(value: unknown): boolean {
+function normalizeRejectionValue(value: unknown): boolean {
   return (
     value === true ||
     value === "true" ||
     value === "yes" ||
-    value === "accepted"
+    value === "rejected"
   );
 }
 
@@ -132,15 +132,15 @@ export async function POST(
     const rawToken = normalizePublicOfferToken(token);
 
     const rateLimit = checkPublicRateLimit(request, {
-      scope: "public_offer_accept",
-      limit: PUBLIC_OFFER_ACCEPT_RATE_LIMIT,
-      windowMs: PUBLIC_OFFER_ACCEPT_RATE_WINDOW_MS,
+      scope: "public_offer_reject",
+      limit: PUBLIC_OFFER_REJECT_RATE_LIMIT,
+      windowMs: PUBLIC_OFFER_REJECT_RATE_WINDOW_MS,
       token: rawToken ?? token,
     });
 
     if (!rateLimit.allowed) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
+        scope: "public_offer_reject",
         reason: "rate_limit_exceeded",
         severity: "warning",
         token: rawToken ?? token,
@@ -155,7 +155,7 @@ export async function POST(
 
     if (!rawToken) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
+        scope: "public_offer_reject",
         reason: "invalid_token_format",
         severity: "warning",
         token,
@@ -165,21 +165,21 @@ export async function POST(
     }
 
     const body = await readJsonObject(request);
-    const confirmAcceptance = normalizeAcceptanceValue(body.confirmAcceptance);
+    const confirmRejection = normalizeRejectionValue(body.confirmRejection);
 
-    if (!confirmAcceptance) {
+    if (!confirmRejection) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
-        reason: "missing_acceptance_confirmation",
+        scope: "public_offer_reject",
+        reason: "missing_rejection_confirmation",
         severity: "info",
         token: rawToken,
       });
 
       return jsonError(
-        "Die verbindliche Bestätigung der Offerte ist erforderlich.",
+        "Die verbindliche Ablehnung der Offerte ist erforderlich.",
         400,
         {
-          requiredField: "confirmAcceptance",
+          requiredField: "confirmRejection",
         },
         rateLimit.headers,
       );
@@ -226,7 +226,7 @@ export async function POST(
 
     if (!link) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
+        scope: "public_offer_reject",
         reason: "token_not_found",
         severity: "warning",
         token: rawToken,
@@ -235,10 +235,33 @@ export async function POST(
       return createSafePublicNotFoundResponse();
     }
 
+    if (link.acceptedAt || link.quote.status === QuoteStatus.ACCEPTED) {
+      logPublicSecurityEvent(request, {
+        scope: "public_offer_reject",
+        reason: "accepted_offer_reject_attempt",
+        severity: "warning",
+        token: rawToken,
+        extra: {
+          linkId: link.id,
+          quoteId: link.quote.id,
+          quoteStatus: link.quote.status,
+        },
+      });
+
+      return jsonError(
+        "Eine bereits akzeptierte Offerte kann nicht abgelehnt werden.",
+        409,
+        {
+          quoteStatus: link.quote.status,
+        },
+        rateLimit.headers,
+      );
+    }
+
     if (link.revokedAt) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
-        reason: "revoked_link_accept_attempt",
+        scope: "public_offer_reject",
+        reason: "revoked_link_reject_attempt",
         severity: "warning",
         token: rawToken,
         extra: {
@@ -253,8 +276,8 @@ export async function POST(
 
     if (isPublicOfferLinkExpired(link.expiresAt, now)) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
-        reason: "expired_link_accept_attempt",
+        scope: "public_offer_reject",
+        reason: "expired_link_reject_attempt",
         severity: "warning",
         token: rawToken,
         extra: {
@@ -269,8 +292,8 @@ export async function POST(
 
     if (link.quote.validUntil && link.quote.validUntil.getTime() <= now.getTime()) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
-        reason: "expired_quote_accept_attempt",
+        scope: "public_offer_reject",
+        reason: "expired_quote_reject_attempt",
         severity: "warning",
         token: rawToken,
         extra: {
@@ -284,36 +307,15 @@ export async function POST(
       );
     }
 
-    if (
-      link.quote.status === QuoteStatus.REJECTED ||
-      link.quote.status === QuoteStatus.EXPIRED
-    ) {
-      logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
-        reason: "inactive_quote_accept_attempt",
-        severity: "warning",
-        token: rawToken,
-        extra: {
-          linkId: link.id,
-          quoteStatus: link.quote.status,
-        },
-      });
-
-      return createSafePublicGoneResponse(
-        "Diese Offerte ist nicht mehr verfügbar.",
-      );
-    }
-
-    if (link.quote.status === QuoteStatus.ACCEPTED && link.quote.acceptedAt) {
+    if (link.quote.status === QuoteStatus.REJECTED) {
       return jsonSuccess(
         {
           ok: true,
-          message: "Diese Offerte wurde bereits akzeptiert.",
+          message: "Diese Offerte wurde bereits abgelehnt.",
           offer: {
             quoteId: link.quote.id,
             quoteNumber: link.quote.quoteNumber,
             status: link.quote.status,
-            acceptedAt: link.quote.acceptedAt.toISOString(),
             customerName: serializeCustomerName(link.quote.customer),
           },
         },
@@ -322,10 +324,16 @@ export async function POST(
       );
     }
 
+    if (link.quote.status === QuoteStatus.EXPIRED) {
+      return createSafePublicGoneResponse(
+        "Diese Offerte ist nicht mehr verfügbar.",
+      );
+    }
+
     if (link.quote.status !== QuoteStatus.SENT) {
       logPublicSecurityEvent(request, {
-        scope: "public_offer_accept",
-        reason: "quote_not_acceptable",
+        scope: "public_offer_reject",
+        reason: "quote_not_rejectable",
         severity: "warning",
         token: rawToken,
         extra: {
@@ -335,7 +343,7 @@ export async function POST(
       });
 
       return jsonError(
-        "Diese Offerte kann im aktuellen Status nicht akzeptiert werden.",
+        "Diese Offerte kann im aktuellen Status nicht abgelehnt werden.",
         409,
         {
           quoteStatus: link.quote.status,
@@ -345,20 +353,18 @@ export async function POST(
       );
     }
 
-    const acceptedQuote = await prisma.$transaction(async (tx) => {
+    const rejectedQuote = await prisma.$transaction(async (tx) => {
       const updatedQuote = await tx.quote.update({
         where: {
           id: link.quote.id,
         },
         data: {
-          status: QuoteStatus.ACCEPTED,
-          acceptedAt: link.quote.acceptedAt ?? now,
+          status: QuoteStatus.REJECTED,
         },
         select: {
           id: true,
           quoteNumber: true,
           status: true,
-          acceptedAt: true,
           customerId: true,
           orderId: true,
           sessionId: true,
@@ -378,7 +384,6 @@ export async function POST(
           id: link.id,
         },
         data: {
-          acceptedAt: now,
           lastViewedAt: now,
           viewCount: {
             increment: 1,
@@ -401,14 +406,14 @@ export async function POST(
           },
           after: {
             status: updatedQuote.status,
-            acceptedAt: updatedQuote.acceptedAt?.toISOString() ?? null,
+            acceptedAt: null,
             publicOfferLinkId: link.id,
           },
-          message: `Offerte ${updatedQuote.quoteNumber} wurde vom Kunden über den öffentlichen Angebotslink akzeptiert.`,
+          message: `Offerte ${updatedQuote.quoteNumber} wurde vom Kunden über den öffentlichen Angebotslink abgelehnt.`,
           metadata: {
             rawTokenStored: false,
             tokenHashStoredOnly: true,
-            source: "public_offer_link_accept",
+            source: "public_offer_link_reject",
             securityHardened: true,
             publicOfferLinkId: link.id,
             quoteId: updatedQuote.id,
@@ -423,24 +428,20 @@ export async function POST(
     return jsonSuccess(
       {
         ok: true,
-        message: "Die Offerte wurde erfolgreich akzeptiert.",
+        message: "Die Offerte wurde abgelehnt.",
         offer: {
-          quoteId: acceptedQuote.id,
-          quoteNumber: acceptedQuote.quoteNumber,
-          status: acceptedQuote.status,
-          acceptedAt: acceptedQuote.acceptedAt?.toISOString() ?? null,
-          customerName: serializeCustomerName(acceptedQuote.customer),
+          quoteId: rejectedQuote.id,
+          quoteNumber: rejectedQuote.quoteNumber,
+          status: rejectedQuote.status,
+          customerName: serializeCustomerName(rejectedQuote.customer),
         },
       },
       200,
       rateLimit.headers,
     );
   } catch (error) {
-    console.error("Public offer accept error:", error);
+    console.error("Public offer reject error:", error);
 
-    return jsonError(
-      "Die Offerte konnte nicht akzeptiert werden.",
-      500,
-    );
+    return jsonError("Die Offerte konnte nicht abgelehnt werden.", 500);
   }
 }
