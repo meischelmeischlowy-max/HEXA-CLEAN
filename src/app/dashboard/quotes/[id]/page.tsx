@@ -32,6 +32,41 @@ function formatMoney(value: unknown, currency = "CHF") {
   return `${String(value)} ${currency}`;
 }
 
+function formatDateTime(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  const date = value instanceof Date ? value : new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) {
+    return formatValue(value);
+  }
+
+  return new Intl.DateTimeFormat("de-CH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function notificationStatusClass(status: unknown) {
+  const normalizedStatus = String(status ?? "").toUpperCase();
+
+  if (normalizedStatus === "SENT" || normalizedStatus === "READ") {
+    return "border-emerald-400/30 bg-emerald-500/10 text-emerald-100";
+  }
+
+  if (normalizedStatus === "FAILED") {
+    return "border-red-400/30 bg-red-500/10 text-red-100";
+  }
+
+  if (normalizedStatus === "PENDING") {
+    return "border-amber-400/30 bg-amber-500/10 text-amber-100";
+  }
+
+  return "border-slate-500/30 bg-slate-500/10 text-slate-300";
+}
+
 function InfoCard({ label, value }: { label: string; value: unknown }) {
   return (
     <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
@@ -42,6 +77,125 @@ function InfoCard({ label, value }: { label: string; value: unknown }) {
         {formatValue(value)}
       </p>
     </div>
+  );
+}
+
+function CommunicationSection({
+  notifications,
+}: {
+  notifications: Record<string, unknown>[];
+}) {
+  const emailNotifications = [...notifications]
+    .filter((notification) => {
+      const channel = String(notification.channel ?? "").toUpperCase();
+
+      return channel === "EMAIL";
+    })
+    .sort((a, b) => {
+      const aTime = new Date(String(a.createdAt ?? 0)).getTime();
+      const bTime = new Date(String(b.createdAt ?? 0)).getTime();
+
+      return bTime - aTime;
+    });
+
+  const latestEmailNotification = emailNotifications[0] ?? null;
+
+  return (
+    <section className="mb-8 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-6">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
+            Kommunikation
+          </p>
+          <h2 className="mt-2 text-xl font-bold text-white">
+            Offertenversand / Notification Log
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
+            Hier sieht man, ob für diese Offerte eine E-Mail-Kommunikation vorbereitet
+            wurde. Der vollständige Public-Link-Token wird aus Sicherheitsgründen nicht
+            dauerhaft gespeichert.
+          </p>
+        </div>
+
+        <span className="w-fit rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-100">
+          EMAIL Logs: {emailNotifications.length}
+        </span>
+      </div>
+
+      {!latestEmailNotification ? (
+        <div className="rounded-2xl border border-white/10 bg-neutral-950/40 p-5">
+          <p className="text-sm font-semibold text-neutral-200">
+            Noch keine E-Mail Notification vorbereitet.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-neutral-500">
+            Sobald ein Kundenlink erstellt wird und der Kunde eine E-Mail-Adresse hat,
+            legt das System automatisch eine Notification mit Status PENDING an.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
+          <div className="rounded-2xl border border-white/10 bg-neutral-950/40 p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-sm font-bold text-white">
+                  {formatValue(latestEmailNotification.subject)}
+                </p>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Empfänger:{" "}
+                  <span className="font-semibold text-neutral-300">
+                    {formatValue(latestEmailNotification.recipient)}
+                  </span>
+                </p>
+              </div>
+
+              <span
+                className={`w-fit rounded-full border px-3 py-1 text-xs font-bold ${notificationStatusClass(
+                  latestEmailNotification.status,
+                )}`}
+              >
+                {formatValue(latestEmailNotification.status)}
+              </span>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">
+                Nachricht / gespeicherter Log
+              </p>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-300">
+                {formatValue(latestEmailNotification.message)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <InfoCard
+              label="Notification ID"
+              value={latestEmailNotification.id}
+            />
+            <InfoCard
+              label="Kanal"
+              value={latestEmailNotification.channel}
+            />
+            <InfoCard
+              label="Status"
+              value={latestEmailNotification.status}
+            />
+            <InfoCard
+              label="Erstellt"
+              value={formatDateTime(latestEmailNotification.createdAt)}
+            />
+            <InfoCard
+              label="Gesendet"
+              value={formatDateTime(latestEmailNotification.sentAt)}
+            />
+            <InfoCard
+              label="Gelesen"
+              value={formatDateTime(latestEmailNotification.readAt)}
+            />
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -295,6 +449,10 @@ export default async function QuoteDetailsPage({
           />
         </div>
       </section>
+
+      <CommunicationSection
+        notifications={notifications as Record<string, unknown>[]}
+      />
 
       <section className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
         <h2 className="mb-4 text-xl font-bold">Angebot</h2>

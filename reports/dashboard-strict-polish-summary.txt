@@ -1,0 +1,38 @@
+﻿
+
+Count Name                                                                                    
+----- ----                                                                                    
+   57 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\estimates\new\page.tsx              
+   37 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\audit-logs\page.tsx                 
+   36 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\estimates\[id]\page.tsx             
+   35 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\customers\[id]\page.tsx             
+   23 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\invoices\[id]\edit\page.tsx         
+   20 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\quotes\[id]\page.tsx                
+   16 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\audit-logs\[id]\page.tsx            
+   16 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\notifications\[id]\page.tsx         
+   12 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\payments\[id]\page.tsx              
+   11 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\services\[id]\page.tsx              
+   11 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\attachments\[id]\page.tsx           
+   11 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\estimates\[id]\offer\page.tsx       
+    9 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\orders\[id]\page.tsx                
+    8 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\services\page.tsx                   
+    7 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\attachments\page.tsx                
+    6 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\payments\page.tsx                   
+    4 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\services\new\page.tsx               
+    4 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\services\[id]\edit\page.tsx         
+    4 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\orders\page.tsx                     
+    4 C:\Users\User1\Desktop\hexa-clean\src\components\dashboard\MarkPaymentAsPaidButton.tsx  
+    3 C:\Users\User1\Desktop\hexa-clean\src\components\dashboard\DashboardScreenSaver.tsx     
+    3 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\customers\new\page.tsx              
+    3 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\customers\[id]\edit\page.tsx        
+    2 C:\Users\User1\Desktop\hexa-clean\src\components\dashboard\InvoiceStatusActions.tsx     
+    2 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\quotes\page.tsx                     
+    1 C:\Users\User1\Desktop\hexa-clean\src\components\dashboard\InvoiceStatusQuickActions.tsx
+    1 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\orders\new\page.tsx                 
+    1 C:\Users\User1\Desktop\hexa-clean\src\components\dashboard\EstimateStatusActions.tsx    
+    1 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\login\page.tsx                      
+    1 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\notifications\page.tsx              
+    1 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\orders\[id]\edit\page.tsx           
+    1 C:\Users\User1\Desktop\hexa-clean\src\app\dashboard\estimates\page.tsx                  
+
+
