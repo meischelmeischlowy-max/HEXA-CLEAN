@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   checkPublicRateLimit,
   createPublicRateLimitResponse,
+  logPublicAccessEvent,
   logPublicSecurityEvent,
 } from "@/lib/public-security";
 
@@ -318,6 +319,16 @@ function splitName(name: string | null) {
     firstName: parts.slice(0, -1).join(" "),
     lastName: parts.at(-1) ?? null,
   };
+}
+
+function getRequestBytes(request: NextRequest) {
+  const contentLength = Number(request.headers.get("content-length"));
+
+  if (!Number.isInteger(contentLength) || contentLength < 0) {
+    return null;
+  }
+
+  return contentLength;
 }
 
 function normalizeChatMessages(value: unknown): NormalizedChatMessage[] {
@@ -665,6 +676,9 @@ async function findOrCreateChatCustomer(
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+  const requestBytes = getRequestBytes(request);
+
   const rateLimit = checkPublicRateLimit(request, {
     scope: "ai_chat_lead",
     limit: CHAT_LEAD_RATE_LIMIT,
@@ -682,6 +696,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    logPublicAccessEvent(request, {
+      scope: "ai_chat_lead",
+      statusCode: 429,
+      success: false,
+      rateLimit,
+      requestBytes,
+      responseMs: Date.now() - startedAt,
+      extra: {
+        reason: "rate_limit_exceeded",
+      },
+    });
+
     return createPublicRateLimitResponse(rateLimit);
   }
 
@@ -693,6 +719,18 @@ export async function POST(request: NextRequest) {
         scope: "ai_chat_lead",
         reason: "invalid_request_body",
         severity: "info",
+      });
+
+      logPublicAccessEvent(request, {
+        scope: "ai_chat_lead",
+        statusCode: 400,
+        success: false,
+        rateLimit,
+        requestBytes,
+        responseMs: Date.now() - startedAt,
+        extra: {
+          reason: "invalid_request_body",
+        },
       });
 
       return NextResponse.json(
@@ -718,6 +756,19 @@ export async function POST(request: NextRequest) {
         reason: "validation_failed",
         severity: "info",
         extra: {
+          validationError: error ?? "Invalid chat lead request.",
+        },
+      });
+
+      logPublicAccessEvent(request, {
+        scope: "ai_chat_lead",
+        statusCode: 400,
+        success: false,
+        rateLimit,
+        requestBytes,
+        responseMs: Date.now() - startedAt,
+        extra: {
+          reason: "validation_failed",
           validationError: error ?? "Invalid chat lead request.",
         },
       });
@@ -976,6 +1027,25 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    logPublicAccessEvent(request, {
+      scope: "ai_chat_lead",
+      statusCode: 201,
+      success: true,
+      rateLimit,
+      requestBytes,
+      responseMs: Date.now() - startedAt,
+      extra: {
+        emailSent,
+        hasEmail: Boolean(lead.email),
+        hasPhone: Boolean(lead.phone),
+        service: lead.service,
+        serviceLabel: lead.serviceLabel,
+        messagesCount: lead.messages.length,
+        estimateNumber: crmResult.estimate.estimateNumber,
+        orderNumber: crmResult.order.orderNumber,
+      },
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -1007,6 +1077,19 @@ export async function POST(request: NextRequest) {
       reason: "server_error",
       severity: "critical",
       extra: {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      },
+    });
+
+    logPublicAccessEvent(request, {
+      scope: "ai_chat_lead",
+      statusCode: 500,
+      success: false,
+      rateLimit,
+      requestBytes,
+      responseMs: Date.now() - startedAt,
+      extra: {
+        reason: "server_error",
         errorName: error instanceof Error ? error.name : "UnknownError",
       },
     });

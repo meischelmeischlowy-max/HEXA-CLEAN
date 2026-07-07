@@ -1,4 +1,6 @@
 import { createHash, createHmac } from "crypto";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { NextRequest, NextResponse } from "next/server";
 
 type RateLimitBucket = {
@@ -31,6 +33,26 @@ type PublicSecurityEvent = {
   extra?: Record<string, unknown>;
 };
 
+type PublicAccessLogEvent = {
+  scope: string;
+  statusCode?: number;
+  success?: boolean;
+  token?: string | null;
+  rateLimit?: PublicRateLimitResult | null;
+  requestBytes?: number | null;
+  responseMs?: number | null;
+  extra?: Record<string, unknown>;
+};
+
+type UnsafePublicSecurityPrisma = {
+  publicSecurityEvent?: {
+    create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+  };
+  publicAccessLog?: {
+    create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+  };
+};
+
 const RATE_LIMIT_STORE_MAX_SIZE = 5000;
 const MAX_SCOPE_LENGTH = 80;
 const MAX_HEADER_LENGTH = 240;
@@ -44,6 +66,7 @@ const PUBLIC_SECURITY_HASH_SECRET =
 
 const globalForSecurity = globalThis as unknown as {
   hexaPublicRateLimitStore?: Map<string, RateLimitBucket>;
+  hexaPublicSecurityPrisma?: PrismaClient;
 };
 
 function getRateLimitStore() {
@@ -52,6 +75,32 @@ function getRateLimitStore() {
   }
 
   return globalForSecurity.hexaPublicRateLimitStore;
+}
+
+function getPublicSecurityPrisma() {
+  if (!process.env.DATABASE_URL) {
+    return null;
+  }
+
+  if (!globalForSecurity.hexaPublicSecurityPrisma) {
+    globalForSecurity.hexaPublicSecurityPrisma = new PrismaClient({
+      adapter: new PrismaPg({
+        connectionString: process.env.DATABASE_URL,
+      }),
+    });
+  }
+
+  return globalForSecurity.hexaPublicSecurityPrisma;
+}
+
+function getUnsafePublicSecurityPrisma() {
+  const prisma = getPublicSecurityPrisma();
+
+  if (!prisma) {
+    return null;
+  }
+
+  return prisma as unknown as UnsafePublicSecurityPrisma;
 }
 
 function cleanupRateLimitStore(now: number) {
@@ -144,6 +193,34 @@ function safeExtra(extra: Record<string, unknown> | undefined) {
   }
 
   return safeExtraValue(extra) as Record<string, unknown>;
+}
+
+function safeStatusCode(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed)) {
+    return null;
+  }
+
+  if (parsed < 100 || parsed > 599) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function safePositiveInt(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return parsed;
 }
 
 export function hashPublicSecurityValue(value: string) {
@@ -276,6 +353,94 @@ export function createPublicRateLimitResponse(result: PublicRateLimitResult) {
   );
 }
 
+async function persistPublicSecurityEvent(payload: {
+  scope: string;
+  reason: string;
+  severity: string;
+  ipHash: string;
+  fingerprintHash: string;
+  userAgentHash: string;
+  tokenPrefix: string | null;
+  path: string;
+  method: string;
+  extra: Record<string, unknown>;
+}) {
+  const prisma = getUnsafePublicSecurityPrisma();
+
+  if (!prisma?.publicSecurityEvent?.create) {
+    return;
+  }
+
+  try {
+    await prisma.publicSecurityEvent.create({
+      data: {
+        scope: payload.scope,
+        reason: payload.reason,
+        severity: payload.severity,
+        ipHash: payload.ipHash,
+        fingerprintHash: payload.fingerprintHash,
+        userAgentHash: payload.userAgentHash,
+        tokenPrefix: payload.tokenPrefix,
+        path: payload.path,
+        method: payload.method,
+        extra: payload.extra,
+      },
+    });
+  } catch (error) {
+    console.warn("[HEXA_PUBLIC_SECURITY_EVENT_DB_FAILED]", error);
+  }
+}
+
+async function persistPublicAccessLog(payload: {
+  scope: string;
+  path: string;
+  method: string;
+  statusCode: number | null;
+  success: boolean;
+  ipHash: string;
+  fingerprintHash: string;
+  userAgentHash: string;
+  tokenPrefix: string | null;
+  rateLimitKey: string | null;
+  rateLimitAllowed: boolean | null;
+  rateLimitRemaining: number | null;
+  retryAfterSeconds: number | null;
+  requestBytes: number | null;
+  responseMs: number | null;
+  extra: Record<string, unknown>;
+}) {
+  const prisma = getUnsafePublicSecurityPrisma();
+
+  if (!prisma?.publicAccessLog?.create) {
+    return;
+  }
+
+  try {
+    await prisma.publicAccessLog.create({
+      data: {
+        scope: payload.scope,
+        path: payload.path,
+        method: payload.method,
+        statusCode: payload.statusCode,
+        success: payload.success,
+        ipHash: payload.ipHash,
+        fingerprintHash: payload.fingerprintHash,
+        userAgentHash: payload.userAgentHash,
+        tokenPrefix: payload.tokenPrefix,
+        rateLimitKey: payload.rateLimitKey,
+        rateLimitAllowed: payload.rateLimitAllowed,
+        rateLimitRemaining: payload.rateLimitRemaining,
+        retryAfterSeconds: payload.retryAfterSeconds,
+        requestBytes: payload.requestBytes,
+        responseMs: payload.responseMs,
+        extra: payload.extra,
+      },
+    });
+  } catch (error) {
+    console.warn("[HEXA_PUBLIC_ACCESS_LOG_DB_FAILED]", error);
+  }
+}
+
 export function logPublicSecurityEvent(request: NextRequest, event: PublicSecurityEvent) {
   const payload = {
     scope: safeScope(event.scope),
@@ -292,6 +457,64 @@ export function logPublicSecurityEvent(request: NextRequest, event: PublicSecuri
   };
 
   console.warn("[HEXA_PUBLIC_SECURITY_EVENT]", JSON.stringify(payload));
+
+  void persistPublicSecurityEvent({
+    scope: payload.scope,
+    reason: payload.reason,
+    severity: payload.severity,
+    ipHash: payload.ipHash,
+    fingerprintHash: payload.fingerprintHash,
+    userAgentHash: payload.userAgentHash,
+    tokenPrefix: payload.tokenPrefix,
+    path: payload.path,
+    method: payload.method,
+    extra: payload.extra,
+  });
+}
+
+export function logPublicAccessEvent(request: NextRequest, event: PublicAccessLogEvent) {
+  const rateLimit = event.rateLimit ?? null;
+
+  const payload = {
+    scope: safeScope(event.scope),
+    path: safePath(request.nextUrl.pathname),
+    method: safeText(request.method, 20) ?? "UNKNOWN",
+    statusCode: safeStatusCode(event.statusCode),
+    success: Boolean(event.success),
+    ipHash: hashPublicSecurityValue(getPublicRequestIp(request)),
+    fingerprintHash: getPublicRequestFingerprint(request),
+    userAgentHash: hashPublicSecurityValue(getPublicRequestUserAgent(request)),
+    tokenPrefix: getPublicTokenPrefixForLog(event.token),
+    rateLimitKey: rateLimit?.key ?? null,
+    rateLimitAllowed: rateLimit?.allowed ?? null,
+    rateLimitRemaining: rateLimit?.remaining ?? null,
+    retryAfterSeconds: rateLimit?.retryAfterSeconds ?? null,
+    requestBytes: safePositiveInt(event.requestBytes),
+    responseMs: safePositiveInt(event.responseMs),
+    createdAt: new Date().toISOString(),
+    extra: safeExtra(event.extra),
+  };
+
+  console.info("[HEXA_PUBLIC_ACCESS_LOG]", JSON.stringify(payload));
+
+  void persistPublicAccessLog({
+    scope: payload.scope,
+    path: payload.path,
+    method: payload.method,
+    statusCode: payload.statusCode,
+    success: payload.success,
+    ipHash: payload.ipHash,
+    fingerprintHash: payload.fingerprintHash,
+    userAgentHash: payload.userAgentHash,
+    tokenPrefix: payload.tokenPrefix,
+    rateLimitKey: payload.rateLimitKey,
+    rateLimitAllowed: payload.rateLimitAllowed,
+    rateLimitRemaining: payload.rateLimitRemaining,
+    retryAfterSeconds: payload.retryAfterSeconds,
+    requestBytes: payload.requestBytes,
+    responseMs: payload.responseMs,
+    extra: payload.extra,
+  });
 }
 
 export function createSafePublicNotFoundResponse() {

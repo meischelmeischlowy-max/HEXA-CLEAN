@@ -691,6 +691,74 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model PublicSecurityEvent {
+  id String @id @default(uuid()) @db.Uuid
+
+  scope    String
+  reason   String
+  severity String @default("warning")
+
+  ipHash          String?
+  fingerprintHash String?
+  userAgentHash   String?
+  tokenPrefix     String?
+
+  path   String?
+  method String?
+
+  extra Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([scope])
+  @@index([reason])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([scope, createdAt])
+  @@index([severity, createdAt])
+  @@index([fingerprintHash, createdAt])
+  @@index([tokenPrefix])
+  @@map("public_security_events")
+}
+
+model PublicAccessLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  scope  String
+  path   String?
+  method String?
+
+  statusCode Int?
+  success    Boolean @default(false)
+
+  ipHash          String?
+  fingerprintHash String?
+  userAgentHash   String?
+  tokenPrefix     String?
+
+  rateLimitKey       String?
+  rateLimitAllowed   Boolean?
+  rateLimitRemaining Int?
+  retryAfterSeconds  Int?
+
+  requestBytes Int?
+  responseMs   Int?
+
+  extra Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([scope])
+  @@index([path])
+  @@index([statusCode])
+  @@index([success])
+  @@index([createdAt])
+  @@index([scope, createdAt])
+  @@index([fingerprintHash, createdAt])
+  @@index([tokenPrefix])
+  @@map("public_access_logs")
+}
+
 model ServiceCatalogItem {
   id String @id @default(uuid()) @db.Uuid
 
