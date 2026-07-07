@@ -1,8 +1,39 @@
+import { AuditAction, PrismaClient, QuoteStatus } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { NextResponse } from "next/server";
-import { QuoteStatus } from "@prisma/client";
 
-import { prisma } from "@/lib/prisma";
 import { dashboardService } from "@/services/dashboardService";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+const globalForPrisma = globalThis as unknown as {
+  hexaPrisma?: PrismaClient;
+};
+
+function getPrisma() {
+  if (!globalForPrisma.hexaPrisma) {
+    const databaseUrl = process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is missing");
+    }
+
+    globalForPrisma.hexaPrisma = new PrismaClient({
+      adapter: new PrismaPg({
+        connectionString: databaseUrl,
+      }),
+    });
+  }
+
+  return globalForPrisma.hexaPrisma;
+}
+
+function responseHeaders() {
+  return {
+    "Cache-Control": "no-store",
+  };
+}
 
 function parseQuoteStatus(value: unknown): QuoteStatus | null {
   if (typeof value !== "string") {
@@ -29,9 +60,120 @@ function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
 }
 
+function isFinalQuoteStatus(status: QuoteStatus) {
+  return (
+    status === QuoteStatus.ACCEPTED ||
+    status === QuoteStatus.REJECTED ||
+    status === QuoteStatus.EXPIRED
+  );
+}
+
+function canChangeQuoteStatus(
+  currentStatus: QuoteStatus,
+  requestedStatus: QuoteStatus,
+  validUntil: Date | null,
+  now: Date,
+) {
+  if (currentStatus === requestedStatus) {
+    return {
+      allowed: true,
+      message: "Das Angebot hat bereits diesen Status.",
+      updated: false,
+    };
+  }
+
+  if (requestedStatus === QuoteStatus.SENT) {
+    if (isFinalQuoteStatus(currentStatus)) {
+      return {
+        allowed: false,
+        message:
+          "Ein finales Angebot kann nicht erneut als versendet markiert werden.",
+        updated: false,
+      };
+    }
+
+    return {
+      allowed: true,
+      message: "Das Angebot kann als versendet markiert werden.",
+      updated: true,
+    };
+  }
+
+  if (requestedStatus === QuoteStatus.ACCEPTED) {
+    if (currentStatus !== QuoteStatus.SENT) {
+      return {
+        allowed: false,
+        message: "Nur ein versendetes Angebot kann akzeptiert werden.",
+        updated: false,
+      };
+    }
+
+    return {
+      allowed: true,
+      message: "Das Angebot kann als akzeptiert markiert werden.",
+      updated: true,
+    };
+  }
+
+  if (requestedStatus === QuoteStatus.REJECTED) {
+    if (currentStatus !== QuoteStatus.SENT) {
+      return {
+        allowed: false,
+        message: "Nur ein versendetes Angebot kann abgelehnt werden.",
+        updated: false,
+      };
+    }
+
+    return {
+      allowed: true,
+      message: "Das Angebot kann als abgelehnt markiert werden.",
+      updated: true,
+    };
+  }
+
+  if (requestedStatus === QuoteStatus.EXPIRED) {
+    if (currentStatus === QuoteStatus.ACCEPTED) {
+      return {
+        allowed: false,
+        message: "Ein akzeptiertes Angebot kann nicht ablaufen.",
+        updated: false,
+      };
+    }
+
+    if (currentStatus === QuoteStatus.REJECTED) {
+      return {
+        allowed: false,
+        message: "Ein abgelehntes Angebot kann nicht als abgelaufen markiert werden.",
+        updated: false,
+      };
+    }
+
+    if (validUntil && validUntil > now) {
+      return {
+        allowed: false,
+        message:
+          "Das Angebot kann nicht vor dem Gültigkeitsdatum als abgelaufen markiert werden.",
+        updated: false,
+      };
+    }
+
+    return {
+      allowed: true,
+      message: "Das Angebot kann als abgelaufen markiert werden.",
+      updated: true,
+    };
+  }
+
+  return {
+    allowed: false,
+    message: "Diese Statusänderung ist nicht erlaubt.",
+    updated: false,
+  };
+}
+
 export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
@@ -39,25 +181,34 @@ export async function GET(
     const result = await dashboardService.getQuoteDetails(id);
 
     if (result.status === "NOT_FOUND") {
-      return NextResponse.json(result, { status: 404 });
+      return NextResponse.json(result, {
+        status: 404,
+        headers: responseHeaders(),
+      });
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: responseHeaders(),
+    });
   } catch (error) {
+    console.error("Quote details API error:", error);
+
     return NextResponse.json(
       {
         status: "ERROR",
-        message: "Failed to load quote details",
-        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Die Angebotsdetails konnten nicht geladen werden.",
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: responseHeaders(),
+      },
     );
   }
 }
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
@@ -70,16 +221,19 @@ export async function PATCH(
       return NextResponse.json(
         {
           status: "BAD_REQUEST",
-          message: "Invalid JSON body",
+          message: "Der Request enthält kein gültiges JSON.",
         },
-        { status: 400 }
+        {
+          status: 400,
+          headers: responseHeaders(),
+        },
       );
     }
 
     const requestedStatus = parseQuoteStatus(
       body && typeof body === "object" && "status" in body
         ? (body as { status?: unknown }).status
-        : null
+        : null,
     );
 
     if (!requestedStatus) {
@@ -87,11 +241,16 @@ export async function PATCH(
         {
           status: "BAD_REQUEST",
           message:
-            "Invalid quote status. Allowed actions: SENT, ACCEPTED, REJECTED, EXPIRED.",
+            "Der angeforderte Angebotsstatus ist ungültig. Erlaubt sind SENT, ACCEPTED, REJECTED und EXPIRED.",
         },
-        { status: 400 }
+        {
+          status: 400,
+          headers: responseHeaders(),
+        },
       );
     }
+
+    const prisma = getPrisma();
 
     const quote = await prisma.quote.findUnique({
       where: {
@@ -103,147 +262,54 @@ export async function PATCH(
       return NextResponse.json(
         {
           status: "NOT_FOUND",
-          message: "Quote not found",
+          message: "Das Angebot wurde nicht gefunden.",
           quoteId: id,
         },
-        { status: 404 }
+        {
+          status: 404,
+          headers: responseHeaders(),
+        },
       );
     }
 
     const now = new Date();
 
-    if (requestedStatus === QuoteStatus.SENT) {
-      if (quote.status === QuoteStatus.ACCEPTED) {
-        return NextResponse.json({
-          status: "OK",
-          message: "Quote is already accepted and cannot be downgraded to sent.",
-          quoteId: id,
-          updated: false,
-          quote,
-        });
-      }
+    const transition = canChangeQuoteStatus(
+      quote.status,
+      requestedStatus,
+      quote.validUntil,
+      now,
+    );
 
-      if (
-        quote.status === QuoteStatus.REJECTED ||
-        quote.status === QuoteStatus.EXPIRED
-      ) {
-        return NextResponse.json(
-          {
-            status: "CONFLICT",
-            message: `Quote with status ${quote.status} cannot be marked as sent.`,
-            quoteId: id,
-            currentStatus: quote.status,
-          },
-          { status: 409 }
-        );
-      }
-
-      if (quote.status === QuoteStatus.SENT && quote.sentAt) {
-        return NextResponse.json({
-          status: "OK",
-          message: "Quote was already sent.",
+    if (!transition.allowed) {
+      return NextResponse.json(
+        {
+          status: "CONFLICT",
+          message: transition.message,
           quoteId: id,
-          updated: false,
-          quote,
-        });
-      }
+          currentStatus: quote.status,
+          requestedStatus,
+        },
+        {
+          status: 409,
+          headers: responseHeaders(),
+        },
+      );
     }
 
-    if (requestedStatus === QuoteStatus.ACCEPTED) {
-      if (quote.status === QuoteStatus.ACCEPTED && quote.acceptedAt) {
-        return NextResponse.json({
+    if (!transition.updated) {
+      return NextResponse.json(
+        {
           status: "OK",
-          message: "Quote was already accepted.",
+          message: transition.message,
           quoteId: id,
           updated: false,
           quote,
-        });
-      }
-
-      if (quote.status !== QuoteStatus.SENT && quote.status !== QuoteStatus.ACCEPTED) {
-        return NextResponse.json(
-          {
-            status: "CONFLICT",
-            message: "Only a sent quote can be accepted.",
-            quoteId: id,
-            currentStatus: quote.status,
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    if (requestedStatus === QuoteStatus.REJECTED) {
-      if (quote.status === QuoteStatus.ACCEPTED) {
-        return NextResponse.json(
-          {
-            status: "CONFLICT",
-            message: "Accepted quote cannot be rejected.",
-            quoteId: id,
-            currentStatus: quote.status,
-          },
-          { status: 409 }
-        );
-      }
-
-      if (quote.status === QuoteStatus.REJECTED) {
-        return NextResponse.json({
-          status: "OK",
-          message: "Quote was already rejected.",
-          quoteId: id,
-          updated: false,
-          quote,
-        });
-      }
-
-      if (quote.status !== QuoteStatus.SENT) {
-        return NextResponse.json(
-          {
-            status: "CONFLICT",
-            message: "Only a sent quote can be rejected.",
-            quoteId: id,
-            currentStatus: quote.status,
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    if (requestedStatus === QuoteStatus.EXPIRED) {
-      if (quote.status === QuoteStatus.ACCEPTED) {
-        return NextResponse.json(
-          {
-            status: "CONFLICT",
-            message: "Accepted quote cannot be expired.",
-            quoteId: id,
-            currentStatus: quote.status,
-          },
-          { status: 409 }
-        );
-      }
-
-      if (quote.status === QuoteStatus.EXPIRED) {
-        return NextResponse.json({
-          status: "OK",
-          message: "Quote was already expired.",
-          quoteId: id,
-          updated: false,
-          quote,
-        });
-      }
-
-      if (quote.validUntil && quote.validUntil > now) {
-        return NextResponse.json(
-          {
-            status: "CONFLICT",
-            message: "Quote cannot be expired before validUntil date.",
-            quoteId: id,
-            currentStatus: quote.status,
-            validUntil: quote.validUntil,
-          },
-          { status: 409 }
-        );
-      }
+        },
+        {
+          headers: responseHeaders(),
+        },
+      );
     }
 
     const before = {
@@ -269,54 +335,67 @@ export async function PATCH(
       updateData.acceptedAt = quote.acceptedAt ?? now;
     }
 
-    const updatedQuote = await prisma.quote.update({
-      where: {
-        id: quote.id,
-      },
-      data: updateData,
+    const updatedQuote = await prisma.$transaction(async (tx) => {
+      const changedQuote = await tx.quote.update({
+        where: {
+          id: quote.id,
+        },
+        data: updateData,
+      });
+
+      await tx.auditLog.create({
+        data: {
+          customerId: quote.customerId,
+          orderId: quote.orderId,
+          sessionId: quote.sessionId,
+          action: AuditAction.STATUS_CHANGE,
+          entityType: "Quote",
+          entityId: quote.id,
+          actorType: "dashboard",
+          before,
+          after: {
+            status: changedQuote.status,
+            sentAt: serializeDate(changedQuote.sentAt),
+            acceptedAt: serializeDate(changedQuote.acceptedAt),
+          },
+          message: `Angebot ${quote.quoteNumber}: Status von ${quote.status} auf ${changedQuote.status} geändert.`,
+          metadata: {
+            source: "dashboard_quote_patch",
+            quoteId: quote.id,
+            quoteNumber: quote.quoteNumber,
+            previousStatus: quote.status,
+            nextStatus: changedQuote.status,
+          },
+        },
+      });
+
+      return changedQuote;
     });
 
-    await prisma.auditLog.create({
-      data: {
-        customerId: quote.customerId,
-        orderId: quote.orderId,
-        sessionId: quote.sessionId,
-        action: "STATUS_CHANGE",
-        entityType: "Quote",
-        entityId: quote.id,
-        actorType: "dashboard",
-        before,
-        after: {
-          status: updatedQuote.status,
-          sentAt: serializeDate(updatedQuote.sentAt),
-          acceptedAt: serializeDate(updatedQuote.acceptedAt),
-        },
-        message: `Quote ${quote.quoteNumber} status changed from ${quote.status} to ${updatedQuote.status}`,
-        metadata: {
-          source: "dashboard_quote_patch",
-          quoteId: quote.id,
-          quoteNumber: quote.quoteNumber,
-          previousStatus: quote.status,
-          nextStatus: updatedQuote.status,
-        },
+    return NextResponse.json(
+      {
+        status: "OK",
+        message: `Der Angebotsstatus wurde auf ${updatedQuote.status} geändert.`,
+        quoteId: id,
+        updated: true,
+        quote: updatedQuote,
       },
-    });
-
-    return NextResponse.json({
-      status: "OK",
-      message: `Quote status updated to ${updatedQuote.status}`,
-      quoteId: id,
-      updated: true,
-      quote: updatedQuote,
-    });
+      {
+        headers: responseHeaders(),
+      },
+    );
   } catch (error) {
+    console.error("Quote update API error:", error);
+
     return NextResponse.json(
       {
         status: "ERROR",
-        message: "Failed to update quote",
-        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Der Angebotsstatus konnte nicht geändert werden.",
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: responseHeaders(),
+      },
     );
   }
 }

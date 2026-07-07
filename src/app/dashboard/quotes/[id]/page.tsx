@@ -111,14 +111,14 @@ function CommunicationSection({
             Offertenversand / Notification Log
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-            Hier sieht man, ob für diese Offerte eine E-Mail-Kommunikation vorbereitet
-            wurde. Der vollständige Public-Link-Token wird aus Sicherheitsgründen nicht
-            dauerhaft gespeichert.
+            Hier sieht man, ob für diese Offerte eine E-Mail-Kommunikation
+            vorbereitet wurde. Der vollständige Public-Link-Token wird aus
+            Sicherheitsgründen nicht dauerhaft gespeichert.
           </p>
         </div>
 
         <span className="w-fit rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-100">
-          EMAIL Logs: {emailNotifications.length}
+          E-Mail-Logs: {emailNotifications.length}
         </span>
       </div>
 
@@ -128,8 +128,9 @@ function CommunicationSection({
             Noch keine E-Mail Notification vorbereitet.
           </p>
           <p className="mt-2 text-sm leading-6 text-neutral-500">
-            Sobald ein Kundenlink erstellt wird und der Kunde eine E-Mail-Adresse hat,
-            legt das System automatisch eine Notification mit Status PENDING an.
+            Sobald ein Kundenlink erstellt wird und der Kunde eine
+            E-Mail-Adresse hat, legt das System automatisch eine Notification
+            mit Status PENDING an.
           </p>
         </div>
       ) : (
@@ -172,14 +173,8 @@ function CommunicationSection({
               label="Notification ID"
               value={latestEmailNotification.id}
             />
-            <InfoCard
-              label="Kanal"
-              value={latestEmailNotification.channel}
-            />
-            <InfoCard
-              label="Status"
-              value={latestEmailNotification.status}
-            />
+            <InfoCard label="Kanal" value={latestEmailNotification.channel} />
+            <InfoCard label="Status" value={latestEmailNotification.status} />
             <InfoCard
               label="Erstellt"
               value={formatDateTime(latestEmailNotification.createdAt)}
@@ -230,10 +225,10 @@ function DataSection({
                   Status / Typ
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Numer / Name
+                  Nummer / Name
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
-                  Data
+                  Datum
                 </th>
                 <th className="border-b border-neutral-800 px-3 py-3">
                   Aktion
@@ -269,7 +264,7 @@ function DataSection({
                           item.reference ??
                           item.fileName ??
                           item.subject ??
-                          item.action
+                          item.action,
                       )}
                     </td>
 
@@ -359,8 +354,8 @@ export default async function QuoteDetailsPage({
           <h1 className="mt-3 text-3xl font-bold">Angebotsdetails</h1>
 
           <p className="mt-2 text-sm text-neutral-500">
-            Vollständige Angebotsdaten inklusive zugehörigem Kunden, Auftrag, Rechnungen,
-            Zahlungen, Anhängen und Systemverlauf.
+            Vollständige Angebotsdaten inklusive zugehörigem Kunden, Auftrag,
+            Rechnungen, Zahlungen, Anhängen und Systemverlauf.
           </p>
         </div>
 
@@ -404,7 +399,7 @@ export default async function QuoteDetailsPage({
       </div>
 
       <section className="mb-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-        <h2 className="mb-4 text-xl font-bold">Szybka nawigacja CRM</h2>
+        <h2 className="mb-4 text-xl font-bold">CRM-Schnellnavigation</h2>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <RecordLink
@@ -459,27 +454,30 @@ export default async function QuoteDetailsPage({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <InfoCard label="ID" value={quote.id} />
-          <InfoCard label="Numer" value={quote.quoteNumber ?? quote.number} />
+          <InfoCard label="Nummer" value={quote.quoteNumber ?? quote.number} />
           <InfoCard label="Status" value={quote.status} />
-          <InfoCard label="Waluta" value={currency} />
+          <InfoCard label="Währung" value={currency} />
           <InfoCard
             label="Subtotal"
             value={formatMoney(quote.subtotal, currency)}
           />
-          <InfoCard label="Tax Rate" value={quote.taxRate} />
+          <InfoCard label="Steuersatz" value={quote.taxRate} />
           <InfoCard
-            label="Tax Amount"
+            label="Steuerbetrag"
             value={formatMoney(quote.taxAmount, currency)}
           />
           <InfoCard label="Total" value={formatMoney(quote.total, currency)} />
           <InfoCard label="Kunden-ID" value={quote.customerId} />
-          <InfoCard label="Auftrag ID" value={quote.orderId} />
-          <InfoCard label="Sesja ID" value={quote.sessionId} />
-          <InfoCard label="Gültig bis" value={quote.validUntil ?? quote.dueDate} />
+          <InfoCard label="Auftrag-ID" value={quote.orderId} />
+          <InfoCard label="Sitzungs-ID" value={quote.sessionId} />
+          <InfoCard
+            label="Gültig bis"
+            value={quote.validUntil ?? quote.dueDate}
+          />
           <InfoCard label="Gesendet" value={quote.sentAt} />
-          <InfoCard label="Zaakceptowano" value={quote.acceptedAt} />
+          <InfoCard label="Akzeptiert" value={quote.acceptedAt} />
           <InfoCard label="Erstellt" value={quote.createdAt} />
-          <InfoCard label="Aktualisierung" value={quote.updatedAt} />
+          <InfoCard label="Aktualisiert" value={quote.updatedAt} />
         </div>
       </section>
 
@@ -496,7 +494,7 @@ export default async function QuoteDetailsPage({
               />
               <InfoCard label="ID" value={customer.id} />
               <InfoCard label="Name" value={customerName} />
-              <InfoCard label="Email" value={customer.email} />
+              <InfoCard label="E-Mail" value={customer.email} />
               <InfoCard label="Telefon" value={customer.phone} />
             </div>
           ) : (
@@ -518,7 +516,7 @@ export default async function QuoteDetailsPage({
               />
               <InfoCard label="ID" value={order.id} />
               <InfoCard
-                label="Numer"
+                label="Nummer"
                 value={order.orderNumber ?? order.number}
               />
               <InfoCard label="Status" value={order.status} />
@@ -535,7 +533,7 @@ export default async function QuoteDetailsPage({
         </div>
 
         <div className="rounded-3xl border border-neutral-800 bg-neutral-900/60 p-6">
-          <h2 className="mb-4 text-xl font-bold">Sesja</h2>
+          <h2 className="mb-4 text-xl font-bold">Sitzung</h2>
 
           {session ? (
             <div className="grid gap-4">
@@ -545,7 +543,9 @@ export default async function QuoteDetailsPage({
               <InfoCard label="Beendet" value={session.endedAt} />
             </div>
           ) : (
-            <p className="text-sm text-neutral-500">Keine verknüpfte Sitzung.</p>
+            <p className="text-sm text-neutral-500">
+              Keine verknüpfte Sitzung.
+            </p>
           )}
         </div>
       </section>
@@ -581,7 +581,7 @@ export default async function QuoteDetailsPage({
         />
 
         <DataSection
-          title="Audit Logi"
+          title="Audit Logs"
           items={auditLogs as Record<string, unknown>[]}
           basePath="/dashboard/audit-logs"
         />

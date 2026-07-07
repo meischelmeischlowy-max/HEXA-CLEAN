@@ -1,4 +1,9 @@
-import { EstimateStatus, PrismaClient, QuoteStatus } from "@prisma/client";
+import {
+  AuditAction,
+  EstimateStatus,
+  PrismaClient,
+  QuoteStatus,
+} from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextResponse } from "next/server";
 
@@ -15,6 +20,10 @@ const quoteCreationAllowedStatuses: readonly EstimateStatus[] = [
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
+};
+
+type QuoteWriter = {
+  quote: PrismaClient["quote"];
 };
 
 function getPrisma() {
@@ -35,6 +44,12 @@ function getPrisma() {
   return globalForPrisma.hexaPrisma;
 }
 
+function responseHeaders() {
+  return {
+    "Cache-Control": "no-store",
+  };
+}
+
 function money(value: unknown) {
   const number =
     typeof value === "object" && value !== null && "toString" in value
@@ -48,22 +63,58 @@ function money(value: unknown) {
   return (Math.round((number + Number.EPSILON) * 100) / 100).toFixed(2);
 }
 
-function createQuoteNumber() {
+function createQuoteNumberCandidate() {
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const random = Math.floor(1000 + Math.random() * 9000);
 
   return `QUO-${date}-${random}`;
 }
 
+async function createUniqueQuoteNumber(tx: QuoteWriter) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const quoteNumber = createQuoteNumberCandidate();
+
+    const existingQuote = await tx.quote.findFirst({
+      where: {
+        quoteNumber,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingQuote) {
+      return quoteNumber;
+    }
+  }
+
+  const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const timestamp = Date.now().toString().slice(-6);
+
+  return `QUO-${date}-${timestamp}`;
+}
+
 function serializeDate(value: Date | null) {
   return value ? value.toISOString() : null;
+}
+
+function quoteStatusFromEstimateStatus(status: EstimateStatus) {
+  if (status === EstimateStatus.SENT) {
+    return QuoteStatus.SENT;
+  }
+
+  if (status === EstimateStatus.ACCEPTED) {
+    return QuoteStatus.ACCEPTED;
+  }
+
+  return QuoteStatus.DRAFT;
 }
 
 export async function POST(
   _request: Request,
   context: {
     params: Promise<{ id: string }>;
-  }
+  },
 ) {
   try {
     const { id } = await context.params;
@@ -96,13 +147,14 @@ export async function POST(
           message: "Estimate not found",
           data: {
             status: "error",
-            message: "Nie znaleziono wyceny.",
+            message: "Die Kalkulation wurde nicht gefunden.",
             quote: null,
           },
         },
         {
           status: 404,
-        }
+          headers: responseHeaders(),
+        },
       );
     }
 
@@ -114,7 +166,7 @@ export async function POST(
           data: {
             status: "error",
             message:
-              "Ofertę można utworzyć dopiero z wyceny gotowej do wysłania, wysłanej albo zaakceptowanej.",
+              "Ein Angebot kann erst aus einer freigegebenen, versendeten oder akzeptierten Kalkulation erstellt werden.",
             currentStatus: estimate.status,
             requiredStatuses: quoteCreationAllowedStatuses,
             quote: null,
@@ -122,7 +174,8 @@ export async function POST(
         },
         {
           status: 409,
-        }
+          headers: responseHeaders(),
+        },
       );
     }
 
@@ -141,28 +194,24 @@ export async function POST(
     });
 
     if (existingQuote) {
-      return NextResponse.json({
-        layer: "estimate-quote-api",
-        message: "Quote already exists for this estimate",
-        data: {
-          status: "success",
-          message: "Oferta dla tej wyceny już istnieje.",
-          created: false,
-          quote: existingQuote,
+      return NextResponse.json(
+        {
+          layer: "estimate-quote-api",
+          message: "Quote already exists for this estimate",
+          data: {
+            status: "success",
+            message: "Für diese Kalkulation existiert bereits ein Angebot.",
+            created: false,
+            quote: existingQuote,
+          },
         },
-      });
+        {
+          headers: responseHeaders(),
+        },
+      );
     }
 
-    let quoteStatus: QuoteStatus = QuoteStatus.DRAFT;
-
-    if (estimate.status === EstimateStatus.SENT) {
-      quoteStatus = QuoteStatus.SENT;
-    }
-
-    if (estimate.status === EstimateStatus.ACCEPTED) {
-      quoteStatus = QuoteStatus.ACCEPTED;
-    }
-
+    const quoteStatus = quoteStatusFromEstimateStatus(estimate.status);
     const now = new Date();
 
     const quoteSentAt =
@@ -209,9 +258,11 @@ export async function POST(
     };
 
     const quote = await prisma.$transaction(async (tx) => {
+      const quoteNumber = await createUniqueQuoteNumber(tx);
+
       const createdQuote = await tx.quote.create({
         data: {
-          quoteNumber: createQuoteNumber(),
+          quoteNumber,
           customerId: estimate.customerId,
           orderId: estimate.orderId,
           sessionId: estimate.sessionId,
@@ -243,11 +294,11 @@ export async function POST(
           orderId: estimate.orderId,
           estimateId: estimate.id,
           sessionId: estimate.sessionId,
-          action: "CREATE",
+          action: AuditAction.CREATE,
           entityType: "Quote",
           entityId: createdQuote.id,
           actorType: "dashboard",
-          message: `Quote ${createdQuote.quoteNumber} created from estimate ${estimate.estimateNumber}.`,
+          message: `Angebot ${createdQuote.quoteNumber} wurde aus Kalkulation ${estimate.estimateNumber} erstellt.`,
           after: {
             quoteId: createdQuote.id,
             quoteNumber: createdQuote.quoteNumber,
@@ -276,14 +327,15 @@ export async function POST(
         message: "Quote created from estimate",
         data: {
           status: "success",
-          message: "Oferta została utworzona z wyceny.",
+          message: "Das Angebot wurde aus der Kalkulation erstellt.",
           created: true,
           quote,
         },
       },
       {
         status: 201,
-      }
+        headers: responseHeaders(),
+      },
     );
   } catch (error) {
     console.error("Create quote from estimate error:", error);
@@ -294,16 +346,14 @@ export async function POST(
         message: "Create quote from estimate error",
         data: {
           status: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Unknown create quote from estimate error",
+          message: "Das Angebot konnte nicht aus der Kalkulation erstellt werden.",
           quote: null,
         },
       },
       {
         status: 500,
-      }
+        headers: responseHeaders(),
+      },
     );
   }
 }

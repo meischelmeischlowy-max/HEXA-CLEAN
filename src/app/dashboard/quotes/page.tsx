@@ -121,7 +121,7 @@ export default function DashboardQuotesPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Die Angebot-API hat einen Fehler zurückgegeben.");
+        throw new Error("Die Angebots-API hat einen Fehler zurückgegeben.");
       }
 
       const json: DashboardQuotesResponse = await response.json();
@@ -129,7 +129,7 @@ export default function DashboardQuotesPage() {
       setQuotes(json.data.quotes ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unbekannter Angebotsfehler"
+        error instanceof Error ? error.message : "Unbekannter Angebotsfehler",
       );
     } finally {
       setLoading(false);
@@ -142,15 +142,15 @@ export default function DashboardQuotesPage() {
 
   const stats = useMemo(() => {
     const draft = quotes.filter(
-      (quote) => normalizeStatus(quote.status) === "DRAFT"
+      (quote) => normalizeStatus(quote.status) === "DRAFT",
     ).length;
 
     const sent = quotes.filter(
-      (quote) => normalizeStatus(quote.status) === "SENT"
+      (quote) => normalizeStatus(quote.status) === "SENT",
     ).length;
 
     const accepted = quotes.filter(
-      (quote) => normalizeStatus(quote.status) === "ACCEPTED"
+      (quote) => normalizeStatus(quote.status) === "ACCEPTED",
     ).length;
 
     const totalValue = quotes.reduce((sum, quote) => {
@@ -265,9 +265,9 @@ export default function DashboardQuotesPage() {
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <PageHeader
-          eyebrow="HEXA OS CRM / Quotes"
-          title="Angebote und Kalkulationen"
-          description="Das Angebotsmodul verbindet Aufträge, Kunden und den zukünftigen Kalkulationsrechner. Hier geht ein Angebot vom Entwurf über Versand, Annahme und später zur Rechnung."
+          eyebrow="HEXA OS CRM / Angebote"
+          title="Angebote"
+          description="Das Angebotsmodul verbindet Kunden, Aufträge, freigegebene Kalkulationen, Angebotsstatus und spätere Rechnungen."
         >
           <PremiumButton
             type="button"
@@ -289,14 +289,14 @@ export default function DashboardQuotesPage() {
             description="Gesamtzahl der in der Datenbank gespeicherten Angebote."
             trend="Quelle: Angebots-API"
             tone="cyan"
-            icon={<span className="text-lg font-black">Q</span>}
+            icon={<span className="text-lg font-black">A</span>}
           />
 
           <MetricCard
             title="Entwürfe"
             value={String(stats.draft)}
             description="Angebote, die vorbereitet, aber noch nicht versendet wurden."
-            trend="Status ENTWURF"
+            trend="Status DRAFT"
             tone="zinc"
             icon={<span className="text-lg font-black">D</span>}
           />
@@ -305,7 +305,7 @@ export default function DashboardQuotesPage() {
             title="Versendet"
             value={String(stats.sent)}
             description="Angebote, die dem Kunden zur Entscheidung übermittelt wurden."
-            trend="Status VERSENDET"
+            trend="Status SENT"
             tone="violet"
             icon={<span className="text-lg font-black">↗</span>}
           />
@@ -344,7 +344,8 @@ export default function DashboardQuotesPage() {
             <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
               <p className="font-bold">Fehler: {errorMessage}</p>
               <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Prüfen Sie den Endpoint /api/dashboard/quotes und die Datenbankverbindung.
+                Prüfen Sie den Endpoint /api/dashboard/quotes und die
+                Datenbankverbindung.
               </p>
             </div>
           </DashboardPanel>
@@ -368,7 +369,7 @@ export default function DashboardQuotesPage() {
               empty={
                 <EmptyState
                   title="Keine Angebote in der Datenbank"
-                  description="Das erste Angebot erscheint hier nach der Erstellung aus einem Auftrag oder nach dem Aktivieren des Kalkulationsmoduls von HEXA OS."
+                  description="Das erste Angebot erscheint hier nach der Erstellung aus einer freigegebenen Kalkulation."
                   actionLabel="Zu den Aufträgen"
                   actionHref="/dashboard/orders"
                 />
@@ -380,7 +381,7 @@ export default function DashboardQuotesPage() {
         {!loading && !errorMessage ? (
           <DashboardPanel
             title="Rolle des Angebotsmoduls"
-            description="Zielzustand: Angebote werden aus einer offiziellen Kalkulation erstellt, nachdem Kundendaten, Fotos und die Kontrolle durch den Eigentümer bestätigt wurden."
+            description="Angebote werden aus freigegebenen Kalkulationen erstellt und anschließend im Kundenworkflow weiterverarbeitet."
           >
             <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
@@ -388,7 +389,8 @@ export default function DashboardQuotesPage() {
                   Von der Kalkulation zum Angebot
                 </p>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  KI und Rechner können einen Entwurfspreis vorbereiten, aber das offizielle Angebot sollte von einer Person freigegeben werden.
+                  Eine geprüfte Kalkulation wird als offizielles Angebot
+                  vorbereitet und mit Kunde, Auftrag und Verlauf verknüpft.
                 </p>
               </div>
 
@@ -397,7 +399,8 @@ export default function DashboardQuotesPage() {
                   Versand an den Kunden
                 </p>
                 <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Der nächste Schritt ist ein PDF mit Logo, eine E-Mail an den Kunden sowie ein Eintrag in EmailLog und AuditLog.
+                  Der Versand läuft über den Angebotsstatus, Benachrichtigungen
+                  und den dokumentierten Systemverlauf.
                 </p>
               </div>
 
@@ -406,7 +409,8 @@ export default function DashboardQuotesPage() {
                   Akzeptanz
                 </p>
                 <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Ein akzeptiertes Angebot wird im Workflow von HEXA OS weiter zu Rechnung und Zahlung verarbeitet.
+                  Ein akzeptiertes Angebot wird im Workflow von HEXA OS weiter
+                  zu Rechnung und Zahlung verarbeitet.
                 </p>
               </div>
             </div>
