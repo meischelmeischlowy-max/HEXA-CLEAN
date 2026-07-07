@@ -52,6 +52,12 @@ const navItems = [
     marker: "SVC",
   },
   {
+    label: "Security",
+    href: "/dashboard/security",
+    description: "Public Logs und Schutz",
+    marker: "SEC",
+  },
+  {
     label: "Audit Log",
     href: "/dashboard/audit-logs",
     description: "Systemhistorie",
@@ -172,7 +178,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     System online
                   </p>
                   <p className="mt-1 text-xs leading-5 text-emerald-100/70">
-                    CRM, Leistungen, Angebote, Rechnungen und Workflow sind aktiv.
+                    CRM, Angebote, Rechnungen, Workflow und Security Logs sind
+                    aktiv.
                   </p>
                 </div>
 
