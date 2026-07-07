@@ -39,11 +39,31 @@ function getPrisma() {
   return globalForPrisma.hexaPrisma;
 }
 
+function decimalToNumber(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.trim().replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toString" in value &&
+    typeof value.toString === "function"
+  ) {
+    const parsed = Number(value.toString());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
 function formatMoney(value: unknown, currency = "CHF") {
-  const number =
-    typeof value === "object" && value !== null && "toString" in value
-      ? Number(value.toString())
-      : Number(value ?? 0);
+  const number = decimalToNumber(value);
 
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
@@ -52,10 +72,7 @@ function formatMoney(value: unknown, currency = "CHF") {
 }
 
 function formatNumber(value: unknown) {
-  const number =
-    typeof value === "object" && value !== null && "toString" in value
-      ? Number(value.toString())
-      : Number(value ?? 0);
+  const number = decimalToNumber(value);
 
   return new Intl.NumberFormat("de-CH", {
     minimumFractionDigits: 0,
@@ -124,7 +141,7 @@ function metadataText(metadata: unknown, key: string) {
     return null;
   }
 
-  return value;
+  return value.trim() || null;
 }
 
 function unitLabel(value: unknown, metadata: unknown) {
@@ -175,31 +192,26 @@ function hasPolishText(value: string) {
   const lower = value.toLowerCase();
 
   const polishMarkers = [
-    "Preis",
     "orientacyjna",
     "ostateczna",
-    "Kalkulation",
-    "Kalkulationen",
-    "Angebot",
-    "Kunden",
     "zakresu",
-    "Reinigung",
     "sprzatanie",
+    "sprzątanie",
     "mieszkania",
     "oddanie",
     "mycie",
     "okien",
-    "anfahrt",
-    "klein",
     "male",
+    "małe",
     "naprawy",
     "czyszczenie",
     "specjalne",
     "po potwierdzeniu",
     "utworzona",
-    "manuell",
     "recznie",
+    "ręcznie",
     "panelu",
+    "pozycja",
   ];
 
   return (
@@ -212,22 +224,25 @@ function knownGermanTranslation(value: string) {
   const normalized = value.trim().toLowerCase();
 
   const translations: Record<string, string> = {
-    "Reinigung mieszkania": "Wohnungsreinigung",
+    "reinigung mieszkania": "Wohnungsreinigung",
     "sprzatanie mieszkania": "Wohnungsreinigung",
+    "sprzątanie mieszkania": "Wohnungsreinigung",
     "endreinigung / oddanie mieszkania": "Endreinigung / Wohnungsabgabe",
     "mycie okien": "Fensterreinigung",
-    "Reinigung biura": "Büroreinigung",
+    "reinigung biura": "Büroreinigung",
     "sprzatanie biura": "Büroreinigung",
-    "hauswartung / Objektunterhalt": "Hauswartung / Objektbetreuung",
+    "sprzątanie biura": "Büroreinigung",
+    "hauswartung / objektunterhalt": "Hauswartung / Objektbetreuung",
     "klein naprawy": "Kleinreparaturen",
     "male naprawy": "Kleinreparaturen",
+    "małe naprawy": "Kleinreparaturen",
     anfahrt: "Anfahrt",
     "czyszczenie specjalne": "Spezialreinigung",
-    "neue Kalkulationsposition": "Neue Angebotsposition",
+    "neue kalkulationsposition": "Neue Angebotsposition",
     "pozycja 1": "Position 1",
     "pozycja 2": "Position 2",
     "pozycja 3": "Position 3",
-    "demo Kalkulationen: endreinigung + okna":
+    "demo kalkulationen: endreinigung + okna":
       "Demo-Angebot: Endreinigung und Fensterreinigung",
   };
 
@@ -235,7 +250,7 @@ function knownGermanTranslation(value: string) {
     return translations[normalized];
   }
 
-  if (normalized.startsWith("Kalkulation:")) {
+  if (normalized.startsWith("kalkulation:")) {
     return "Angebot für Reinigungsdienstleistungen";
   }
 
@@ -268,6 +283,15 @@ function germanText(
   }
 
   return trimmed;
+}
+
+function printLine(label: string, value: string) {
+  return (
+    <div className="flex justify-between gap-6 border-b border-neutral-200 py-2 text-sm">
+      <span className="text-neutral-500">{label}</span>
+      <span className="text-right font-semibold text-neutral-900">{value}</span>
+    </div>
+  );
 }
 
 export default async function DashboardEstimateOfferPage({
@@ -357,8 +381,9 @@ export default async function DashboardEstimateOfferPage({
               </h1>
 
               <p className="mt-2 max-w-md text-sm leading-6 text-neutral-500">
-                Angebot für Reinigungsdienstleistungen. Der endgültige Preis gilt
-                nach Bestätigung des Leistungsumfangs durch HEXA CLEAN.
+                Professionelle Reinigungsdienstleistungen und objektbezogene
+                Servicearbeiten. Dieses Dokument ist ein Angebot und keine
+                Rechnung.
               </p>
             </div>
 
@@ -371,13 +396,11 @@ export default async function DashboardEstimateOfferPage({
                 {estimate.estimateNumber}
               </h2>
 
-              <p className="mt-3 text-sm text-neutral-500">
-                Datum: {formatDate(estimate.createdAt)}
-              </p>
-
-              <p className="mt-1 text-sm text-neutral-500">
-                Status: {statusLabel(estimate.status)}
-              </p>
+              <div className="mt-4 space-y-1 text-sm text-neutral-500">
+                <p>Datum: {formatDate(estimate.createdAt)}</p>
+                <p>Status: {statusLabel(estimate.status)}</p>
+                <p>Gültig bis: {formatDate(estimate.validUntil)}</p>
+              </div>
             </div>
           </header>
 
@@ -423,16 +446,31 @@ export default async function DashboardEstimateOfferPage({
             </div>
           </section>
 
-          <section className="border-b border-neutral-200 py-8">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-              Leistungsumfang
-            </p>
+          <section className="grid gap-6 border-b border-neutral-200 py-8 md:grid-cols-[1fr_320px]">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+                Leistungsumfang
+              </p>
 
-            <h2 className="mt-3 text-2xl font-black">{offerTitle}</h2>
+              <h2 className="mt-3 text-2xl font-black">{offerTitle}</h2>
 
-            <p className="mt-3 text-sm leading-6 text-neutral-600">
-              {offerDescription}
-            </p>
+              <p className="mt-3 text-sm leading-6 text-neutral-600">
+                {offerDescription}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+                Angebotsdaten
+              </p>
+
+              <div className="mt-3">
+                {printLine("Angebotsnummer", estimate.estimateNumber)}
+                {printLine("Währung", estimate.currency)}
+                {printLine("Status", statusLabel(estimate.status))}
+                {printLine("Gültig bis", formatDate(estimate.validUntil))}
+              </div>
+            </div>
           </section>
 
           <section className="py-8">
@@ -442,8 +480,8 @@ export default async function DashboardEstimateOfferPage({
                   <tr>
                     <th className="px-4 py-4">Position</th>
                     <th className="px-4 py-4">Menge</th>
-                    <th className="px-4 py-4">Preis</th>
-                    <th className="px-4 py-4 text-right">Gesamt</th>
+                    <th className="px-4 py-4">Einzelpreis</th>
+                    <th className="px-4 py-4 text-right">Betrag</th>
                   </tr>
                 </thead>
 
@@ -504,10 +542,23 @@ export default async function DashboardEstimateOfferPage({
                 {customerNote}
               </p>
 
-              <p className="mt-5 text-xs leading-5 text-neutral-400">
-                Dieses Dokument wurde mit HEXA OS CRM erstellt. Es handelt sich
-                nicht um eine Rechnung.
-              </p>
+              <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm leading-6 text-neutral-600">
+                <p className="font-bold text-neutral-900">Bedingungen</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5">
+                  <li>Dieses Angebot ist keine Rechnung.</li>
+                  <li>
+                    Der Leistungsumfang wird vor der Ausführung final bestätigt.
+                  </li>
+                  <li>
+                    Zusatzarbeiten, nicht sichtbare Verschmutzungen oder
+                    nachträgliche Änderungen können separat berechnet werden.
+                  </li>
+                  <li>
+                    Die Zahlungskonditionen werden spätestens mit der Rechnung
+                    bestätigt.
+                  </li>
+                </ul>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
@@ -552,12 +603,37 @@ export default async function DashboardEstimateOfferPage({
                   {formatMoney(estimate.total, estimate.currency)}
                 </span>
               </div>
+
+              <p className="mt-4 text-xs leading-5 text-neutral-400">
+                Alle Beträge in {estimate.currency}. Steuern/MwSt. werden nicht
+                separat ausgewiesen.
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-10 grid gap-8 border-t border-neutral-200 pt-8 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+                HEXA CLEAN
+              </p>
+              <p className="mt-3 text-sm leading-6 text-neutral-600">
+                Dieses Dokument wurde mit HEXA OS CRM erstellt.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+                Annahme durch Kunde
+              </p>
+              <div className="mt-10 border-t border-neutral-300 pt-3 text-sm text-neutral-500">
+                Datum / Unterschrift
+              </div>
             </div>
           </section>
 
           <footer className="mt-10 border-t border-neutral-200 pt-6 text-xs leading-5 text-neutral-400">
-            HEXA CLEAN · Angebot · Erstellt mit HEXA OS CRM ·{" "}
-            {formatDate(new Date())}
+            HEXA CLEAN · Angebot · {estimate.estimateNumber} · Erstellt mit HEXA
+            OS CRM · {formatDate(new Date())}
           </footer>
         </article>
       </div>

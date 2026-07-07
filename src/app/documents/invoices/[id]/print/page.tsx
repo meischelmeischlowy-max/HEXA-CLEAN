@@ -40,7 +40,7 @@ function decimalToNumber(value: unknown) {
   }
 
   if (typeof value === "string") {
-    const number = Number(value.replace(",", "."));
+    const number = Number(value.trim().replace(",", "."));
     return Number.isFinite(number) ? number : 0;
   }
 
@@ -132,6 +132,22 @@ function invoiceStatusLabel(status: string | null | undefined) {
   return labels[status] ?? status;
 }
 
+function paymentMethodLabel(method: string | null | undefined) {
+  const labels: Record<string, string> = {
+    CASH: "Barzahlung",
+    BANK_TRANSFER: "Banküberweisung",
+    TWINT: "TWINT",
+    CARD: "Karte",
+    OTHER: "Andere",
+  };
+
+  if (!method) {
+    return "—";
+  }
+
+  return labels[method] ?? method;
+}
+
 function invoiceUnitLabel(unit: string | null | undefined) {
   const labels: Record<string, string> = {
     FLAT: "Pauschal",
@@ -198,6 +214,15 @@ function cleanItemName(value: string | null | undefined) {
   return text;
 }
 
+function printMetaLine(label: string, value: string) {
+  return (
+    <div className="flex justify-between gap-6 border-b border-neutral-200 py-2 text-sm">
+      <span className="text-neutral-500">{label}</span>
+      <span className="text-right font-semibold text-neutral-900">{value}</span>
+    </div>
+  );
+}
+
 export default async function DocumentsInvoicePrintPage({
   params,
 }: {
@@ -213,6 +238,7 @@ export default async function DocumentsInvoicePrintPage({
     include: {
       customer: true,
       order: true,
+      quote: true,
       items: {
         orderBy: {
           sortOrder: "asc",
@@ -238,7 +264,6 @@ export default async function DocumentsInvoicePrintPage({
   const hasMwst = companyConfig.mwst.registered || taxAmount > 0;
 
   const serviceDate = invoice.order?.scheduledStart ?? invoice.issueDate;
-
   const customerLines = customerAddressLines(invoice.customer);
 
   const serviceAddress = invoice.order
@@ -258,6 +283,7 @@ export default async function DocumentsInvoicePrintPage({
       ? invoice.items.map((item) => ({
           id: item.id,
           name: cleanItemName(item.name),
+          description: item.description,
           quantity: item.quantity,
           unit: item.unit,
           unitPrice: item.unitPrice,
@@ -267,6 +293,7 @@ export default async function DocumentsInvoicePrintPage({
           {
             id: "fallback",
             name: companyConfig.invoice.defaultServiceText,
+            description: null,
             quantity: "1.00",
             unit: "FLAT",
             unitPrice: invoice.subtotal,
@@ -300,8 +327,8 @@ export default async function DocumentsInvoicePrintPage({
               </h1>
 
               <div className="mt-3 space-y-1 text-sm leading-6 text-neutral-600">
-                {companyAddressLines().map((line) => (
-                  <p key={line}>{line}</p>
+                {companyAddressLines().map((line, index) => (
+                  <p key={`${line}-${index}`}>{line}</p>
                 ))}
 
                 {companyConfig.email ? <p>{companyConfig.email}</p> : null}
@@ -344,7 +371,9 @@ export default async function DocumentsInvoicePrintPage({
 
               <div className="mt-2 space-y-1 text-sm leading-6 text-neutral-600">
                 {customerLines.length > 0 ? (
-                  customerLines.map((line) => <p key={line}>{line}</p>)
+                  customerLines.map((line, index) => (
+                    <p key={`${line}-${index}`}>{line}</p>
+                  ))
                 ) : (
                   <p>Keine Kundenadresse angegeben</p>
                 )}
@@ -369,6 +398,39 @@ export default async function DocumentsInvoicePrintPage({
             </div>
           </section>
 
+          <section className="grid gap-6 border-b border-neutral-200 py-8 md:grid-cols-[1fr_320px]">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+                Leistungsbeschreibung
+              </p>
+
+              <h2 className="mt-3 text-2xl font-black">
+                {companyConfig.invoice.defaultServiceText}
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-neutral-600">
+                Die Rechnung basiert auf den erfassten Leistungen, der zugehörigen
+                Offerte/Kalkulation und den im System gespeicherten Zahlungsdaten.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+                Rechnungsdaten
+              </p>
+
+              <div className="mt-3">
+                {printMetaLine("Rechnungsnummer", invoice.invoiceNumber)}
+                {printMetaLine("Status", invoiceStatusLabel(invoice.status))}
+                {printMetaLine("Währung", currency)}
+                {printMetaLine("Fällig bis", formatDate(invoice.dueDate))}
+                {invoice.quote?.quoteNumber
+                  ? printMetaLine("Angebot", invoice.quote.quoteNumber)
+                  : null}
+              </div>
+            </div>
+          </section>
+
           <section className="py-8">
             <div className="overflow-hidden rounded-2xl border border-neutral-200">
               <table className="w-full border-collapse text-left text-sm">
@@ -387,6 +449,11 @@ export default async function DocumentsInvoicePrintPage({
                     <tr key={item.id}>
                       <td className="px-4 py-4 align-top">
                         <p className="font-bold">{item.name}</p>
+                        {item.description ? (
+                          <p className="mt-1 text-xs leading-5 text-neutral-500">
+                            {item.description}
+                          </p>
+                        ) : null}
                       </td>
 
                       <td className="px-4 py-4 text-right align-top text-neutral-600">
@@ -422,7 +489,7 @@ export default async function DocumentsInvoicePrintPage({
               </p>
 
               {companyConfig.iban ? (
-                <div className="mt-4 text-sm leading-6 text-neutral-600">
+                <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm leading-6 text-neutral-600">
                   <p>Empfänger: {companyConfig.paymentRecipient}</p>
                   <p>IBAN: {companyConfig.iban}</p>
                   {companyConfig.bankName ? <p>Bank: {companyConfig.bankName}</p> : null}
@@ -433,6 +500,31 @@ export default async function DocumentsInvoicePrintPage({
                 <p className="mt-5 text-sm leading-6 text-neutral-600">
                   {companyConfig.mwst.notRegisteredText}
                 </p>
+              ) : null}
+
+              {invoice.payments.length > 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                  <p className="text-sm font-bold text-neutral-900">
+                    Erfasste Zahlungen
+                  </p>
+
+                  <div className="mt-3 space-y-2 text-sm text-neutral-600">
+                    {invoice.payments.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex justify-between gap-4 border-b border-neutral-200 pb-2 last:border-b-0 last:pb-0"
+                      >
+                        <span>
+                          {formatDate(payment.paidAt ?? payment.createdAt)} ·{" "}
+                          {paymentMethodLabel(payment.method)}
+                        </span>
+                        <span className="font-semibold">
+                          {formatMoney(payment.amount, currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : null}
 
               <p className="mt-5 text-xs leading-5 text-neutral-400">
@@ -451,9 +543,7 @@ export default async function DocumentsInvoicePrintPage({
               </div>
 
               <div className="flex justify-between gap-4 border-b border-neutral-200 py-3 text-sm">
-                <span className="text-neutral-500">
-                  {hasMwst ? "MWST" : "MWST"}
-                </span>
+                <span className="text-neutral-500">MWST</span>
                 <span className="font-semibold">
                   {hasMwst
                     ? formatMoney(invoice.taxAmount, currency)
@@ -485,7 +575,8 @@ export default async function DocumentsInvoicePrintPage({
           </section>
 
           <footer className="mt-10 border-t border-neutral-200 pt-6 text-xs leading-5 text-neutral-400">
-            {companyConfig.name} · Rechnung · {formatDate(new Date())}
+            {companyConfig.name} · Rechnung · {invoice.invoiceNumber} · Erstellt
+            mit HEXA OS CRM · {formatDate(new Date())}
           </footer>
         </article>
       </div>

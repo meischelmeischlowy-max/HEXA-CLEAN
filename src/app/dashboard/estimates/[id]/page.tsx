@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import CreateInvoiceFromEstimateButton from "../../../../components/dashboard/CreateInvoiceFromEstimateButton";
 import EstimateStatusActions from "../../../../components/dashboard/EstimateStatusActions";
 
 export const dynamic = "force-dynamic";
@@ -32,11 +31,35 @@ function getPrisma() {
   return globalForPrisma.hexaPrisma;
 }
 
+function decimalToNumber(value: unknown) {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.trim().replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toString" in value &&
+    typeof value.toString === "function"
+  ) {
+    const parsed = Number(value.toString());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
 function formatMoney(value: unknown, currency = "CHF") {
-  const number =
-    typeof value === "object" && value !== null && "toString" in value
-      ? Number(value.toString())
-      : Number(value ?? 0);
+  const number = decimalToNumber(value);
 
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
@@ -45,10 +68,7 @@ function formatMoney(value: unknown, currency = "CHF") {
 }
 
 function formatNumber(value: unknown) {
-  const number =
-    typeof value === "object" && value !== null && "toString" in value
-      ? Number(value.toString())
-      : Number(value ?? 0);
+  const number = decimalToNumber(value);
 
   return new Intl.NumberFormat("de-CH", {
     minimumFractionDigits: 0,
@@ -86,9 +106,9 @@ function customerName(customer: {
 function statusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
     DRAFT: "Entwurf",
-    AI_REVIEW: "AI sprawdza",
+    AI_REVIEW: "KI-Prüfung",
     NEEDS_PHOTOS: "Fotos erforderlich",
-    NEEDS_HUMAN_REVIEW: "Zur Kontrolle durch den Eigentümer",
+    NEEDS_HUMAN_REVIEW: "Interne Prüfung erforderlich",
     READY_TO_SEND: "Bereit zum Senden",
     SENT: "Versendet",
     ACCEPTED: "Akzeptiert",
@@ -101,6 +121,43 @@ function statusLabel(status: string | null | undefined) {
   }
 
   return labels[status] ?? status;
+}
+
+function statusDescription(status: string | null | undefined) {
+  const descriptions: Record<string, string> = {
+    DRAFT: "Die Kalkulation ist noch in Vorbereitung.",
+    AI_REVIEW: "Die Kalkulation ist für spätere KI-Prüfung markiert.",
+    NEEDS_PHOTOS: "Für eine zuverlässige Kalkulation werden Fotos benötigt.",
+    NEEDS_HUMAN_REVIEW:
+      "Die Kalkulation muss intern geprüft werden, bevor sie versendet wird.",
+    READY_TO_SEND: "Die Kalkulation ist geprüft und kann als Angebot vorbereitet werden.",
+    SENT: "Das Angebot wurde an den Kunden gesendet.",
+    ACCEPTED: "Der Kunde hat die Kalkulation akzeptiert.",
+    REJECTED: "Der Kunde hat die Kalkulation abgelehnt.",
+    EXPIRED: "Die Kalkulation ist abgelaufen.",
+  };
+
+  if (!status) {
+    return "Kein Status vorhanden.";
+  }
+
+  return descriptions[status] ?? "Status im System gespeichert.";
+}
+
+function statusBadgeClass(status: string | null | undefined) {
+  if (status === "ACCEPTED") {
+    return "border-emerald-300/30 bg-emerald-300/10 text-emerald-100";
+  }
+
+  if (status === "REJECTED" || status === "EXPIRED") {
+    return "border-red-300/30 bg-red-300/10 text-red-100";
+  }
+
+  if (status === "SENT" || status === "READY_TO_SEND") {
+    return "border-cyan-300/30 bg-cyan-300/10 text-cyan-100";
+  }
+
+  return "border-white/10 bg-white/[0.03] text-neutral-100";
 }
 
 function metadataText(metadata: unknown, key: string) {
@@ -118,21 +175,54 @@ function metadataText(metadata: unknown, key: string) {
     return null;
   }
 
-  return value;
+  return value.trim() || null;
+}
+
+function unitLabel(value: unknown) {
+  if (typeof value !== "string") {
+    return "—";
+  }
+
+  const normalized = value.trim().toUpperCase();
+
+  const labels: Record<string, string> = {
+    H: "Std.",
+    HOUR: "Std.",
+    HOURS: "Std.",
+    M2: "m²",
+    "M²": "m²",
+    SQM: "m²",
+    PIECE: "Stk.",
+    PIECES: "Stk.",
+    STK: "Stk.",
+    STÜCK: "Stk.",
+    ROOM: "Raum",
+    WINDOW: "Fenster",
+    FLAT: "Pauschal",
+    FIXED: "Pauschal",
+    PAUSCHAL: "Pauschal",
+    KM: "km",
+    CUSTOM: "Individuell",
+  };
+
+  return labels[normalized] ?? value;
 }
 
 function auditActionLabel(action: string | null | undefined) {
   const labels: Record<string, string> = {
     CREATE: "Erstellt",
-    UPDATE: "Zmieniono",
+    UPDATE: "Geändert",
     DELETE: "Gelöscht",
+    STATUS_CHANGE: "Status geändert",
+    SYSTEM: "System",
+    AI: "KI",
     SEND: "Gesendet",
-    ACCEPT: "Zaakceptowano",
-    REJECT: "Odrzucono",
+    ACCEPT: "Akzeptiert",
+    REJECT: "Abgelehnt",
   };
 
   if (!action) {
-    return "Zdarzenie";
+    return "Ereignis";
   }
 
   return labels[action] ?? action;
@@ -193,6 +283,20 @@ export default async function DashboardEstimateDetailsPage({
 
   const latestAuditLog = estimate.auditLogs[0];
 
+  const serviceAddress = [
+    estimate.serviceStreet,
+    [estimate.serviceZipCode, estimate.serviceCity].filter(Boolean).join(" "),
+    estimate.serviceCountry,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const customerContact =
+    estimate.customer?.email ?? estimate.customer?.phone ?? "Kein Kontakt";
+
+  const manualAiRangeExists =
+    estimate.aiMinTotal !== null || estimate.aiMaxTotal !== null;
+
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-8 text-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-8">
@@ -207,7 +311,7 @@ export default async function DashboardEstimateDetailsPage({
               </Link>
 
               <p className="mt-5 text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
-                HEXA OS / Estimate
+                HEXA OS / Kalkulation
               </p>
 
               <h1 className="mt-3 text-3xl font-semibold tracking-tight">
@@ -219,12 +323,19 @@ export default async function DashboardEstimateDetailsPage({
               </p>
             </div>
 
-            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-4 text-right">
-              <p className="text-xs uppercase tracking-[0.2em] text-cyan-100/70">
+            <div
+              className={`rounded-2xl border px-5 py-4 text-right ${statusBadgeClass(
+                estimate.status
+              )}`}
+            >
+              <p className="text-xs uppercase tracking-[0.2em] opacity-70">
                 Status
               </p>
-              <p className="mt-2 text-lg font-black text-cyan-100">
+              <p className="mt-2 text-lg font-black">
                 {statusLabel(estimate.status)}
+              </p>
+              <p className="mt-2 max-w-xs text-xs leading-5 opacity-70">
+                {statusDescription(estimate.status)}
               </p>
             </div>
           </div>
@@ -247,10 +358,15 @@ export default async function DashboardEstimateDetailsPage({
             href={`/dashboard/estimates/${estimate.id}/offer`}
             className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20"
           >
-            Drucken / PDF
+            PDF / Druckansicht
           </Link>
 
-          <CreateInvoiceFromEstimateButton estimateId={estimate.id} />
+          <Link
+            href={`/dashboard/customers/${estimate.customerId}`}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-neutral-200 transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
+          >
+            Kunde öffnen
+          </Link>
 
           <Link
             href="/dashboard/estimates/new"
@@ -266,22 +382,16 @@ export default async function DashboardEstimateDetailsPage({
             <p className="mt-2 text-xl font-semibold">
               {customerName(estimate.customer)}
             </p>
-            <p className="mt-1 text-sm text-neutral-500">
-              {estimate.customer?.email ??
-                estimate.customer?.phone ??
-                "Kein Kontakt"}
-            </p>
+            <p className="mt-1 text-sm text-neutral-500">{customerContact}</p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-sm text-neutral-400">Leistungsort</p>
             <p className="mt-2 text-xl font-semibold">
-              {estimate.serviceCity ?? "—"}
+              {estimate.serviceCity ?? estimate.customer?.city ?? "—"}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              {[estimate.serviceStreet, estimate.serviceZipCode]
-                .filter(Boolean)
-                .join(", ") || "Kein adresu"}
+              {serviceAddress || "Keine Adresse"}
             </p>
           </div>
 
@@ -300,18 +410,18 @@ export default async function DashboardEstimateDetailsPage({
             <p className="mt-2 text-xl font-semibold">
               {latestAuditLog ? formatDate(latestAuditLog.createdAt) : "—"}
             </p>
-            <p className="mt-1 text-sm text-neutral-500">
+            <p className="mt-1 line-clamp-2 text-sm text-neutral-500">
               {latestAuditLog?.message ?? "Keine Änderungshistorie"}
             </p>
           </div>
 
           <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
-            <p className="text-sm text-cyan-100/70">Summe</p>
+            <p className="text-sm text-cyan-100/70">Kalkulationssumme</p>
             <p className="mt-2 text-3xl font-black text-cyan-100">
               {formatMoney(estimate.total, estimate.currency)}
             </p>
             <p className="mt-1 text-sm text-cyan-100/60">
-              Arbeitsbetrag, nicht offiziell
+              Interner Betrag vor finaler Kundenfreigabe
             </p>
           </div>
         </section>
@@ -321,12 +431,12 @@ export default async function DashboardEstimateDetailsPage({
             <div>
               <h2 className="text-xl font-semibold">Kalkulationspositionen</h2>
               <p className="mt-1 text-sm text-neutral-400">
-                Kalkulation aus dem Leistungskatalog oder aus dem manuellen Formular.
+                Positionen aus dem Leistungskatalog oder aus dem manuellen Formular.
               </p>
             </div>
 
             <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-              Der Eigentümer muss den Preis vor dem Versand an den Kunden freigeben.
+              Vor dem Versand muss die Kalkulation intern freigegeben werden.
             </div>
           </div>
 
@@ -346,7 +456,7 @@ export default async function DashboardEstimateDetailsPage({
               <tbody className="divide-y divide-white/10">
                 {estimate.items.map((item) => {
                   const manualUnit = metadataText(item.metadata, "manualUnit");
-                  const unit = item.unit ?? manualUnit ?? "—";
+                  const unit = manualUnit ?? item.unit ?? "—";
 
                   return (
                     <tr key={item.id}>
@@ -358,18 +468,23 @@ export default async function DashboardEstimateDetailsPage({
                           {item.description ?? item.category ?? "—"}
                         </p>
                       </td>
+
                       <td className="px-4 py-4 text-neutral-300">
-                        {formatNumber(item.quantity)} {unit}
+                        {formatNumber(item.quantity)} {unitLabel(unit)}
                       </td>
+
                       <td className="px-4 py-4 text-neutral-300">
                         {formatMoney(item.unitPrice, estimate.currency)}
                       </td>
+
                       <td className="px-4 py-4 text-neutral-300">
                         x{formatNumber(item.riskMultiplier)}
                       </td>
+
                       <td className="px-4 py-4 text-neutral-300">
                         {formatMoney(item.riskAmount, estimate.currency)}
                       </td>
+
                       <td className="px-4 py-4 text-right font-semibold">
                         {formatMoney(item.total, estimate.currency)}
                       </td>
@@ -389,14 +504,14 @@ export default async function DashboardEstimateDetailsPage({
 
         <section className="grid gap-4 lg:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Subtotal</p>
+            <p className="text-sm text-neutral-400">Zwischensumme</p>
             <p className="mt-2 text-xl font-semibold">
               {formatMoney(estimate.subtotal, estimate.currency)}
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Risiko</p>
+            <p className="text-sm text-neutral-400">Risiko / Aufwand</p>
             <p className="mt-2 text-xl font-semibold">
               {formatMoney(estimate.riskAmount, estimate.currency)}
             </p>
@@ -410,7 +525,7 @@ export default async function DashboardEstimateDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Rabat</p>
+            <p className="text-sm text-neutral-400">Rabatt</p>
             <p className="mt-2 text-xl font-semibold">
               {formatMoney(estimate.discountAmount, estimate.currency)}
             </p>
@@ -426,14 +541,22 @@ export default async function DashboardEstimateDetailsPage({
 
         <section className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">AI-Spanne / Demo</h2>
-            <p className="mt-4 text-2xl font-black text-cyan-200">
-              {formatMoney(estimate.aiMinTotal, estimate.currency)} –{" "}
-              {formatMoney(estimate.aiMaxTotal, estimate.currency)}
-            </p>
+            <h2 className="text-xl font-semibold">KI-Spanne / Prüfung</h2>
+
+            {manualAiRangeExists ? (
+              <p className="mt-4 text-2xl font-black text-cyan-200">
+                {formatMoney(estimate.aiMinTotal, estimate.currency)} –{" "}
+                {formatMoney(estimate.aiMaxTotal, estimate.currency)}
+              </p>
+            ) : (
+              <p className="mt-4 text-2xl font-black text-neutral-400">
+                Keine Spanne vorhanden
+              </p>
+            )}
+
             <p className="mt-3 text-sm leading-6 text-neutral-400">
               {estimate.aiNotes ??
-                "Keine AI-Analyse vorhanden. Dieser Bereich ist für die spätere Analyse von Fotos und Risiken vorbereitet."}
+                "Keine KI-Analyse vorhanden. Dieser Bereich ist für spätere Fotoanalyse, Risikoanalyse und Plausibilitätsprüfung vorbereitet."}
             </p>
           </div>
 
@@ -443,7 +566,7 @@ export default async function DashboardEstimateDetailsPage({
             <div className="mt-4 space-y-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
-                  Dla Kunden
+                  Für Kunden
                 </p>
                 <p className="mt-2 text-sm leading-6 text-neutral-300">
                   {estimate.notesCustomer ?? "—"}
@@ -466,8 +589,8 @@ export default async function DashboardEstimateDetailsPage({
           <div className="flex flex-col gap-2">
             <h2 className="text-xl font-semibold">Kalkulationshistorie</h2>
             <p className="text-sm text-neutral-400">
-              Technischer Audit-Log: Erstellung der Kalkulation, Statusänderungen und spätere
-              Entscheidungen des Eigentümers.
+              Technischer Audit-Log: Erstellung, Statusänderungen und spätere
+              Entscheidungen im Dashboard.
             </p>
           </div>
 
@@ -525,7 +648,7 @@ export default async function DashboardEstimateDetailsPage({
               {estimate.attachments.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Später: Kundenfotos und Vision AI.
+              Später: Kundenfotos und Vision-AI.
             </p>
           </div>
 
@@ -535,17 +658,17 @@ export default async function DashboardEstimateDetailsPage({
               {estimate.notifications.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Später: SMS/E-Mail an den Eigentümer.
+              Später: E-Mail, SMS und WhatsApp.
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-lg font-semibold">Audit log</h2>
+            <h2 className="text-lg font-semibold">Audit Log</h2>
             <p className="mt-2 text-3xl font-black">
               {estimate.auditLogs.length}
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Historia zmian und decyzji.
+              Änderungshistorie und Entscheidungen.
             </p>
           </div>
         </section>

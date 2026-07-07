@@ -33,11 +33,25 @@ function getPrisma() {
 function normalizeCurrency(value?: string | null) {
   const raw = String(value || "CHF").trim().toUpperCase();
 
-  if (/^[A-Z]{3}$/.test(raw)) return raw;
-  if (raw.startsWith("CHF")) return "CHF";
-  if (raw.startsWith("EUR")) return "EUR";
-  if (raw.startsWith("USD")) return "USD";
-  if (raw.startsWith("PLN")) return "PLN";
+  if (/^[A-Z]{3}$/.test(raw)) {
+    return raw;
+  }
+
+  if (raw.startsWith("CHF")) {
+    return "CHF";
+  }
+
+  if (raw.startsWith("EUR")) {
+    return "EUR";
+  }
+
+  if (raw.startsWith("USD")) {
+    return "USD";
+  }
+
+  if (raw.startsWith("PLN")) {
+    return "PLN";
+  }
 
   return "CHF";
 }
@@ -57,7 +71,9 @@ function formatMoney(value: unknown, currency = "CHF") {
 }
 
 function formatDate(value: unknown) {
-  if (!value) return "—";
+  if (!value) {
+    return "—";
+  }
 
   const date = value instanceof Date ? value : new Date(String(value));
 
@@ -93,8 +109,13 @@ function customerName(customer?: {
   companyName?: string | null;
   email?: string | null;
 } | null) {
-  if (!customer) return "—";
-  if (customer.companyName) return customer.companyName;
+  if (!customer) {
+    return "—";
+  }
+
+  if (customer.companyName) {
+    return customer.companyName;
+  }
 
   const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
 
@@ -105,13 +126,13 @@ function statusLabel(status?: string | null) {
   const labels: Record<string, string> = {
     PENDING: "Ausstehend",
     PAID: "Bezahlt",
-    FAILED: "Nieudana",
+    FAILED: "Fehlgeschlagen",
     REFUNDED: "Erstattet",
-    CANCELLED: "Anulowana",
+    CANCELLED: "Storniert",
     DRAFT: "Entwurf",
     SENT: "Versendet",
     PARTIALLY_PAID: "Teilweise bezahlt",
-    OVERDUE: "Po terminie",
+    OVERDUE: "Überfällig",
   };
 
   const key = String(status || "").toUpperCase();
@@ -124,7 +145,7 @@ function methodLabel(method?: string | null) {
     BANK_TRANSFER: "Banküberweisung",
     CASH: "Barzahlung",
     TWINT: "TWINT",
-    CARD: "Karta",
+    CARD: "Karte",
     OTHER: "Andere Methode",
   };
 
@@ -246,7 +267,7 @@ export default async function PaymentDetailsPage({
   const invoiceRemaining = Math.max(invoiceTotal - invoicePaid, 0);
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-neutral-950 px-4 py-6 text-white sm:px-6 lg:px-8">
       <section className="mx-auto flex max-w-7xl flex-col gap-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -258,7 +279,7 @@ export default async function PaymentDetailsPage({
             </Link>
 
             <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
-              HEXA OS CRM / Payments
+              HEXA OS CRM / Zahlung
             </p>
 
             <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
@@ -266,7 +287,7 @@ export default async function PaymentDetailsPage({
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-              Vorschau der Zahlung, der zugehörigen Rechnung, des Kunden, des Auftrags und des Systemverlaufs.
+              Zahlung, zugehörige Rechnung, Kunde, Auftrag und Systemverlauf.
             </p>
           </div>
 
@@ -283,8 +304,8 @@ export default async function PaymentDetailsPage({
 
             {invoice?.id ? (
               <ActionLink
-                href={`/dashboard/invoices/${invoice.id}/print`}
-                label="Rechnung drucken"
+                href={`/documents/invoices/${invoice.id}/print`}
+                label="Rechnung drucken / PDF"
               />
             ) : null}
           </div>
@@ -292,8 +313,16 @@ export default async function PaymentDetailsPage({
 
         <section className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <InfoCard label="Zahlungsstatus" value={statusLabel(payment.status)} tone="cyan" />
-            <InfoCard label="Zahlungsbetrag" value={formatMoney(paymentAmount, currency)} tone="green" />
+            <InfoCard
+              label="Zahlungsstatus"
+              value={statusLabel(payment.status)}
+              tone="cyan"
+            />
+            <InfoCard
+              label="Zahlungsbetrag"
+              value={formatMoney(paymentAmount, currency)}
+              tone="green"
+            />
             <InfoCard label="Methode" value={methodLabel(payment.method)} />
             <InfoCard label="Referenz" value={payment.externalRef} />
           </div>
@@ -322,11 +351,18 @@ export default async function PaymentDetailsPage({
 
             <div className="mt-5 grid gap-3">
               {invoice?.id ? (
-                <ActionLink
-                  href={`/dashboard/invoices/${invoice.id}`}
-                  label={`Rechnung ${invoice.invoiceNumber}`}
-                  variant="primary"
-                />
+                <>
+                  <ActionLink
+                    href={`/dashboard/invoices/${invoice.id}`}
+                    label={`Rechnung ${invoice.invoiceNumber}`}
+                    variant="primary"
+                  />
+
+                  <ActionLink
+                    href={`/documents/invoices/${invoice.id}/print`}
+                    label="Rechnung drucken / PDF"
+                  />
+                </>
               ) : (
                 <InfoCard label="Rechnung" value="Keine zugehörige Rechnung" />
               )}
@@ -365,17 +401,23 @@ export default async function PaymentDetailsPage({
 
             {invoice ? (
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <InfoCard label="Numer" value={invoice.invoiceNumber} />
+                <InfoCard label="Nummer" value={invoice.invoiceNumber} />
                 <InfoCard label="Status" value={statusLabel(invoice.status)} />
                 <InfoCard label="Total" value={formatMoney(invoice.total, currency)} />
                 <InfoCard label="Bezahlt" value={formatMoney(invoice.paidAmount, currency)} />
-                <InfoCard label="Offen" value={formatMoney(invoiceRemaining, currency)} tone={invoiceRemaining > 0 ? "red" : "green"} />
-                <InfoCard label="Termin" value={invoice.dueDate} />
-                <InfoCard label="Wystawiono" value={invoice.issueDate} />
+                <InfoCard
+                  label="Offen"
+                  value={formatMoney(invoiceRemaining, currency)}
+                  tone={invoiceRemaining > 0 ? "red" : "green"}
+                />
+                <InfoCard label="Fällig bis" value={invoice.dueDate} />
+                <InfoCard label="Ausgestellt am" value={invoice.issueDate} />
                 <InfoCard label="Bezahlt am" value={invoice.paidAt} />
               </div>
             ) : (
-              <p className="mt-4 text-sm text-zinc-500">Keine zugehörige Rechnung.</p>
+              <p className="mt-4 text-sm text-zinc-500">
+                Keine zugehörige Rechnung.
+              </p>
             )}
           </div>
 
@@ -386,13 +428,18 @@ export default async function PaymentDetailsPage({
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <InfoCard label="Name" value={customerName(customer)} />
                 <InfoCard label="Typ" value={customer.type} />
-                <InfoCard label="Email" value={customer.email} />
+                <InfoCard label="E-Mail" value={customer.email} />
                 <InfoCard label="Telefon" value={customer.phone} />
-                <InfoCard label="Straße" value={customer.street} />
-                <InfoCard label="PLZ / Ort" value={[customer.zipCode, customer.city].filter(Boolean).join(" ")} />
+                <InfoCard label="Strasse" value={customer.street} />
+                <InfoCard
+                  label="PLZ / Ort"
+                  value={[customer.zipCode, customer.city].filter(Boolean).join(" ")}
+                />
               </div>
             ) : (
-              <p className="mt-4 text-sm text-zinc-500">Kein zugehöriger Kunde vorhanden.</p>
+              <p className="mt-4 text-sm text-zinc-500">
+                Kein zugehöriger Kunde vorhanden.
+              </p>
             )}
           </div>
         </section>
@@ -416,27 +463,39 @@ export default async function PaymentDetailsPage({
               <table className="w-full min-w-[800px] text-left text-sm">
                 <thead className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                   <tr>
-                    <th className="border-b border-white/10 px-3 py-3">Data</th>
+                    <th className="border-b border-white/10 px-3 py-3">Datum</th>
                     <th className="border-b border-white/10 px-3 py-3">Aktion</th>
                     <th className="border-b border-white/10 px-3 py-3">Typ</th>
-                    <th className="border-b border-white/10 px-3 py-3">Beschreibung</th>
+                    <th className="border-b border-white/10 px-3 py-3">
+                      Beschreibung
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {auditLogs.map((log) => (
                     <tr key={log.id} className="border-b border-white/10">
-                      <td className="px-3 py-3 text-zinc-400">{formatDate(log.createdAt)}</td>
-                      <td className="px-3 py-3 font-bold text-zinc-200">{formatValue(log.action)}</td>
-                      <td className="px-3 py-3 text-zinc-400">{formatValue(log.entityType)}</td>
-                      <td className="px-3 py-3 text-zinc-300">{formatValue(log.message)}</td>
+                      <td className="px-3 py-3 text-zinc-400">
+                        {formatDate(log.createdAt)}
+                      </td>
+                      <td className="px-3 py-3 font-bold text-zinc-200">
+                        {formatValue(log.action)}
+                      </td>
+                      <td className="px-3 py-3 text-zinc-400">
+                        {formatValue(log.entityType)}
+                      </td>
+                      <td className="px-3 py-3 text-zinc-300">
+                        {formatValue(log.message)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <p className="mt-5 text-sm text-zinc-500">Keine Einträge audytu.</p>
+            <p className="mt-5 text-sm text-zinc-500">
+              Keine Audit-Einträge vorhanden.
+            </p>
           )}
         </section>
       </section>

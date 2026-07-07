@@ -38,18 +38,22 @@ function decimalToNumber(value: unknown) {
     return Number.isFinite(value) ? value : 0;
   }
 
+  if (typeof value === "string") {
+    const parsed = Number(value.trim().replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
   if (
     typeof value === "object" &&
     value !== null &&
     "toString" in value &&
     typeof value.toString === "function"
   ) {
-    const number = Number(value.toString());
-    return Number.isFinite(number) ? number : 0;
+    const parsed = Number(value.toString());
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+  return 0;
 }
 
 function safeCurrency(value: unknown) {
@@ -127,6 +131,43 @@ function invoiceStatusLabel(status: string | null | undefined) {
   return labels[status] ?? status;
 }
 
+function invoiceStatusDescription(status: string | null | undefined) {
+  const descriptions: Record<string, string> = {
+    DRAFT: "Die Rechnung ist vorbereitet, aber noch nicht als versendet markiert.",
+    SENT: "Die Rechnung wurde versendet und wartet auf Zahlung.",
+    PARTIALLY_PAID: "Es wurde bereits eine Teilzahlung erfasst.",
+    PAID: "Die Rechnung ist vollständig bezahlt.",
+    OVERDUE: "Die Rechnung ist fällig und noch nicht vollständig bezahlt.",
+    CANCELLED: "Die Rechnung wurde storniert und kann keine Zahlungen erhalten.",
+  };
+
+  if (!status) {
+    return "Kein Status vorhanden.";
+  }
+
+  return descriptions[status] ?? "Status im System gespeichert.";
+}
+
+function invoiceStatusBoxClass(status: string | null | undefined) {
+  if (status === "PAID") {
+    return "border-emerald-300/30 bg-emerald-300/10 text-emerald-100";
+  }
+
+  if (status === "PARTIALLY_PAID") {
+    return "border-cyan-300/30 bg-cyan-300/10 text-cyan-100";
+  }
+
+  if (status === "OVERDUE") {
+    return "border-red-300/30 bg-red-300/10 text-red-100";
+  }
+
+  if (status === "CANCELLED") {
+    return "border-neutral-500/30 bg-neutral-500/10 text-neutral-200";
+  }
+
+  return "border-cyan-300/20 bg-cyan-300/10 text-cyan-100";
+}
+
 function paymentStatusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
     PENDING: "Offen",
@@ -193,6 +234,7 @@ export default async function DashboardInvoiceDetailsPage({
     include: {
       customer: true,
       order: true,
+      quote: true,
       items: {
         orderBy: {
           sortOrder: "asc",
@@ -215,6 +257,7 @@ export default async function DashboardInvoiceDetailsPage({
   const total = decimalToNumber(invoice.total);
   const paidAmount = decimalToNumber(invoice.paidAmount);
   const openAmount = Math.max(total - paidAmount, 0);
+  const canReceivePayment = invoice.status !== "CANCELLED" && openAmount > 0;
 
   const customerAddress = [
     invoice.customer?.street,
@@ -262,21 +305,25 @@ export default async function DashboardInvoiceDetailsPage({
               </p>
             </div>
 
-            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-5 py-4 text-right">
-              <p className="text-xs uppercase tracking-[0.2em] text-cyan-100/70">
+            <div
+              className={`rounded-2xl border px-5 py-4 text-right ${invoiceStatusBoxClass(
+                invoice.status
+              )}`}
+            >
+              <p className="text-xs uppercase tracking-[0.2em] opacity-70">
                 Status
               </p>
-              <p className="mt-2 text-lg font-black text-cyan-100">
+              <p className="mt-2 text-lg font-black">
                 {invoiceStatusLabel(invoice.status)}
               </p>
-              <p className="mt-1 text-xs text-cyan-100/60">
-                Wird durch echte Aktionen automatisch aktualisiert.
+              <p className="mt-2 max-w-xs text-xs leading-5 opacity-70">
+                {invoiceStatusDescription(invoice.status)}
               </p>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-3">
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Link
             href={`/documents/invoices/${invoice.id}/print`}
             className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20"
@@ -288,7 +335,21 @@ export default async function DashboardInvoiceDetailsPage({
             href={`/documents/invoices/${invoice.id}/print`}
             className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20"
           >
-            Drucken / PDF
+            PDF / Druckansicht
+          </Link>
+
+          <Link
+            href={`/dashboard/invoices/${invoice.id}/edit`}
+            className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-amber-100 transition hover:border-amber-200 hover:bg-amber-300/20"
+          >
+            Rechnung bearbeiten
+          </Link>
+
+          <Link
+            href={`/dashboard/customers/${invoice.customerId}`}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-neutral-200 transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
+          >
+            Kunde öffnen
           </Link>
 
           <Link
@@ -337,7 +398,9 @@ export default async function DashboardInvoiceDetailsPage({
             <p className="mt-2 text-xl font-black text-amber-100">
               {formatMoney(openAmount, currency)}
             </p>
-            <p className="mt-1 text-sm text-amber-100/60">Noch zu bezahlen</p>
+            <p className="mt-1 text-sm text-amber-100/60">
+              {openAmount > 0 ? "Noch zu bezahlen" : "Keine offene Summe"}
+            </p>
           </div>
 
           <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300 p-5 text-neutral-950">
@@ -358,7 +421,7 @@ export default async function DashboardInvoiceDetailsPage({
                 {customerName(invoice.customer)}
               </p>
               <p>
-                <span className="text-neutral-500">Adressesese: </span>
+                <span className="text-neutral-500">Adresse: </span>
                 {customerAddress || "—"}
               </p>
               <p>
@@ -373,7 +436,7 @@ export default async function DashboardInvoiceDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">Auftrag / Leistungsort</h2>
+            <h2 className="text-xl font-semibold">Auftrag / Angebot</h2>
 
             <div className="mt-4 space-y-3 text-sm text-neutral-300">
               <p>
@@ -389,6 +452,21 @@ export default async function DashboardInvoiceDetailsPage({
                   "—"
                 )}
               </p>
+
+              <p>
+                <span className="text-neutral-500">Angebot: </span>
+                {invoice.quoteId && invoice.quote ? (
+                  <Link
+                    href={`/dashboard/quotes/${invoice.quoteId}`}
+                    className="font-semibold text-cyan-300 hover:text-cyan-200"
+                  >
+                    {invoice.quote.quoteNumber ?? "Angebot öffnen"}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </p>
+
               <p>
                 <span className="text-neutral-500">Leistungsort: </span>
                 {serviceAddress || "—"}
@@ -501,11 +579,20 @@ export default async function DashboardInvoiceDetailsPage({
           </div>
         </section>
 
-        <AddInvoicePaymentForm
-          invoiceId={invoice.id}
-          openAmount={openAmount}
-          currency={currency}
-        />
+        {canReceivePayment ? (
+          <AddInvoicePaymentForm
+            invoiceId={invoice.id}
+            openAmount={openAmount}
+            currency={currency}
+          />
+        ) : (
+          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+            <h2 className="text-xl font-semibold">Zahlung erfassen</h2>
+            <p className="mt-2 text-sm text-neutral-400">
+              Für diese Rechnung ist keine neue Zahlung erforderlich oder möglich.
+            </p>
+          </section>
+        )}
 
         <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
           <h2 className="text-xl font-semibold">Zahlungen</h2>
@@ -561,16 +648,23 @@ export default async function DashboardInvoiceDetailsPage({
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-lg font-semibold">PDF</h2>
+            <h2 className="text-lg font-semibold">PDF / Druck</h2>
             <p className="mt-2 text-sm text-neutral-400">
-              {invoice.pdfUrl ?? "PDF wurde noch nicht als Datei gespeichert."}
+              Die Rechnung kann aktuell über die Druckansicht als PDF gespeichert
+              werden.
             </p>
+            <Link
+              href={`/documents/invoices/${invoice.id}/print`}
+              className="mt-4 inline-flex rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/20"
+            >
+              Druckansicht öffnen
+            </Link>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
             <h2 className="text-lg font-semibold">Automatisierung</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-400">
-              Der Status soll aus echten Aktionen entstehen: Rechnung senden,
+              Der Rechnungsstatus entsteht aus echten Aktionen: Rechnung senden,
               Zahlung erfassen, Fälligkeit prüfen oder Rechnung stornieren.
             </p>
           </div>

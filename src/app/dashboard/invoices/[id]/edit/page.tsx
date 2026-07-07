@@ -56,8 +56,8 @@ const statusOptions = [
   { value: "SENT", label: "Versendet" },
   { value: "PAID", label: "Bezahlt" },
   { value: "PARTIALLY_PAID", label: "Teilweise bezahlt" },
-  { value: "OVERDUE", label: "Po terminie" },
-  { value: "CANCELLED", label: "Anulowana" },
+  { value: "OVERDUE", label: "Überfällig" },
+  { value: "CANCELLED", label: "Storniert" },
 ];
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -384,7 +384,7 @@ export default function DashboardInvoiceEditPage() {
               </Link>
 
               <p className="mt-5 text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
-                HEXA OS CRM / Invoice Edit
+                HEXA OS CRM / Rechnung bearbeiten
               </p>
 
               <h1 className="mt-3 text-3xl font-black tracking-tight">
@@ -400,10 +400,10 @@ export default function DashboardInvoiceEditPage() {
               <StatusBadge status={form.status} />
 
               <PremiumButton
-                href={`/dashboard/invoices/${invoice.id}/print`}
+                href={`/documents/invoices/${invoice.id}/print`}
                 variant="ghost"
               >
-                Drucken
+                Drucken / PDF
               </PremiumButton>
             </div>
           </div>
@@ -463,7 +463,7 @@ export default function DashboardInvoiceEditPage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Waluta</span>
+                <span className="text-sm text-neutral-400">Währung</span>
                 <input
                   value={form.currency}
                   onChange={(event) => updateField("currency", event.target.value)}
@@ -474,7 +474,7 @@ export default function DashboardInvoiceEditPage() {
               <div className="hidden md:block" />
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Subtotal</span>
+                <span className="text-sm text-neutral-400">Zwischensumme</span>
                 <input
                   value={form.subtotal}
                   onChange={(event) => updateField("subtotal", event.target.value)}
@@ -483,7 +483,7 @@ export default function DashboardInvoiceEditPage() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm text-neutral-400">Podatek %</span>
+                <span className="text-sm text-neutral-400">Steuersatz %</span>
                 <input
                   value={form.taxRate}
                   onChange={(event) => updateField("taxRate", event.target.value)}
@@ -537,32 +537,32 @@ export default function DashboardInvoiceEditPage() {
           </div>
 
           <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            <h2 className="text-xl font-semibold">Kontrola kwoty</h2>
+            <h2 className="text-xl font-semibold">Betragskontrolle</h2>
 
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between gap-4">
-                <span className="text-neutral-400">Subtotal</span>
+                <span className="text-neutral-400">Zwischensumme</span>
                 <span className="font-semibold">
                   {form.subtotal} {form.currency}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4">
-                <span className="text-neutral-400">Podatek</span>
+                <span className="text-neutral-400">Steuerbetrag</span>
                 <span className="font-semibold">
                   {form.taxAmount} {form.currency}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4 border-t border-white/10 pt-3">
-                <span className="text-neutral-400">Wyliczony total</span>
+                <span className="text-neutral-400">Berechnetes Total</span>
                 <span className="font-black text-cyan-200">
                   {recalculatedTotal} {form.currency}
                 </span>
               </div>
 
               <div className="flex justify-between gap-4">
-                <span className="text-neutral-400">Wpisany total</span>
+                <span className="text-neutral-400">Eingetragenes Total</span>
                 <span className="font-black text-emerald-200">
                   {form.total} {form.currency}
                 </span>
@@ -574,7 +574,7 @@ export default function DashboardInvoiceEditPage() {
               onClick={applyCalculatedTotal}
               className="mt-5 w-full rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-3 text-sm font-black text-cyan-100 hover:bg-cyan-400/20"
             >
-              Ustaw total z subtotal + podatek
+              Total aus Zwischensumme + Steuer übernehmen
             </button>
 
             <button
