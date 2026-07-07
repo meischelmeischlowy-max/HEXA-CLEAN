@@ -1,6 +1,15 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  calculateAutomatedInvoiceState,
+  calculatePaidPaymentsTotal,
+  decimalToNumber,
+  invoiceAutomationChanged,
+  moneyString,
+  normalizeInvoiceCurrency,
+  roundMoney,
+} from "@/lib/dashboard/invoice-status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,63 +34,6 @@ function getPrisma() {
   }
 
   return globalForPrisma.hexaPrisma;
-}
-
-function normalizeInvoiceCurrency(value: unknown) {
-  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
-
-  if (raw === "CHF" || raw.startsWith("CHF")) {
-    return "CHF";
-  }
-
-  if (raw === "EUR" || raw.startsWith("EUR")) {
-    return "EUR";
-  }
-
-  if (raw === "USD" || raw.startsWith("USD")) {
-    return "USD";
-  }
-
-  return "CHF";
-}
-
-function decimalToNumber(value: unknown) {
-  if (value === null || value === undefined) {
-    return 0;
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  if (typeof value === "string") {
-    const number = Number(value.replace(",", "."));
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "toString" in value &&
-    typeof value.toString === "function"
-  ) {
-    const number = Number(value.toString());
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  return 0;
-}
-
-function roundMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
-function money(value: number) {
-  if (!Number.isFinite(value)) {
-    return "0.00";
-  }
-
-  return roundMoney(value).toFixed(2);
 }
 
 function createInvoiceCandidateNumber() {
@@ -142,12 +94,12 @@ function createExtraInvoiceItem(params: {
     category: "OTHER",
     unit: "FLAT",
     quantity: "1.00",
-    unitPrice: money(params.amount),
-    subtotal: money(params.amount),
+    unitPrice: moneyString(params.amount),
+    subtotal: moneyString(params.amount),
     taxRate: "0.00",
     taxAmount: "0.00",
     discountAmount: "0.00",
-    total: money(params.amount),
+    total: moneyString(params.amount),
     sortOrder: params.sortOrder,
     metadata: {
       source: "estimate",
@@ -160,6 +112,108 @@ function invoiceItemsTotal(items: Prisma.InvoiceItemCreateWithoutInvoiceInput[])
   return roundMoney(
     items.reduce((sum, item) => sum + decimalToNumber(item.total), 0),
   );
+}
+
+async function refreshInvoiceAutomation(prisma: PrismaClient, invoiceId: string) {
+  const invoice = await prisma.invoice.findUnique({
+    where: {
+      id: invoiceId,
+    },
+    include: {
+      customer: true,
+      order: true,
+      items: {
+        orderBy: {
+          sortOrder: "asc",
+        },
+      },
+      payments: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+      attachments: true,
+    },
+  });
+
+  if (!invoice) {
+    return null;
+  }
+
+  const paidPaymentsTotal = calculatePaidPaymentsTotal(invoice.payments);
+
+  const nextState = calculateAutomatedInvoiceState({
+    currentStatus: invoice.status,
+    total: invoice.total,
+    paidPaymentsTotal,
+    dueDate: invoice.dueDate,
+    sentAt: invoice.sentAt,
+    paidAt: invoice.paidAt,
+  });
+
+  const shouldUpdateInvoice =
+    invoice.status !== "CANCELLED" &&
+    invoiceAutomationChanged(invoice, nextState);
+
+  if (!shouldUpdateInvoice) {
+    return invoice;
+  }
+
+  const updatedInvoice = await prisma.invoice.update({
+    where: {
+      id: invoice.id,
+    },
+    data: {
+      status: nextState.status,
+      paidAmount: moneyString(nextState.paidAmount),
+      paidAt: nextState.paidAt,
+    },
+    include: {
+      customer: true,
+      order: true,
+      items: {
+        orderBy: {
+          sortOrder: "asc",
+        },
+      },
+      payments: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+      attachments: true,
+    },
+  });
+
+  if (invoice.status !== updatedInvoice.status) {
+    await prisma.auditLog.create({
+      data: {
+        customerId: invoice.customerId,
+        orderId: invoice.orderId,
+        action: "STATUS_CHANGE",
+        entityType: "Invoice",
+        entityId: invoice.id,
+        actorType: "system",
+        message: `Invoice ${invoice.invoiceNumber} status changed automatically from ${invoice.status} to ${updatedInvoice.status}.`,
+        before: {
+          status: invoice.status,
+          paidAmount: decimalToNumber(invoice.paidAmount),
+        },
+        after: {
+          status: updatedInvoice.status,
+          paidAmount: nextState.paidAmount,
+          paidAt: updatedInvoice.paidAt?.toISOString() ?? null,
+        },
+        metadata: {
+          source: "dashboard-invoices-list-automation",
+          total: decimalToNumber(invoice.total),
+          paidPaymentsTotal,
+        },
+      },
+    });
+  }
+
+  return updatedInvoice;
 }
 
 export async function GET() {
@@ -188,13 +242,92 @@ export async function GET() {
       take: 100,
     });
 
+    const refreshedInvoices = await Promise.all(
+      invoices.map(async (invoice) => {
+        const paidPaymentsTotal = calculatePaidPaymentsTotal(invoice.payments);
+
+        const nextState = calculateAutomatedInvoiceState({
+          currentStatus: invoice.status,
+          total: invoice.total,
+          paidPaymentsTotal,
+          dueDate: invoice.dueDate,
+          sentAt: invoice.sentAt,
+          paidAt: invoice.paidAt,
+        });
+
+        const shouldUpdateInvoice =
+          invoice.status !== "CANCELLED" &&
+          invoiceAutomationChanged(invoice, nextState);
+
+        if (!shouldUpdateInvoice) {
+          return invoice;
+        }
+
+        const updatedInvoice = await prisma.invoice.update({
+          where: {
+            id: invoice.id,
+          },
+          data: {
+            status: nextState.status,
+            paidAmount: moneyString(nextState.paidAmount),
+            paidAt: nextState.paidAt,
+          },
+          include: {
+            customer: true,
+            order: true,
+            items: {
+              orderBy: {
+                sortOrder: "asc",
+              },
+            },
+            payments: {
+              orderBy: {
+                createdAt: "desc",
+              },
+            },
+            attachments: true,
+          },
+        });
+
+        if (invoice.status !== updatedInvoice.status) {
+          await prisma.auditLog.create({
+            data: {
+              customerId: invoice.customerId,
+              orderId: invoice.orderId,
+              action: "STATUS_CHANGE",
+              entityType: "Invoice",
+              entityId: invoice.id,
+              actorType: "system",
+              message: `Invoice ${invoice.invoiceNumber} status changed automatically from ${invoice.status} to ${updatedInvoice.status}.`,
+              before: {
+                status: invoice.status,
+                paidAmount: decimalToNumber(invoice.paidAmount),
+              },
+              after: {
+                status: updatedInvoice.status,
+                paidAmount: nextState.paidAmount,
+                paidAt: updatedInvoice.paidAt?.toISOString() ?? null,
+              },
+              metadata: {
+                source: "dashboard-invoices-list-automation",
+                total: decimalToNumber(invoice.total),
+                paidPaymentsTotal,
+              },
+            },
+          });
+        }
+
+        return updatedInvoice;
+      }),
+    );
+
     return NextResponse.json({
       layer: "dashboard-invoices-api",
       message: "Dashboard invoices works",
       data: {
         status: "success",
         message: "Invoices loaded",
-        invoices,
+        invoices: refreshedInvoices,
       },
     });
   } catch (error) {
@@ -235,7 +368,8 @@ export async function POST(request: NextRequest) {
           message: "Missing estimateId",
           data: {
             status: "error",
-            message: "Brak estimateId. Nie można utworzyć faktury z wyceny.",
+            message:
+              "estimateId fehlt. Die Rechnung kann nicht aus der Kalkulation erstellt werden.",
             invoice: null,
           },
         },
@@ -267,7 +401,7 @@ export async function POST(request: NextRequest) {
           message: "Estimate not found",
           data: {
             status: "error",
-            message: "Nie znaleziono wyceny.",
+            message: "Kalkulation wurde nicht gefunden.",
             invoice: null,
           },
         },
@@ -303,13 +437,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingInvoice) {
+      const refreshedExistingInvoice = await refreshInvoiceAutomation(
+        prisma,
+        existingInvoice.id,
+      );
+
       return NextResponse.json({
         layer: "dashboard-invoices-api",
         message: "Invoice already exists for estimate",
         data: {
           status: "success",
-          message: "Invoice already exists for this estimate",
-          invoice: existingInvoice,
+          message: "Für diese Kalkulation existiert bereits eine Rechnung.",
+          invoice: refreshedExistingInvoice ?? existingInvoice,
         },
       });
     }
@@ -325,13 +464,13 @@ export async function POST(request: NextRequest) {
         description: item.description ?? "Leistung gemäss vereinbartem Angebot.",
         category: item.category,
         unit: item.unit,
-        quantity: money(decimalToNumber(item.quantity)),
-        unitPrice: money(decimalToNumber(item.unitPrice)),
-        subtotal: money(decimalToNumber(item.subtotal)),
+        quantity: moneyString(item.quantity),
+        unitPrice: moneyString(item.unitPrice),
+        subtotal: moneyString(item.subtotal),
         taxRate: "0.00",
         taxAmount: "0.00",
-        discountAmount: money(decimalToNumber(item.discountAmount)),
-        total: money(decimalToNumber(item.total)),
+        discountAmount: moneyString(item.discountAmount),
+        total: moneyString(item.total),
         sortOrder: item.sortOrder,
         metadata: {
           source: "estimate_item",
@@ -417,7 +556,10 @@ export async function POST(request: NextRequest) {
     if (Math.abs(diff) >= 0.01) {
       invoiceItemCreates.push(
         createExtraInvoiceItem({
-          name: diff > 0 ? "Zusätzlicher Aufwand gemäss Angebot" : "Rabatt gemäss Angebot",
+          name:
+            diff > 0
+              ? "Zusätzlicher Aufwand gemäss Angebot"
+              : "Rabatt gemäss Angebot",
           description:
             diff > 0
               ? "Zusätzlicher Aufwand gemäss vereinbartem Angebot."
@@ -437,10 +579,10 @@ export async function POST(request: NextRequest) {
         status: "DRAFT",
         issueDate: now,
         dueDate: addDays(now, 14),
-        subtotal: money(total),
+        subtotal: moneyString(total),
         taxRate: "0.00",
         taxAmount: "0.00",
-        total: money(total),
+        total: moneyString(total),
         paidAmount: "0.00",
         currency,
         notes:
@@ -463,12 +605,37 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await prisma.auditLog.create({
+      data: {
+        customerId: invoice.customerId,
+        orderId: invoice.orderId,
+        estimateId: estimate.id,
+        action: "CREATE",
+        entityType: "Invoice",
+        entityId: invoice.id,
+        actorType: "admin",
+        message: `Invoice ${invoice.invoiceNumber} created from estimate ${estimateReference}.`,
+        after: {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          estimateId: estimate.id,
+          estimateNumber: estimate.estimateNumber,
+          total: decimalToNumber(invoice.total),
+          currency: invoice.currency,
+        },
+        metadata: {
+          source: "dashboard-invoices-api",
+          estimateReference,
+        },
+      },
+    });
+
     return NextResponse.json({
       layer: "dashboard-invoices-api",
       message: "Invoice created from estimate",
       data: {
         status: "success",
-        message: "Invoice created from estimate",
+        message: "Rechnung wurde aus der Kalkulation erstellt.",
         invoice,
       },
     });

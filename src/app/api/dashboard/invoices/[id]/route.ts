@@ -1,6 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextResponse } from "next/server";
+import {
+  calculateAutomatedInvoiceState,
+  calculatePaidPaymentsTotal,
+  decimalToNumber,
+  invoiceAutomationChanged,
+  moneyString,
+  normalizeInvoiceCurrency,
+} from "@/lib/dashboard/invoice-status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,14 +21,15 @@ type UpdateInvoiceBody = {
   invoiceNumber?: string;
   status?: string;
   issueDate?: string;
-  dueDate?: string;
+  dueDate?: string | null;
+  sentAt?: string | null;
   subtotal?: string | number;
   taxRate?: string | number;
   taxAmount?: string | number;
   total?: string | number;
   paidAmount?: string | number;
   currency?: string;
-  notes?: string;
+  notes?: string | null;
 };
 
 const allowedStatuses = [
@@ -91,10 +100,14 @@ function cleanMoney(value: unknown) {
     return null;
   }
 
-  return (Math.round((parsed + Number.EPSILON) * 100) / 100).toFixed(2);
+  return moneyString(parsed);
 }
 
 function cleanDate(value: unknown) {
+  if (value === null) {
+    return null;
+  }
+
   if (typeof value !== "string" || !value.trim()) {
     return null;
   }
@@ -108,27 +121,44 @@ function cleanDate(value: unknown) {
   return date;
 }
 
-function cleanCurrency(value: unknown) {
-  const raw = String(value || "CHF").trim().toUpperCase();
-
-  if (/^[A-Z]{3}$/.test(raw)) {
-    return raw;
-  }
-
-  if (raw.startsWith("CHF")) return "CHF";
-  if (raw.startsWith("EUR")) return "EUR";
-  if (raw.startsWith("USD")) return "USD";
-  if (raw.startsWith("PLN")) return "PLN";
-
-  return "CHF";
-}
-
 function cleanStatus(value: unknown) {
   const raw = String(value || "").trim().toUpperCase();
 
-  if (raw === "CANCELED") return "CANCELLED";
+  if (raw === "CANCELED") {
+    return "CANCELLED";
+  }
 
   return raw;
+}
+
+function createInvoiceSnapshot(invoice: {
+  invoiceNumber: string;
+  status: string;
+  subtotal?: unknown;
+  taxRate?: unknown;
+  taxAmount?: unknown;
+  total?: unknown;
+  paidAmount?: unknown;
+  currency: string;
+  dueDate?: Date | null;
+  sentAt?: Date | null;
+  paidAt?: Date | null;
+  notes?: string | null;
+}) {
+  return {
+    invoiceNumber: invoice.invoiceNumber,
+    status: invoice.status,
+    subtotal: decimalToNumber(invoice.subtotal).toFixed(2),
+    taxRate: decimalToNumber(invoice.taxRate).toFixed(2),
+    taxAmount: decimalToNumber(invoice.taxAmount).toFixed(2),
+    total: decimalToNumber(invoice.total).toFixed(2),
+    paidAmount: decimalToNumber(invoice.paidAmount).toFixed(2),
+    currency: invoice.currency,
+    dueDate: invoice.dueDate?.toISOString() ?? null,
+    sentAt: invoice.sentAt?.toISOString() ?? null,
+    paidAt: invoice.paidAt?.toISOString() ?? null,
+    notes: invoice.notes ?? null,
+  };
 }
 
 export async function GET(
@@ -148,6 +178,7 @@ export async function GET(
       include: {
         customer: true,
         order: true,
+        payments: true,
       },
     });
 
@@ -158,7 +189,7 @@ export async function GET(
           message: "Invoice not found",
           data: {
             status: "error",
-            message: "Nie znaleziono faktury.",
+            message: "Rechnung wurde nicht gefunden.",
             invoice: null,
           },
         },
@@ -168,13 +199,74 @@ export async function GET(
       );
     }
 
+    const paidPaymentsTotal = calculatePaidPaymentsTotal(invoice.payments);
+
+    const nextState = calculateAutomatedInvoiceState({
+      currentStatus: invoice.status,
+      total: invoice.total,
+      paidPaymentsTotal,
+      dueDate: invoice.dueDate,
+      sentAt: invoice.sentAt,
+      paidAt: invoice.paidAt,
+    });
+
+    const shouldUpdateInvoice =
+      invoice.status !== "CANCELLED" &&
+      invoiceAutomationChanged(invoice, nextState);
+
+    const invoiceForResponse = shouldUpdateInvoice
+      ? await prisma.invoice.update({
+          where: {
+            id: invoice.id,
+          },
+          data: {
+            status: nextState.status,
+            paidAmount: moneyString(nextState.paidAmount),
+            paidAt: nextState.paidAt,
+          },
+          include: {
+            customer: true,
+            order: true,
+            payments: true,
+          },
+        })
+      : invoice;
+
+    if (shouldUpdateInvoice && invoice.status !== invoiceForResponse.status) {
+      await prisma.auditLog.create({
+        data: {
+          customerId: invoice.customerId,
+          orderId: invoice.orderId,
+          action: "STATUS_CHANGE",
+          entityType: "Invoice",
+          entityId: invoice.id,
+          actorType: "system",
+          message: `Invoice ${invoice.invoiceNumber} status changed automatically from ${invoice.status} to ${invoiceForResponse.status}.`,
+          before: {
+            status: invoice.status,
+            paidAmount: decimalToNumber(invoice.paidAmount),
+          },
+          after: {
+            status: invoiceForResponse.status,
+            paidAmount: nextState.paidAmount,
+            paidAt: invoiceForResponse.paidAt?.toISOString() ?? null,
+          },
+          metadata: {
+            source: "invoice-details-get-automation",
+            total: decimalToNumber(invoice.total),
+            paidPaymentsTotal,
+          },
+        },
+      });
+    }
+
     return NextResponse.json({
       layer: "invoice-details-api",
       message: "Invoice loaded",
       data: {
         status: "success",
-        message: "Faktura została pobrana.",
-        invoice,
+        message: "Rechnung wurde geladen.",
+        invoice: invoiceForResponse,
       },
     });
   } catch (error) {
@@ -186,7 +278,10 @@ export async function GET(
         message: "Invoice GET error",
         data: {
           status: "error",
-          message: error instanceof Error ? error.message : "Unknown invoice GET error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unknown invoice GET error",
           invoice: null,
         },
       },
@@ -214,7 +309,7 @@ export async function PATCH(
           message: "Invalid body",
           data: {
             status: "error",
-            message: "Nieprawidłowe dane faktury.",
+            message: "Ungültige Rechnungsdaten.",
             invoice: null,
           },
         },
@@ -226,20 +321,255 @@ export async function PATCH(
 
     const prisma = getPrisma();
 
-    const existingInvoice = await prisma.invoice.findUnique({
-      where: {
-        id,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const existingInvoice = await tx.invoice.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          payments: true,
+        },
+      });
+
+      if (!existingInvoice) {
+        throw new Error("INVOICE_NOT_FOUND");
+      }
+
+      const updateData: Record<string, unknown> = {};
+
+      if (hasField(body, "invoiceNumber")) {
+        updateData.invoiceNumber =
+          cleanText(body.invoiceNumber) ?? existingInvoice.invoiceNumber;
+      }
+
+      const requestedStatus = hasField(body, "status")
+        ? cleanStatus(body.status)
+        : null;
+
+      if (requestedStatus) {
+        if (!allowedStatuses.includes(requestedStatus)) {
+          throw new Error(`INVALID_STATUS:${requestedStatus}`);
+        }
+
+        if (requestedStatus === "CANCELLED") {
+          updateData.status = "CANCELLED";
+        }
+
+        if (requestedStatus === "SENT") {
+          updateData.sentAt = existingInvoice.sentAt ?? new Date();
+        }
+
+        if (requestedStatus === "DRAFT" && !existingInvoice.paidAt) {
+          updateData.sentAt = null;
+        }
+      }
+
+      if (hasField(body, "issueDate")) {
+        const nextIssueDate = cleanDate(body.issueDate);
+
+        if (!nextIssueDate) {
+          throw new Error("INVALID_ISSUE_DATE");
+        }
+
+        updateData.issueDate = nextIssueDate;
+      }
+
+      if (hasField(body, "dueDate")) {
+        updateData.dueDate = cleanDate(body.dueDate);
+      }
+
+      if (hasField(body, "sentAt")) {
+        updateData.sentAt = cleanDate(body.sentAt);
+      }
+
+      if (hasField(body, "subtotal")) {
+        const nextSubtotal = cleanMoney(body.subtotal);
+
+        if (nextSubtotal === null) {
+          throw new Error("INVALID_SUBTOTAL");
+        }
+
+        updateData.subtotal = nextSubtotal;
+      }
+
+      if (hasField(body, "taxRate")) {
+        const nextTaxRate = cleanMoney(body.taxRate);
+
+        if (nextTaxRate === null) {
+          throw new Error("INVALID_TAX_RATE");
+        }
+
+        updateData.taxRate = nextTaxRate;
+      }
+
+      if (hasField(body, "taxAmount")) {
+        const nextTaxAmount = cleanMoney(body.taxAmount);
+
+        if (nextTaxAmount === null) {
+          throw new Error("INVALID_TAX_AMOUNT");
+        }
+
+        updateData.taxAmount = nextTaxAmount;
+      }
+
+      if (hasField(body, "total")) {
+        const nextTotal = cleanMoney(body.total);
+
+        if (nextTotal === null) {
+          throw new Error("INVALID_TOTAL");
+        }
+
+        updateData.total = nextTotal;
+      }
+
+      /*
+       * paidAmount is intentionally not accepted as a manual edit.
+       * It is recalculated from PAID payments below.
+       */
+
+      if (hasField(body, "currency")) {
+        updateData.currency = normalizeInvoiceCurrency(body.currency);
+      } else if (
+        existingInvoice.currency !==
+        normalizeInvoiceCurrency(existingInvoice.currency)
+      ) {
+        updateData.currency = normalizeInvoiceCurrency(existingInvoice.currency);
+      }
+
+      if (hasField(body, "notes")) {
+        updateData.notes = cleanText(body.notes);
+      }
+
+      const invoiceAfterManualFields = await tx.invoice.update({
+        where: {
+          id,
+        },
+        data: updateData,
+        include: {
+          payments: true,
+        },
+      });
+
+      const paidPaymentsTotal = calculatePaidPaymentsTotal(
+        invoiceAfterManualFields.payments,
+      );
+
+      const nextState = calculateAutomatedInvoiceState({
+        currentStatus: invoiceAfterManualFields.status,
+        total: invoiceAfterManualFields.total,
+        paidPaymentsTotal,
+        dueDate: invoiceAfterManualFields.dueDate,
+        sentAt: invoiceAfterManualFields.sentAt,
+        paidAt: invoiceAfterManualFields.paidAt,
+      });
+
+      const shouldApplyAutomation =
+        invoiceAfterManualFields.status !== "CANCELLED" &&
+        invoiceAutomationChanged(invoiceAfterManualFields, nextState);
+
+      const finalInvoice = shouldApplyAutomation
+        ? await tx.invoice.update({
+            where: {
+              id,
+            },
+            data: {
+              status: nextState.status,
+              paidAmount: moneyString(nextState.paidAmount),
+              paidAt: nextState.paidAt,
+            },
+            include: {
+              customer: true,
+              order: true,
+              payments: true,
+            },
+          })
+        : await tx.invoice.findUniqueOrThrow({
+            where: {
+              id,
+            },
+            include: {
+              customer: true,
+              order: true,
+              payments: true,
+            },
+          });
+
+      await tx.auditLog.create({
+        data: {
+          customerId: existingInvoice.customerId,
+          orderId: existingInvoice.orderId,
+          action: "UPDATE",
+          entityType: "Invoice",
+          entityId: finalInvoice.id,
+          actorType: "admin",
+          message: `Invoice ${finalInvoice.invoiceNumber} updated.`,
+          before: createInvoiceSnapshot(existingInvoice),
+          after: createInvoiceSnapshot(finalInvoice),
+          metadata: {
+            source: "invoice-update-api",
+            ignoredManualFields: hasField(body, "paidAmount")
+              ? ["paidAmount"]
+              : [],
+            requestedStatus,
+          },
+        },
+      });
+
+      if (
+        existingInvoice.status !== finalInvoice.status ||
+        decimalToNumber(existingInvoice.paidAmount) !==
+          decimalToNumber(finalInvoice.paidAmount)
+      ) {
+        await tx.auditLog.create({
+          data: {
+            customerId: existingInvoice.customerId,
+            orderId: existingInvoice.orderId,
+            action: "STATUS_CHANGE",
+            entityType: "Invoice",
+            entityId: finalInvoice.id,
+            actorType: "system",
+            message: `Invoice ${finalInvoice.invoiceNumber} automation updated status from ${existingInvoice.status} to ${finalInvoice.status}.`,
+            before: {
+              status: existingInvoice.status,
+              paidAmount: decimalToNumber(existingInvoice.paidAmount),
+            },
+            after: {
+              status: finalInvoice.status,
+              paidAmount: decimalToNumber(finalInvoice.paidAmount),
+              paidAt: finalInvoice.paidAt?.toISOString() ?? null,
+            },
+            metadata: {
+              source: "invoice-update-automation",
+              total: decimalToNumber(finalInvoice.total),
+              paidPaymentsTotal,
+            },
+          },
+        });
+      }
+
+      return finalInvoice;
     });
 
-    if (!existingInvoice) {
+    return NextResponse.json({
+      layer: "invoice-update-api",
+      message: "Invoice updated",
+      data: {
+        status: "success",
+        message: "Rechnung wurde gespeichert.",
+        invoice: result,
+      },
+    });
+  } catch (error) {
+    console.error("Invoice PATCH error:", error);
+
+    if (error instanceof Error && error.message === "INVOICE_NOT_FOUND") {
       return NextResponse.json(
         {
           layer: "invoice-update-api",
           message: "Invoice not found",
           data: {
             status: "error",
-            message: "Nie znaleziono faktury.",
+            message: "Rechnung wurde nicht gefunden.",
             invoice: null,
           },
         },
@@ -249,246 +579,49 @@ export async function PATCH(
       );
     }
 
-    const updateData: Record<string, unknown> = {};
+    if (error instanceof Error && error.message.startsWith("INVALID_STATUS:")) {
+      const status = error.message.replace("INVALID_STATUS:", "");
 
-    if (hasField(body, "invoiceNumber")) {
-      updateData.invoiceNumber = cleanText(body.invoiceNumber) ?? existingInvoice.invoiceNumber;
-    }
-
-    if (hasField(body, "status")) {
-      const nextStatus = cleanStatus(body.status);
-
-      if (!allowedStatuses.includes(nextStatus)) {
-        return NextResponse.json(
-          {
-            layer: "invoice-update-api",
-            message: "Invalid invoice status",
-            data: {
-              status: "error",
-              message: `Nieprawidłowy status faktury: ${nextStatus}`,
-              invoice: null,
-            },
+      return NextResponse.json(
+        {
+          layer: "invoice-update-api",
+          message: "Invalid invoice status",
+          data: {
+            status: "error",
+            message: `Ungültiger Rechnungsstatus: ${status}`,
+            invoice: null,
           },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      updateData.status = nextStatus;
-    }
-
-    if (hasField(body, "issueDate")) {
-      const nextIssueDate = cleanDate(body.issueDate);
-
-      if (!nextIssueDate) {
-        return NextResponse.json(
-          {
-            layer: "invoice-update-api",
-            message: "Invalid issue date",
-            data: {
-              status: "error",
-              message: "Nieprawidłowa data faktury.",
-              invoice: null,
-            },
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      updateData.issueDate = nextIssueDate;
-    }
-
-    if (hasField(body, "dueDate")) {
-      updateData.dueDate = cleanDate(body.dueDate);
-    }
-
-    if (hasField(body, "subtotal")) {
-      const nextSubtotal = cleanMoney(body.subtotal);
-
-      if (nextSubtotal === null) {
-        return NextResponse.json(
-          {
-            layer: "invoice-update-api",
-            message: "Invalid subtotal",
-            data: {
-              status: "error",
-              message: "Nieprawidłowy subtotal.",
-              invoice: null,
-            },
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      updateData.subtotal = nextSubtotal;
-    }
-
-    if (hasField(body, "taxRate")) {
-      const nextTaxRate = cleanMoney(body.taxRate);
-
-      if (nextTaxRate === null) {
-        return NextResponse.json(
-          {
-            layer: "invoice-update-api",
-            message: "Invalid tax rate",
-            data: {
-              status: "error",
-              message: "Nieprawidłowy podatek procentowy.",
-              invoice: null,
-            },
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      updateData.taxRate = nextTaxRate;
-    }
-
-    if (hasField(body, "taxAmount")) {
-      const nextTaxAmount = cleanMoney(body.taxAmount);
-
-      if (nextTaxAmount === null) {
-        return NextResponse.json(
-          {
-            layer: "invoice-update-api",
-            message: "Invalid tax amount",
-            data: {
-              status: "error",
-              message: "Nieprawidłowa kwota podatku.",
-              invoice: null,
-            },
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      updateData.taxAmount = nextTaxAmount;
-    }
-
-    if (hasField(body, "total")) {
-      const nextTotal = cleanMoney(body.total);
-
-      if (nextTotal === null) {
-        return NextResponse.json(
-          {
-            layer: "invoice-update-api",
-            message: "Invalid total",
-            data: {
-              status: "error",
-              message: "Nieprawidłowy total.",
-              invoice: null,
-            },
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      updateData.total = nextTotal;
-    }
-
-    if (hasField(body, "paidAmount")) {
-      const nextPaidAmount = cleanMoney(body.paidAmount);
-
-      if (nextPaidAmount === null) {
-        return NextResponse.json(
-          {
-            layer: "invoice-update-api",
-            message: "Invalid paid amount",
-            data: {
-              status: "error",
-              message: "Nieprawidłowa kwota zapłacona.",
-              invoice: null,
-            },
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-
-      updateData.paidAmount = nextPaidAmount;
-    }
-
-    if (hasField(body, "currency")) {
-      updateData.currency = cleanCurrency(body.currency);
-    } else if (existingInvoice.currency !== cleanCurrency(existingInvoice.currency)) {
-      updateData.currency = cleanCurrency(existingInvoice.currency);
-    }
-
-    if (hasField(body, "notes")) {
-      updateData.notes = cleanText(body.notes);
-    }
-
-    const updatedInvoice = await prisma.invoice.update({
-      where: {
-        id,
-      },
-      data: updateData,
-      include: {
-        customer: true,
-        order: true,
-      },
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        customerId: existingInvoice.customerId,
-        orderId: existingInvoice.orderId,
-        action: "UPDATE",
-        entityType: "Invoice",
-        entityId: updatedInvoice.id,
-        actorType: "admin",
-        message: `Invoice ${updatedInvoice.invoiceNumber} manually updated.`,
-        before: {
-          invoiceNumber: existingInvoice.invoiceNumber,
-          status: existingInvoice.status,
-          subtotal: existingInvoice.subtotal?.toString(),
-          taxRate: existingInvoice.taxRate?.toString(),
-          taxAmount: existingInvoice.taxAmount?.toString(),
-          total: existingInvoice.total?.toString(),
-          paidAmount: existingInvoice.paidAmount?.toString(),
-          currency: existingInvoice.currency,
-          dueDate: existingInvoice.dueDate?.toISOString(),
         },
-        after: {
-          invoiceNumber: updatedInvoice.invoiceNumber,
-          status: updatedInvoice.status,
-          subtotal: updatedInvoice.subtotal?.toString(),
-          taxRate: updatedInvoice.taxRate?.toString(),
-          taxAmount: updatedInvoice.taxAmount?.toString(),
-          total: updatedInvoice.total?.toString(),
-          paidAmount: updatedInvoice.paidAmount?.toString(),
-          currency: updatedInvoice.currency,
-          dueDate: updatedInvoice.dueDate?.toISOString(),
+        {
+          status: 400,
         },
-        metadata: {
-          source: "invoice-update-api",
-        },
-      },
-    });
+      );
+    }
 
-    return NextResponse.json({
-      layer: "invoice-update-api",
-      message: "Invoice updated",
-      data: {
-        status: "success",
-        message: "Faktura została zapisana.",
-        invoice: updatedInvoice,
-      },
-    });
-  } catch (error) {
-    console.error("Invoice PATCH error:", error);
+    const validationMessages: Record<string, string> = {
+      INVALID_ISSUE_DATE: "Ungültiges Rechnungsdatum.",
+      INVALID_SUBTOTAL: "Ungültige Zwischensumme.",
+      INVALID_TAX_RATE: "Ungültiger Steuersatz.",
+      INVALID_TAX_AMOUNT: "Ungültiger Steuerbetrag.",
+      INVALID_TOTAL: "Ungültiger Rechnungsbetrag.",
+    };
+
+    if (error instanceof Error && validationMessages[error.message]) {
+      return NextResponse.json(
+        {
+          layer: "invoice-update-api",
+          message: error.message,
+          data: {
+            status: "error",
+            message: validationMessages[error.message],
+            invoice: null,
+          },
+        },
+        {
+          status: 400,
+        },
+      );
+    }
 
     return NextResponse.json(
       {
@@ -496,7 +629,10 @@ export async function PATCH(
         message: "Invoice PATCH error",
         data: {
           status: "error",
-          message: error instanceof Error ? error.message : "Unknown invoice PATCH error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unknown invoice PATCH error",
           invoice: null,
         },
       },

@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import {
+  calculateAutomatedInvoiceState,
+  calculatePaidPaymentsTotal,
+  decimalToNumber,
+  invoiceAutomationChanged,
+  moneyString,
+  normalizeInvoiceCurrency,
+  roundMoney,
+} from "@/lib/dashboard/invoice-status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,56 +46,20 @@ const PAYMENT_METHODS = [
 
 type PaymentMethodInput = (typeof PAYMENT_METHODS)[number];
 
-function normalizeInvoiceCurrency(value: unknown) {
-  const raw = typeof value === "string" ? value.trim().toUpperCase() : "";
-
-  if (raw === "CHF" || raw.startsWith("CHF")) {
-    return "CHF";
-  }
-
-  if (raw === "EUR" || raw.startsWith("EUR")) {
-    return "EUR";
-  }
-
-  if (raw === "USD" || raw.startsWith("USD")) {
-    return "USD";
-  }
-
-  return "CHF";
-}
-
-function decimalToNumber(value: unknown) {
-  if (value === null || value === undefined) {
-    return 0;
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "toString" in value &&
-    typeof value.toString === "function"
-  ) {
-    const number = Number(value.toString());
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
-
-function roundMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
 function isPaymentMethod(value: unknown): value is PaymentMethodInput {
   return (
     typeof value === "string" &&
     PAYMENT_METHODS.includes(value as PaymentMethodInput)
   );
+}
+
+function normalizeNullableText(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 export async function GET(
@@ -117,12 +90,49 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      invoiceId: invoice.id,
-      status: invoice.status,
+    const paidPaymentsTotal = calculatePaidPaymentsTotal(invoice.payments);
+    const nextState = calculateAutomatedInvoiceState({
+      currentStatus: invoice.status,
       total: invoice.total,
-      paidAmount: invoice.paidAmount,
-      payments: invoice.payments,
+      paidPaymentsTotal,
+      dueDate: invoice.dueDate,
+      sentAt: invoice.sentAt,
+      paidAt: invoice.paidAt,
+    });
+
+    const shouldUpdateInvoice =
+      invoice.status !== "CANCELLED" &&
+      invoiceAutomationChanged(invoice, nextState);
+
+    const invoiceForResponse = shouldUpdateInvoice
+      ? await prisma.invoice.update({
+          where: {
+            id: invoice.id,
+          },
+          data: {
+            status: nextState.status,
+            paidAmount: moneyString(nextState.paidAmount),
+            paidAt: nextState.paidAt,
+          },
+          include: {
+            payments: {
+              orderBy: {
+                createdAt: "desc",
+              },
+            },
+          },
+        })
+      : invoice;
+
+    return NextResponse.json({
+      invoiceId: invoiceForResponse.id,
+      status: invoiceForResponse.status,
+      total: invoiceForResponse.total,
+      paidAmount: invoiceForResponse.paidAmount,
+      dueDate: invoiceForResponse.dueDate,
+      sentAt: invoiceForResponse.sentAt,
+      paidAt: invoiceForResponse.paidAt,
+      payments: invoiceForResponse.payments,
     });
   } catch (error) {
     console.error("GET invoice payments error:", error);
@@ -148,15 +158,8 @@ export async function POST(
       ? body.method
       : "BANK_TRANSFER";
 
-    const externalRef =
-      typeof body.externalRef === "string" && body.externalRef.trim()
-        ? body.externalRef.trim()
-        : null;
-
-    const notes =
-      typeof body.notes === "string" && body.notes.trim()
-        ? body.notes.trim()
-        : null;
+    const externalRef = normalizeNullableText(body.externalRef);
+    const notes = normalizeNullableText(body.notes);
 
     if (amount <= 0) {
       return NextResponse.json(
@@ -199,31 +202,92 @@ export async function POST(
         },
       });
 
-      const previousPaidAmount = invoice.payments
-        .filter((item) => item.status === "PAID")
-        .reduce((sum, item) => sum + decimalToNumber(item.amount), 0);
+      const paidPaymentsTotal = roundMoney(
+        calculatePaidPaymentsTotal(invoice.payments) + amount,
+      );
 
-      const nextPaidAmount = roundMoney(previousPaidAmount + amount);
-      const invoiceTotal = roundMoney(decimalToNumber(invoice.total));
-
-      const nextStatus =
-        nextPaidAmount >= invoiceTotal ? "PAID" : "PARTIALLY_PAID";
+      const nextState = calculateAutomatedInvoiceState({
+        currentStatus: invoice.status,
+        total: invoice.total,
+        paidPaymentsTotal,
+        dueDate: invoice.dueDate,
+        sentAt: invoice.sentAt,
+        paidAt: invoice.paidAt,
+      });
 
       const updatedInvoice = await tx.invoice.update({
         where: {
           id: invoice.id,
         },
         data: {
-          paidAmount: nextPaidAmount.toFixed(2),
-          status: nextStatus,
-          paidAt: nextStatus === "PAID" ? new Date() : invoice.paidAt,
+          paidAmount: moneyString(nextState.paidAmount),
+          status: nextState.status,
+          paidAt: nextState.paidAt,
           currency: invoiceCurrency,
         },
       });
 
+      await tx.auditLog.create({
+        data: {
+          customerId: invoice.customerId,
+          orderId: invoice.orderId,
+          action: "CREATE",
+          entityType: "Payment",
+          entityId: payment.id,
+          actorType: "system",
+          message: `Payment ${payment.amount} ${payment.currency} registered for invoice ${invoice.invoiceNumber}.`,
+          after: {
+            paymentId: payment.id,
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: amount.toFixed(2),
+            currency: invoiceCurrency,
+            method,
+            status: payment.status,
+          },
+          metadata: {
+            source: "invoice-payment-api",
+          },
+        },
+      });
+
+      if (invoice.status !== updatedInvoice.status) {
+        await tx.auditLog.create({
+          data: {
+            customerId: invoice.customerId,
+            orderId: invoice.orderId,
+            action: "STATUS_CHANGE",
+            entityType: "Invoice",
+            entityId: invoice.id,
+            actorType: "system",
+            message: `Invoice ${invoice.invoiceNumber} status changed automatically from ${invoice.status} to ${updatedInvoice.status}.`,
+            before: {
+              status: invoice.status,
+              paidAmount: decimalToNumber(invoice.paidAmount),
+            },
+            after: {
+              status: updatedInvoice.status,
+              paidAmount: nextState.paidAmount,
+              paidAt: updatedInvoice.paidAt,
+            },
+            metadata: {
+              source: "invoice-payment-automation",
+              total: decimalToNumber(invoice.total),
+              paidPaymentsTotal,
+            },
+          },
+        });
+      }
+
       return {
         payment,
         invoice: updatedInvoice,
+        automation: {
+          previousStatus: invoice.status,
+          nextStatus: updatedInvoice.status,
+          paidAmount: nextState.paidAmount,
+          total: decimalToNumber(invoice.total),
+        },
       };
     });
 

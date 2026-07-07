@@ -1,6 +1,15 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextResponse } from "next/server";
+import {
+  calculateAutomatedInvoiceState,
+  calculatePaidPaymentsTotal,
+  decimalToNumber,
+  invoiceAutomationChanged,
+  moneyString,
+  normalizeInvoiceCurrency,
+  roundMoney,
+} from "@/lib/dashboard/invoice-status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -77,28 +86,15 @@ function cleanMoney(value: unknown) {
     return null;
   }
 
-  return (Math.round((parsed + Number.EPSILON) * 100) / 100).toFixed(2);
-}
-
-function cleanCurrency(value: unknown) {
-  const raw = String(value || "CHF").trim().toUpperCase();
-
-  if (/^[A-Z]{3}$/.test(raw)) {
-    return raw;
-  }
-
-  if (raw.startsWith("CHF")) return "CHF";
-  if (raw.startsWith("EUR")) return "EUR";
-  if (raw.startsWith("USD")) return "USD";
-  if (raw.startsWith("PLN")) return "PLN";
-
-  return "CHF";
+  return roundMoney(parsed).toFixed(2);
 }
 
 function cleanPaymentStatus(value: unknown) {
   const raw = String(value || "PAID").trim().toUpperCase();
 
-  if (raw === "CANCELED") return "CANCELLED";
+  if (raw === "CANCELED") {
+    return "CANCELLED";
+  }
 
   return paymentStatuses.includes(raw) ? raw : "PAID";
 }
@@ -121,12 +117,6 @@ function cleanDate(value: unknown) {
   }
 
   return date;
-}
-
-function toNumber(value: unknown) {
-  const parsed = Number(String(value ?? "0").replace(",", "."));
-
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export async function GET() {
@@ -162,7 +152,7 @@ export async function GET() {
       message: "Dashboard payments loaded",
       data: {
         status: "success",
-        message: "Płatności zostały pobrane.",
+        message: "Zahlungen wurden geladen.",
         payments,
         invoices,
       },
@@ -177,7 +167,9 @@ export async function GET() {
         data: {
           status: "error",
           message:
-            error instanceof Error ? error.message : "Unknown payments GET error",
+            error instanceof Error
+              ? error.message
+              : "Unknown payments GET error",
           payments: [],
           invoices: [],
         },
@@ -198,8 +190,9 @@ export async function POST(request: Request) {
           message: "Invalid body",
           data: {
             status: "error",
-            message: "Nieprawidłowe dane płatności.",
+            message: "Ungültige Zahlungsdaten.",
             payment: null,
+            invoice: null,
           },
         },
         { status: 400 },
@@ -216,23 +209,25 @@ export async function POST(request: Request) {
           message: "Missing invoice",
           data: {
             status: "error",
-            message: "Wybierz fakturę dla płatności.",
+            message: "Wählen Sie eine Rechnung für die Zahlung aus.",
             payment: null,
+            invoice: null,
           },
         },
         { status: 400 },
       );
     }
 
-    if (amount === null || toNumber(amount) <= 0) {
+    if (amount === null || decimalToNumber(amount) <= 0) {
       return NextResponse.json(
         {
           layer: "dashboard-payments-api",
           message: "Invalid amount",
           data: {
             status: "error",
-            message: "Wpisz poprawną kwotę płatności.",
+            message: "Geben Sie einen gültigen Zahlungsbetrag ein.",
             payment: null,
+            invoice: null,
           },
         },
         { status: 400 },
@@ -241,22 +236,31 @@ export async function POST(request: Request) {
 
     const prisma = getPrisma();
 
-    const payment = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.findUnique({
         where: {
           id: invoiceId,
         },
+        include: {
+          payments: true,
+        },
       });
 
       if (!invoice) {
-        throw new Error("Nie znaleziono faktury dla płatności.");
+        throw new Error("INVOICE_NOT_FOUND");
+      }
+
+      if (invoice.status === "CANCELLED") {
+        throw new Error("INVOICE_CANCELLED");
       }
 
       const paymentStatus = cleanPaymentStatus(body.status);
       const method = cleanPaymentMethod(body.method);
-      const currency = cleanCurrency(invoice.currency);
-      const paidAt =
-        paymentStatus === "PAID" ? cleanDate(body.paidAt) ?? new Date() : null;
+      const currency = normalizeInvoiceCurrency(invoice.currency);
+      const paymentPaidAt =
+        paymentStatus === "PAID"
+          ? cleanDate(body.paidAt) ?? new Date()
+          : null;
 
       const createdPayment = await tx.payment.create({
         data: {
@@ -268,7 +272,99 @@ export async function POST(request: Request) {
           method: method as any,
           externalRef: cleanText(body.externalRef),
           notes: cleanText(body.notes),
-          paidAt,
+          paidAt: paymentPaidAt,
+        },
+      });
+
+      const paidPaymentsTotal = roundMoney(
+        calculatePaidPaymentsTotal(invoice.payments) +
+          (paymentStatus === "PAID" ? decimalToNumber(amount) : 0),
+      );
+
+      const nextState = calculateAutomatedInvoiceState({
+        currentStatus: invoice.status,
+        total: invoice.total,
+        paidPaymentsTotal,
+        dueDate: invoice.dueDate,
+        sentAt: invoice.sentAt,
+        paidAt: invoice.paidAt,
+        now: paymentPaidAt ?? new Date(),
+      });
+
+      const shouldUpdateInvoice = invoiceAutomationChanged(invoice, nextState);
+
+      const updatedInvoice = shouldUpdateInvoice
+        ? await tx.invoice.update({
+            where: {
+              id: invoice.id,
+            },
+            data: {
+              paidAmount: moneyString(nextState.paidAmount),
+              status: nextState.status,
+              paidAt: nextState.paidAt,
+              currency,
+            },
+          })
+        : invoice;
+
+      await tx.auditLog.create({
+        data: {
+          customerId: invoice.customerId,
+          orderId: invoice.orderId,
+          action: "CREATE",
+          entityType: "Payment",
+          entityId: createdPayment.id,
+          actorType: "admin",
+          message: `Payment ${createdPayment.amount.toString()} ${
+            createdPayment.currency
+          } created for invoice ${invoice.invoiceNumber}.`,
+          after: {
+            paymentId: createdPayment.id,
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: createdPayment.amount.toString(),
+            currency: createdPayment.currency,
+            status: createdPayment.status,
+            method: createdPayment.method,
+            paidAt: createdPayment.paidAt?.toISOString() ?? null,
+          },
+          metadata: {
+            source: "dashboard-payments-api",
+          },
+        },
+      });
+
+      if (invoice.status !== updatedInvoice.status) {
+        await tx.auditLog.create({
+          data: {
+            customerId: invoice.customerId,
+            orderId: invoice.orderId,
+            action: "STATUS_CHANGE",
+            entityType: "Invoice",
+            entityId: invoice.id,
+            actorType: "system",
+            message: `Invoice ${invoice.invoiceNumber} status changed automatically from ${invoice.status} to ${updatedInvoice.status}.`,
+            before: {
+              status: invoice.status,
+              paidAmount: decimalToNumber(invoice.paidAmount),
+            },
+            after: {
+              status: updatedInvoice.status,
+              paidAmount: nextState.paidAmount,
+              paidAt: updatedInvoice.paidAt?.toISOString() ?? null,
+            },
+            metadata: {
+              source: "dashboard-payments-automation",
+              total: decimalToNumber(invoice.total),
+              paidPaymentsTotal,
+            },
+          },
+        });
+      }
+
+      const payment = await tx.payment.findUnique({
+        where: {
+          id: createdPayment.id,
         },
         include: {
           invoice: {
@@ -280,57 +376,16 @@ export async function POST(request: Request) {
         },
       });
 
-      if (paymentStatus === "PAID") {
-        const currentPaid = toNumber(invoice.paidAmount);
-        const invoiceTotal = toNumber(invoice.total);
-        const paidValue = toNumber(amount);
-        const nextPaidAmount = Math.max(currentPaid + paidValue, 0);
-        const nextInvoiceStatus =
-          invoiceTotal > 0 && nextPaidAmount >= invoiceTotal
-            ? "PAID"
-            : "PARTIALLY_PAID";
-
-        await tx.invoice.update({
-          where: {
-            id: invoice.id,
-          },
-          data: {
-            paidAmount: nextPaidAmount.toFixed(2),
-            status: nextInvoiceStatus as any,
-            paidAt:
-              nextInvoiceStatus === "PAID"
-                ? paidAt ?? new Date()
-                : invoice.paidAt,
-            currency,
-          },
-        });
-      }
-
-      await tx.auditLog.create({
-        data: {
-          customerId: invoice.customerId,
-          orderId: invoice.orderId,
-          action: "CREATE",
-          entityType: "Payment",
-          entityId: createdPayment.id,
-          actorType: "admin",
-          message: `Payment ${createdPayment.amount.toString()} ${createdPayment.currency} created for invoice ${invoice.invoiceNumber}.`,
-          after: {
-            paymentId: createdPayment.id,
-            invoiceId: invoice.id,
-            invoiceNumber: invoice.invoiceNumber,
-            amount: createdPayment.amount.toString(),
-            currency: createdPayment.currency,
-            status: createdPayment.status,
-            method: createdPayment.method,
-          },
-          metadata: {
-            source: "dashboard-payments-api",
-          },
+      return {
+        payment,
+        invoice: updatedInvoice,
+        automation: {
+          previousStatus: invoice.status,
+          nextStatus: updatedInvoice.status,
+          paidAmount: nextState.paidAmount,
+          total: decimalToNumber(invoice.total),
         },
-      });
-
-      return createdPayment;
+      };
     });
 
     return NextResponse.json({
@@ -338,12 +393,47 @@ export async function POST(request: Request) {
       message: "Payment created",
       data: {
         status: "success",
-        message: "Płatność została zapisana.",
-        payment,
+        message: "Zahlung wurde gespeichert.",
+        payment: result.payment,
+        invoice: result.invoice,
+        automation: result.automation,
       },
     });
   } catch (error) {
     console.error("Payments POST error:", error);
+
+    if (error instanceof Error && error.message === "INVOICE_NOT_FOUND") {
+      return NextResponse.json(
+        {
+          layer: "dashboard-payments-api",
+          message: "Invoice not found",
+          data: {
+            status: "error",
+            message: "Rechnung für die Zahlung wurde nicht gefunden.",
+            payment: null,
+            invoice: null,
+          },
+        },
+        { status: 404 },
+      );
+    }
+
+    if (error instanceof Error && error.message === "INVOICE_CANCELLED") {
+      return NextResponse.json(
+        {
+          layer: "dashboard-payments-api",
+          message: "Invoice cancelled",
+          data: {
+            status: "error",
+            message:
+              "Eine stornierte Rechnung kann keine Zahlungen erhalten.",
+            payment: null,
+            invoice: null,
+          },
+        },
+        { status: 400 },
+      );
+    }
 
     return NextResponse.json(
       {
@@ -356,6 +446,7 @@ export async function POST(request: Request) {
               ? error.message
               : "Unknown payments POST error",
           payment: null,
+          invoice: null,
         },
       },
       { status: 500 },
