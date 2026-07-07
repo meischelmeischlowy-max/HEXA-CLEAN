@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, QuoteStatus } from "@prisma/client";
+import {
+  NotificationChannel,
+  NotificationStatus,
+  PrismaClient,
+  QuoteStatus,
+} from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   buildPublicOfferUrl,
@@ -162,6 +167,32 @@ function serializePublicOfferLink(link: {
   };
 }
 
+function buildMaskedPublicOfferUrl(publicUrl: string, rawToken: string, tokenPrefix: string) {
+  return publicUrl.replace(rawToken, `${tokenPrefix}...`);
+}
+
+function buildOfferEmailSubject(quoteNumber: string) {
+  return `Ihre Offerte ${quoteNumber} von HEXA CLEAN`;
+}
+
+function buildOfferEmailLogMessage(maskedPublicUrl: string) {
+  return [
+    "Guten Tag",
+    "",
+    "vielen Dank für Ihre Anfrage.",
+    "",
+    "Ihre Offerte wurde als öffentlicher Kundenlink vorbereitet.",
+    "",
+    "Geschützter Link:",
+    maskedPublicUrl,
+    "",
+    "Hinweis: Aus Sicherheitsgründen wird der vollständige Token nicht in der Datenbank gespeichert.",
+    "",
+    "Freundliche Grüsse",
+    "HEXA CLEAN",
+  ].join("\n");
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -284,6 +315,15 @@ export async function POST(
       validUntil: true,
       sentAt: true,
       acceptedAt: true,
+      customer: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          companyName: true,
+        },
+      },
     },
   });
 
@@ -313,12 +353,19 @@ export async function POST(
   }
 
   const tokenData = createPublicOfferTokenData(expiresInDays);
+  const publicUrl = buildPublicOfferUrl(tokenData.rawToken);
+  const maskedPublicUrl = buildMaskedPublicOfferUrl(
+    publicUrl,
+    tokenData.rawToken,
+    tokenData.tokenPrefix,
+  );
+
   const finalExpiresAt =
     quote.validUntil && quote.validUntil.getTime() < tokenData.expiresAt.getTime()
       ? quote.validUntil
       : tokenData.expiresAt;
 
-  const createdLink = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     if (revokeExisting) {
       await tx.publicOfferLink.updateMany({
         where: {
@@ -344,6 +391,7 @@ export async function POST(
           expiresInDays,
           revokeExisting,
           rawTokenStored: false,
+          maskedPublicUrl,
         },
       },
       select: {
@@ -358,6 +406,40 @@ export async function POST(
         updatedAt: true,
       },
     });
+
+    const notification = quote.customer.email
+      ? await tx.notification.create({
+          data: {
+            customerId: quote.customerId,
+            orderId: quote.orderId,
+            sessionId: quote.sessionId,
+            channel: NotificationChannel.EMAIL,
+            status: NotificationStatus.PENDING,
+            recipient: quote.customer.email,
+            subject: buildOfferEmailSubject(quote.quoteNumber),
+            message: buildOfferEmailLogMessage(maskedPublicUrl),
+            metadata: {
+              source: "public_offer_link_generation",
+              quoteId: quote.id,
+              quoteNumber: quote.quoteNumber,
+              publicOfferLinkId: link.id,
+              tokenPrefix: tokenData.tokenPrefix,
+              maskedPublicUrl,
+              rawTokenStored: false,
+              fullPublicUrlStored: false,
+              draftOnly: true,
+              requiresManualSend: true,
+            },
+          },
+          select: {
+            id: true,
+            recipient: true,
+            subject: true,
+            status: true,
+            createdAt: true,
+          },
+        })
+      : null;
 
     await tx.auditLog.create({
       data: {
@@ -375,15 +457,20 @@ export async function POST(
           tokenPrefix: tokenData.tokenPrefix,
           expiresAt: finalExpiresAt.toISOString(),
           rawTokenStored: false,
+          fullPublicUrlStored: false,
           previousOpenLinksRevoked: revokeExisting,
+          notificationCreated: Boolean(notification),
+          notificationId: notification?.id ?? null,
+          maskedPublicUrl,
         },
       },
     });
 
-    return link;
+    return {
+      link,
+      notification,
+    };
   });
-
-  const publicUrl = buildPublicOfferUrl(tokenData.rawToken);
 
   return NextResponse.json(
     {
@@ -392,7 +479,21 @@ export async function POST(
         "Public offer link generated. Copy this URL now because the raw token is not stored.",
       publicUrl,
       rawTokenShownOnce: true,
-      link: serializePublicOfferLink(createdLink),
+      link: serializePublicOfferLink(result.link),
+      notification: result.notification
+        ? {
+            id: result.notification.id,
+            recipient: result.notification.recipient,
+            subject: result.notification.subject,
+            status: result.notification.status,
+            createdAt: result.notification.createdAt.toISOString(),
+            rawTokenStored: false,
+            fullPublicUrlStored: false,
+          }
+        : null,
+      notificationNote: result.notification
+        ? "Notification EMAIL/PENDING was created with masked URL only."
+        : "Notification was not created because the customer has no email address.",
     },
     { status: 201 },
   );
