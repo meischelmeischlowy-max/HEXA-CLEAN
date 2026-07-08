@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import ActionStatusBadge from "../../../components/dashboard/ActionStatusBadge";
+import PageHeader from "../../../components/dashboard/PageHeader";
+import PremiumButton from "../../../components/dashboard/PremiumButton";
+import { getEstimateAction } from "../../../lib/dashboard/next-action";
 
 type EstimateCustomer = {
   firstName?: string | null;
@@ -18,10 +22,6 @@ type Estimate = {
   status?: string | null;
   source?: string | null;
   currency?: string | null;
-  subtotal?: string | number | null;
-  riskAmount?: string | number | null;
-  travelFee?: string | number | null;
-  discountAmount?: string | number | null;
   total?: string | number | null;
   aiMinTotal?: string | number | null;
   aiMaxTotal?: string | number | null;
@@ -31,7 +31,6 @@ type Estimate = {
   createdAt?: string | null;
   updatedAt?: string | null;
   customer?: EstimateCustomer | null;
-  items?: unknown[];
 };
 
 type EstimatesResponse = {
@@ -45,66 +44,62 @@ type EstimatesResponse = {
   estimates?: Estimate[];
 };
 
-function formatMoney(value: string | number | null | undefined, currency = "CHF") {
-  const number = Number(value ?? 0);
+function normalizeCurrency(value?: string | null) {
+  const raw = String(value || "CHF").trim().toUpperCase();
 
+  if (/^[A-Z]{3}$/.test(raw)) return raw;
+  if (raw.startsWith("CHF")) return "CHF";
+  if (raw.startsWith("EUR")) return "EUR";
+  if (raw.startsWith("USD")) return "USD";
+  if (raw.startsWith("PLN")) return "PLN";
+
+  return "CHF";
+}
+
+function toNumber(value: unknown) {
+  const number = Number(String(value ?? "0").replace(",", "."));
+  return Number.isFinite(number) ? number : 0;
+}
+
+function formatMoney(value: unknown, currency = "CHF") {
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
-    currency,
-  }).format(Number.isNaN(number) ? 0 : number);
+    currency: normalizeCurrency(currency),
+    maximumFractionDigits: 2,
+  }).format(toNumber(value));
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) {
-    return "—";
-  }
+  if (!value) return "-";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return "-";
   }
 
   return date.toLocaleString("de-CH", {
-    dateStyle: "medium",
+    dateStyle: "short",
     timeStyle: "short",
   });
 }
 
 function customerName(customer?: EstimateCustomer | null) {
-  if (!customer) {
-    return "Demo-Kunde";
-  }
+  if (!customer) return "Kein Kunde";
 
-  if (customer.companyName) {
-    return customer.companyName;
-  }
+  if (customer.companyName) return customer.companyName;
 
   const fullName = [customer.firstName, customer.lastName]
     .filter(Boolean)
-    .join(" ");
+    .join(" ")
+    .trim();
 
-  return fullName || "Demo-Kunde";
+  return fullName || customer.email || customer.phone || "Kein Kunde";
 }
 
-function statusLabel(status?: string | null) {
-  const labels: Record<string, string> = {
-    DRAFT: "Entwurf",
-    AI_REVIEW: "KI-Prüfung",
-    NEEDS_PHOTOS: "Fotos erforderlich",
-    NEEDS_HUMAN_REVIEW: "Prüfung durch Inhaber",
-    READY_TO_SEND: "Versandbereit",
-    SENT: "Versendet",
-    ACCEPTED: "Akzeptiert",
-    REJECTED: "Abgelehnt",
-    EXPIRED: "Abgelaufen",
-  };
-
-  if (!status) {
-    return "—";
-  }
-
-  return labels[status] ?? status;
+function customerContact(customer?: EstimateCustomer | null) {
+  if (!customer) return "Kein Kontakt";
+  return customer.email || customer.phone || "Kein Kontakt";
 }
 
 function sourceLabel(source?: string | null) {
@@ -116,11 +111,27 @@ function sourceLabel(source?: string | null) {
     IMPORT: "Import",
   };
 
-  if (!source) {
-    return "Unbekannt";
+  if (!source) return "Unbekannt";
+
+  return labels[String(source).toUpperCase()] ?? source;
+}
+
+function sourceBadgeClass(source?: string | null) {
+  const normalized = String(source ?? "").toUpperCase();
+
+  if (normalized === "QUICK_OFFER") {
+    return "border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100";
   }
 
-  return labels[source] ?? source;
+  if (normalized === "CHATBOT") {
+    return "border-violet-300/25 bg-violet-300/10 text-violet-100";
+  }
+
+  if (normalized === "ADMIN") {
+    return "border-neutral-300/20 bg-white/[0.06] text-neutral-200";
+  }
+
+  return "border-slate-300/20 bg-slate-300/10 text-slate-200";
 }
 
 function isQuickOfferEstimate(estimate: Estimate) {
@@ -131,80 +142,22 @@ function isChatbotEstimate(estimate: Estimate) {
   return String(estimate.source ?? "").toUpperCase() === "CHATBOT";
 }
 
-function isPublicLeadEstimate(estimate: Estimate) {
+function isLeadEstimate(estimate: Estimate) {
   return isQuickOfferEstimate(estimate) || isChatbotEstimate(estimate);
 }
 
-function isAiReviewEstimate(estimate: Estimate) {
-  return String(estimate.status ?? "").toUpperCase() === "AI_REVIEW";
+function isReviewStatus(status?: string | null) {
+  const normalized = String(status ?? "").toUpperCase();
+
+  return (
+    normalized === "AI_REVIEW" ||
+    normalized === "NEEDS_PHOTOS" ||
+    normalized === "NEEDS_HUMAN_REVIEW"
+  );
 }
 
-function statusBadgeClass(status?: string | null) {
-  const normalizedStatus = String(status ?? "").toUpperCase();
-
-  if (normalizedStatus === "AI_REVIEW") {
-    return "border-amber-300/25 bg-amber-300/10 text-amber-100";
-  }
-
-  if (normalizedStatus === "READY_TO_SEND") {
-    return "border-lime-300/25 bg-lime-300/10 text-lime-100";
-  }
-
-  if (normalizedStatus === "SENT") {
-    return "border-sky-300/25 bg-sky-300/10 text-sky-100";
-  }
-
-  if (normalizedStatus === "ACCEPTED") {
-    return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
-  }
-
-  if (normalizedStatus === "REJECTED" || normalizedStatus === "EXPIRED") {
-    return "border-red-300/25 bg-red-300/10 text-red-100";
-  }
-
-  return "border-cyan-300/20 bg-cyan-300/10 text-cyan-100";
-}
-
-function sourceBadgeClass(source?: string | null) {
-  const normalizedSource = String(source ?? "").toUpperCase();
-
-  if (normalizedSource === "QUICK_OFFER") {
-    return "border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100";
-  }
-
-  if (normalizedSource === "CHATBOT") {
-    return "border-violet-300/25 bg-violet-300/10 text-violet-100";
-  }
-
-  if (normalizedSource === "ADMIN") {
-    return "border-neutral-300/20 bg-white/[0.06] text-neutral-200";
-  }
-
-  return "border-slate-300/20 bg-slate-300/10 text-slate-200";
-}
-
-function leadRowClass(estimate: Estimate) {
-  if (isQuickOfferEstimate(estimate)) {
-    return "bg-fuchsia-300/[0.035] hover:bg-fuchsia-300/[0.07]";
-  }
-
-  if (isChatbotEstimate(estimate)) {
-    return "bg-violet-300/[0.035] hover:bg-violet-300/[0.07]";
-  }
-
-  return "hover:bg-white/[0.03]";
-}
-
-function leadActionClass(estimate: Estimate) {
-  if (isQuickOfferEstimate(estimate)) {
-    return "rounded-xl border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 hover:bg-fuchsia-300/20";
-  }
-
-  if (isChatbotEstimate(estimate)) {
-    return "rounded-xl border border-violet-300/30 bg-violet-300/10 px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-300/20";
-  }
-
-  return "rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-neutral-100 hover:bg-white/[0.08]";
+function isReadyStatus(status?: string | null) {
+  return String(status ?? "").toUpperCase() === "READY_TO_SEND";
 }
 
 function getEstimatesFromResponse(response: EstimatesResponse): Estimate[] {
@@ -219,32 +172,39 @@ function getEstimatesFromResponse(response: EstimatesResponse): Estimate[] {
   return [];
 }
 
+function rowClass(estimate: Estimate) {
+  if (isQuickOfferEstimate(estimate)) {
+    return "bg-fuchsia-300/[0.035] hover:bg-fuchsia-300/[0.07]";
+  }
+
+  if (isChatbotEstimate(estimate)) {
+    return "bg-violet-300/[0.035] hover:bg-violet-300/[0.07]";
+  }
+
+  return "hover:bg-white/[0.03]";
+}
+
 export default function DashboardEstimatesPage() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
 
   const totals = useMemo(() => {
     const totalValue = estimates.reduce((sum, estimate) => {
-      const value = Number(estimate.total ?? 0);
-      return sum + (Number.isNaN(value) ? 0 : value);
+      return sum + toNumber(estimate.total);
     }, 0);
-
-    const quickOfferCount = estimates.filter(isQuickOfferEstimate).length;
-    const chatbotCount = estimates.filter(isChatbotEstimate).length;
-    const aiReviewCount = estimates.filter(isAiReviewEstimate).length;
-    const publicLeadAiReviewCount = estimates.filter(
-      (estimate) => isPublicLeadEstimate(estimate) && isAiReviewEstimate(estimate),
-    ).length;
 
     return {
       count: estimates.length,
       totalValue,
-      quickOfferCount,
-      chatbotCount,
-      aiReviewCount,
-      publicLeadAiReviewCount,
+      reviewCount: estimates.filter((estimate) =>
+        isReviewStatus(estimate.status),
+      ).length,
+      readyCount: estimates.filter((estimate) =>
+        isReadyStatus(estimate.status),
+      ).length,
+      quickOfferCount: estimates.filter(isQuickOfferEstimate).length,
+      chatbotCount: estimates.filter(isChatbotEstimate).length,
     };
   }, [estimates]);
 
@@ -280,136 +240,96 @@ export default function DashboardEstimatesPage() {
     }
   }
 
-  async function createDemoEstimate() {
-    setIsCreating(true);
-    setError("");
-
-    try {
-      const response = await fetch("/api/dashboard/estimates", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = (await response.json()) as EstimatesResponse;
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ??
-            data.data?.message ??
-            "Die Demo-Kalkulation konnte nicht erstellt werden.",
-        );
-      }
-
-      await loadEstimates();
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Unbekannter Fehler beim Erstellen der Kalkulation.",
-      );
-    } finally {
-      setIsCreating(false);
-    }
-  }
-
   useEffect(() => {
     void loadEstimates();
   }, []);
 
   return (
-    <main className="min-h-screen bg-neutral-950 px-6 py-8 text-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8">
-        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/30">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
-                HEXA OS / Kalkulationen
-              </p>
+    <main className="min-h-screen px-4 py-6 text-white sm:px-6 lg:px-8">
+      <section className="mx-auto flex w-full max-w-none flex-col gap-5">
+        <PageHeader
+          eyebrow="HEXA OS CRM / Kalkulationen"
+          title="Kalkulationen"
+          description="Interne Arbeitsliste fuer Preisberechnung, Risiko, Fotos, AI-Pruefung und Freigabe. Aus einer fertigen Kalkulation entsteht erst danach eine Offerte."
+        >
+          <PremiumButton href="/dashboard/estimates/new" variant="primary">
+            Neue Kalkulation
+          </PremiumButton>
 
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-                Kalkulationen
-              </h1>
+          <PremiumButton
+            type="button"
+            variant="secondary"
+            onClick={loadEstimates}
+            disabled={isLoading}
+          >
+            Aktualisieren
+          </PremiumButton>
+        </PageHeader>
 
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-                Liste von manuellen Kalkulationen, QuickOffer-Leads,
-                Chatbot-Leads und versendeten Angeboten. Öffentliche Leads
-                müssen vor Versand manuell geprüft werden.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/dashboard/estimates/new"
-                className="rounded-2xl bg-cyan-300 px-5 py-3 text-center text-sm font-black text-neutral-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200"
-              >
-                Neue Kalkulation
-              </Link>
-
-              <button
-                type="button"
-                onClick={createDemoEstimate}
-                disabled={isCreating}
-                className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-neutral-100 shadow-lg shadow-black/20 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCreating ? "Wird erstellt..." : "Demo-Kalkulation hinzufügen"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-6">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Anzahl Kalkulationen</p>
-            <p className="mt-2 text-3xl font-black">{totals.count}</p>
+        <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+              Kalkulationen
+            </p>
+            <p className="mt-2 text-2xl font-black text-white">
+              {totals.count}
+            </p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-neutral-400">Gesamtsumme</p>
-            <p className="mt-2 text-3xl font-black">
+          <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-200/70">
+              Summe
+            </p>
+            <p className="mt-2 text-2xl font-black text-cyan-100">
               {formatMoney(totals.totalValue, "CHF")}
             </p>
           </div>
 
-          <div className="rounded-3xl border border-fuchsia-300/20 bg-fuchsia-300/10 p-5">
-            <p className="text-sm text-fuchsia-100/70">QuickOffer Leads</p>
-            <p className="mt-2 text-3xl font-black text-fuchsia-100">
+          <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200/70">
+              Pruefung
+            </p>
+            <p className="mt-2 text-2xl font-black text-amber-100">
+              {totals.reviewCount}
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/70">
+              Bereit fuer Offerte
+            </p>
+            <p className="mt-2 text-2xl font-black text-emerald-100">
+              {totals.readyCount}
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-fuchsia-400/20 bg-fuchsia-400/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-fuchsia-200/70">
+              QuickOffer
+            </p>
+            <p className="mt-2 text-2xl font-black text-fuchsia-100">
               {totals.quickOfferCount}
             </p>
           </div>
 
-          <div className="rounded-3xl border border-violet-300/20 bg-violet-300/10 p-5">
-            <p className="text-sm text-violet-100/70">Chatbot Leads</p>
-            <p className="mt-2 text-3xl font-black text-violet-100">
+          <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-200/70">
+              Chatbot
+            </p>
+            <p className="mt-2 text-2xl font-black text-violet-100">
               {totals.chatbotCount}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
-            <p className="text-sm text-amber-100/70">Wymaga Prüfung</p>
-            <p className="mt-2 text-3xl font-black text-amber-100">
-              {totals.aiReviewCount}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-red-300/20 bg-red-300/10 p-5">
-            <p className="text-sm text-red-100/70">Leady do kontroli</p>
-            <p className="mt-2 text-3xl font-black text-red-100">
-              {totals.publicLeadAiReviewCount}
             </p>
           </div>
         </section>
 
         <section className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-amber-100/80">
-            Hinweis
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-100/80">
+            Prozessregel
           </p>
           <p className="mt-2 text-sm leading-6 text-amber-100">
-            QuickOffer und Chatbot sind nur orientierende Anfragen. Preise aus
-            der Website dürfen nicht automatisch als verbindliche Kundenofferte
-            gelten. Der Inhaber prüft Umfang, Fotos, Risiko, Anfahrt und
-            Material, bevor ein Angebot versendet wird.
+            Kalkulationen sind intern. QuickOffer- und Chatbot-Daten sind keine
+            verbindliche Offerte. Erst pruefen, dann auf READY_TO_SEND setzen,
+            dann Offerte vorbereiten.
           </p>
         </section>
 
@@ -419,195 +339,140 @@ export default function DashboardEstimatesPage() {
           </section>
         ) : null}
 
-        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
+          <div className="flex flex-col gap-2 border-b border-white/10 px-5 py-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Kalkulationsliste</h2>
-              <p className="mt-1 text-sm text-neutral-400">
-                QuickOffer- und Chatbot-Leads sind farblich markiert. Öffnen
-                Sie Details, um den Umfang zu prüfen und daraus eine fertige
-                Offerte zu machen.
+              <h2 className="text-xl font-black text-white">
+                Kalkulationsliste
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Status anklicken oder Kalkulation oeffnen. Angebot, Rechnung und
+                Zahlung werden nicht auf dieser Liste bearbeitet.
               </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/dashboard/estimates/new"
-                className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 hover:bg-cyan-300/20"
-              >
-                Neue Kalkulation
-              </Link>
-
-              <button
-                type="button"
-                onClick={loadEstimates}
-                disabled={isLoading}
-                className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-neutral-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isLoading ? "Aktualisieren..." : "Aktualisieren"}
-              </button>
             </div>
           </div>
 
           {isLoading ? (
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-neutral-400">
-              Kalkulationen werden geladen...
+            <div className="p-5">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-neutral-400">
+                Kalkulationen werden geladen...
+              </div>
             </div>
           ) : null}
 
           {!isLoading && estimates.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-              Keine Kalkulationen vorhanden. Klicken Sie auf „Neue Kalkulation“,
-              um die erste manuelle Kalkulation zu erstellen, oder senden Sie
-              testweise eine Anfrage über QuickOffer oder Chatbot auf der
-              Website.
+            <div className="p-5">
+              <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
+                Keine Kalkulationen vorhanden. Erstellen Sie eine neue
+                Kalkulation oder warten Sie auf QuickOffer-/Chatbot-Anfragen.
+              </div>
             </div>
           ) : null}
 
           {!isLoading && estimates.length > 0 ? (
-            <div className="overflow-x-auto rounded-2xl border border-white/10">
-              <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
-                <thead className="bg-white/[0.05] text-xs uppercase tracking-[0.18em] text-neutral-400">
-                  <tr>
-                    <th className="px-4 py-4">Nummer</th>
-                    <th className="px-4 py-4">Quelle</th>
-                    <th className="px-4 py-4">Kunde</th>
-                    <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4">Ort</th>
-                    <th className="px-4 py-4">Erstellt</th>
-                    <th className="px-4 py-4 text-right">Gesamt</th>
-                    <th className="px-4 py-4 text-right">Aktion</th>
-                  </tr>
-                </thead>
+            <div className="divide-y divide-white/10">
+              {estimates.map((estimate) => {
+                const action = getEstimateAction({
+                  id: estimate.id,
+                  status: estimate.status,
+                });
 
-                <tbody className="divide-y divide-white/10">
-                  {estimates.map((estimate) => {
-                    const quickOffer = isQuickOfferEstimate(estimate);
-                    const chatbot = isChatbotEstimate(estimate);
-                    const publicLead = isPublicLeadEstimate(estimate);
-                    const aiReview = isAiReviewEstimate(estimate);
-
-                    return (
-                      <tr
-                        key={estimate.id}
-                        className={leadRowClass(estimate)}
+                return (
+                  <article
+                    key={estimate.id}
+                    className={`grid gap-4 px-5 py-4 transition lg:grid-cols-[minmax(220px,1.2fr)_minmax(150px,0.8fr)_minmax(220px,1fr)_minmax(180px,0.9fr)_minmax(130px,0.6fr)_auto] lg:items-center ${rowClass(
+                      estimate,
+                    )}`}
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        href={`/dashboard/estimates/${estimate.id}`}
+                        className="block truncate text-base font-black text-cyan-200 transition hover:text-cyan-100"
                       >
-                        <td className="px-4 py-4">
-                          <Link
-                            href={`/dashboard/estimates/${estimate.id}`}
-                            className="font-black text-cyan-300 hover:text-cyan-200"
-                          >
-                            {estimate.estimateNumber ?? estimate.id}
-                          </Link>
+                        {estimate.estimateNumber ?? estimate.id}
+                      </Link>
 
-                          <p className="mt-1 text-xs text-neutral-500">
-                            {estimate.title ?? "Entwurfskalkulation"}
-                          </p>
+                      <p className="mt-1 truncate text-sm text-zinc-500">
+                        {estimate.title ?? "Interne Kalkulation"}
+                      </p>
 
-                          {quickOffer ? (
-                            <p className="mt-2 w-fit rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-2 py-1 text-[11px] font-bold text-fuchsia-100">
-                              QuickOffer Website-Lead
-                            </p>
-                          ) : null}
+                      {isLeadEstimate(estimate) ? (
+                        <p className="mt-2 w-fit rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[11px] font-bold text-zinc-300">
+                          Website Lead
+                        </p>
+                      ) : null}
+                    </div>
 
-                          {chatbot ? (
-                            <p className="mt-2 w-fit rounded-full border border-violet-300/20 bg-violet-300/10 px-2 py-1 text-[11px] font-bold text-violet-100">
-                              Chatbot Website-Lead
-                            </p>
-                          ) : null}
-                        </td>
+                    <div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-bold ${sourceBadgeClass(
+                          estimate.source,
+                        )}`}
+                      >
+                        {sourceLabel(estimate.source)}
+                      </span>
+                    </div>
 
-                        <td className="px-4 py-4">
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${sourceBadgeClass(
-                              estimate.source,
-                            )}`}
-                          >
-                            {sourceLabel(estimate.source)}
-                          </span>
-                        </td>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-zinc-100">
+                        {customerName(estimate.customer)}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-zinc-500">
+                        {customerContact(estimate.customer)}
+                      </p>
+                    </div>
 
-                        <td className="px-4 py-4 text-neutral-300">
-                          <p className="font-semibold text-neutral-100">
-                            {customerName(estimate.customer)}
-                          </p>
+                    <div className="flex flex-col gap-2">
+                      <ActionStatusBadge
+                        href={`/dashboard/estimates/${estimate.id}`}
+                        tone={action.tone}
+                        label={action.label}
+                        title={action.description}
+                      />
+                      <p className="text-xs text-zinc-500">
+                        {formatDate(estimate.createdAt)}
+                      </p>
+                    </div>
 
-                          <p className="mt-1 text-xs text-neutral-500">
-                            {estimate.customer?.email ??
-                              estimate.customer?.phone ??
-                              "Kein Kontakt"}
-                          </p>
-                        </td>
+                    <div className="text-left lg:text-right">
+                      <p className="font-black text-zinc-100">
+                        {formatMoney(
+                          estimate.total,
+                          estimate.currency ?? "CHF",
+                        )}
+                      </p>
 
-                        <td className="px-4 py-4">
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(
-                              estimate.status,
-                            )}`}
-                          >
-                            {statusLabel(estimate.status)}
-                          </span>
+                      {estimate.aiMinTotal || estimate.aiMaxTotal ? (
+                        <p className="mt-1 text-xs text-zinc-500">
+                          AI:{" "}
+                          {formatMoney(
+                            estimate.aiMinTotal,
+                            estimate.currency ?? "CHF",
+                          )}{" "}
+                          -{" "}
+                          {formatMoney(
+                            estimate.aiMaxTotal,
+                            estimate.currency ?? "CHF",
+                          )}
+                        </p>
+                      ) : null}
+                    </div>
 
-                          {aiReview ? (
-                            <p className="mt-2 text-xs font-semibold text-amber-200">
-                              Prüfen vor Versand
-                            </p>
-                          ) : null}
-                        </td>
-
-                        <td className="px-4 py-4 text-neutral-300">
-                          {estimate.serviceCity ?? "—"}
-                        </td>
-
-                        <td className="px-4 py-4 text-neutral-300">
-                          {formatDate(estimate.createdAt)}
-                        </td>
-
-                        <td className="px-4 py-4 text-right font-black text-neutral-100">
-                          {formatMoney(estimate.total, estimate.currency ?? "CHF")}
-
-                          {estimate.aiMinTotal || estimate.aiMaxTotal ? (
-                            <p className="mt-1 text-xs font-normal text-neutral-500">
-                              AI:{" "}
-                              {formatMoney(
-                                estimate.aiMinTotal,
-                                estimate.currency ?? "CHF",
-                              )}{" "}
-                              –{" "}
-                              {formatMoney(
-                                estimate.aiMaxTotal,
-                                estimate.currency ?? "CHF",
-                              )}
-                            </p>
-                          ) : null}
-                        </td>
-
-                        <td className="px-4 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <Link
-                              href={`/dashboard/estimates/${estimate.id}`}
-                              className={leadActionClass(estimate)}
-                            >
-                              {publicLead ? "Lead prüfen" : "Details"}
-                            </Link>
-
-                            <Link
-                              href={`/dashboard/estimates/${estimate.id}/offer`}
-                              className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-300/20"
-                            >
-                              Angebot
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    <div className="flex justify-start lg:justify-end">
+                      <Link
+                        href={`/dashboard/estimates/${estimate.id}`}
+                        className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-400/20"
+                      >
+                        Oeffnen
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : null}
         </section>
-      </div>
+      </section>
     </main>
   );
 }

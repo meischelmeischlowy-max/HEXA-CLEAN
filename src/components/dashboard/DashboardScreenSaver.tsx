@@ -139,16 +139,7 @@ export default function DashboardScreenSaver() {
   }, [pin, correctPin]);
 
   if (!isLocked) {
-    return (
-      <button
-        type="button"
-        onClick={lockScreen}
-        className="fixed bottom-5 right-5 z-[9998] rounded-full border border-cyan-300/20 bg-neutral-950/80 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-cyan-200 shadow-2xl shadow-black/40 backdrop-blur-xl transition hover:border-cyan-300/50 hover:bg-cyan-300/10"
-        title="Zablokuj panel"
-      >
-        Lock
-      </button>
-    );
+    return null;
   }
 
   return (
@@ -197,7 +188,7 @@ export default function DashboardScreenSaver() {
           ) : (
             <div className="mt-7 flex flex-col items-center gap-4">
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-neutral-400">
-                Wpisz 4-cyfrowy PIN
+                4-stellige PIN eingeben
               </p>
 
               <div className="flex gap-3">
@@ -219,7 +210,8 @@ export default function DashboardScreenSaver() {
                 </p>
               ) : (
                 <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                  Backspace löscht eine Ziffer · Escape kehrt zum Bildschirmschoner zurück
+                  Backspace löscht eine Ziffer · Escape kehrt zum
+                  Bildschirmschoner zurück
                 </p>
               )}
             </div>

@@ -2,6 +2,13 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import RecordActionPanel from "../../../../components/dashboard/RecordActionPanel";
+import {
+  buildCustomerMissingItems,
+  getCustomerDetailAction,
+  getToneClassName,
+  type CustomerMissingItem,
+} from "../../../../lib/dashboard/next-action";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,6 +19,7 @@ const globalForPrisma = globalThis as unknown as {
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ action?: string }>;
 };
 
 type TimelineItem = {
@@ -71,7 +79,7 @@ function formatMoney(value: unknown, currency = "CHF") {
 }
 
 function formatDate(value?: Date | string | null) {
-  if (!value) return "—";
+  if (!value) return "-";
 
   const date = value instanceof Date ? value : new Date(value);
 
@@ -87,7 +95,7 @@ function formatDate(value?: Date | string | null) {
 
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
-    return "—";
+    return "-";
   }
 
   if (value instanceof Date) {
@@ -101,35 +109,35 @@ function statusLabel(status?: string | null) {
   const labels: Record<string, string> = {
     PRIVATE: "Privat",
     COMPANY: "Firma",
-    ACTIVE: "Aktywna",
+    ACTIVE: "Aktiv",
     COMPLETED: "Abgeschlossen",
-    ABANDONED: "Porzucona",
+    ABANDONED: "Abgebrochen",
     EXPIRED: "Abgelaufen",
-    NEW: "Nowe",
-    IN_PROGRESS: "W toku",
-    WAITING_FOR_CUSTOMER: "Czeka na Kunden",
-    CONFIRMED: "Potwierdzone",
-    SCHEDULED: "Zaplanowane",
-    CANCELLED: "Anulowane",
-    DRAFT: "Robocze",
+    NEW: "Neu",
+    IN_PROGRESS: "In Arbeit",
+    WAITING_FOR_CUSTOMER: "Wartet auf Kunde",
+    CONFIRMED: "Bestaetigt",
+    SCHEDULED: "Geplant",
+    CANCELLED: "Storniert",
+    DRAFT: "Entwurf",
     SENT: "Versendet",
     ACCEPTED: "Akzeptiert",
     REJECTED: "Abgelehnt",
     READY_TO_SEND: "Bereit zum Senden",
-    AI_REVIEW: "AI review",
+    AI_REVIEW: "AI-Pruefung",
     NEEDS_PHOTOS: "Fotos erforderlich",
-    NEEDS_HUMAN_REVIEW: "Do kontroli",
+    NEEDS_HUMAN_REVIEW: "Pruefung erforderlich",
     PAID: "Bezahlt",
     PARTIALLY_PAID: "Teilweise bezahlt",
-    OVERDUE: "Po terminie",
+    OVERDUE: "Ueberfaellig",
     PENDING: "Ausstehend",
-    FAILED: "Nieudane",
+    FAILED: "Fehlgeschlagen",
     REFUNDED: "Erstattet",
   };
 
   const key = String(status || "").toUpperCase();
 
-  return labels[key] ?? status ?? "—";
+  return labels[key] ?? status ?? "-";
 }
 
 function customerName(customer: {
@@ -159,31 +167,80 @@ function customerAddress(customer: {
     .filter(Boolean)
     .join(", ");
 
-  return line || "—";
+  return line || "-";
+}
+
+function isOpenInvoiceStatus(status?: string | null) {
+  const normalized = String(status || "").toUpperCase();
+
+  return (
+    normalized === "SENT" ||
+    normalized === "PARTIALLY_PAID" ||
+    normalized === "OVERDUE"
+  );
+}
+
+function isInvoiceOverdue(invoice: {
+  status?: string | null;
+  dueDate?: Date | null;
+}) {
+  const status = String(invoice.status || "").toUpperCase();
+
+  if (status === "OVERDUE") {
+    return true;
+  }
+
+  if (!invoice.dueDate) {
+    return false;
+  }
+
+  return isOpenInvoiceStatus(status) && invoice.dueDate < new Date();
+}
+
+function buildMissingDataMailto({
+  email,
+  name,
+  missingItems,
+}: {
+  email: string;
+  name: string;
+  missingItems: CustomerMissingItem[];
+}) {
+  const missingText = missingItems
+    .filter((item) => item.isMissing)
+    .map((item) => `- ${item.title}`)
+    .join("\n");
+
+  const subject = "Fehlende Angaben fuer Ihre Anfrage";
+  const body = `Guten Tag ${name}
+
+vielen Dank fuer Ihre Anfrage.
+
+Damit wir sauber weiterarbeiten koennen, fehlen uns noch folgende Angaben:
+
+${missingText}
+
+Bitte senden Sie uns die fehlenden Informationen kurz per Antwort auf diese E-Mail.
+
+Freundliche Gruesse
+HEXA CLEAN`;
+
+  return `mailto:${email}?subject=${encodeURIComponent(
+    subject,
+  )}&body=${encodeURIComponent(body)}`;
 }
 
 function InfoCard({
   label,
   value,
-  tone = "default",
+  tone = "neutral",
 }: {
   label: string;
   value: unknown;
-  tone?: "default" | "cyan" | "green" | "amber" | "red";
+  tone?: "neutral" | "cyan" | "green" | "amber" | "red";
 }) {
-  const className =
-    tone === "cyan"
-      ? "border-cyan-400/25 bg-cyan-400/10 text-cyan-100"
-      : tone === "green"
-        ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100"
-        : tone === "amber"
-          ? "border-amber-400/25 bg-amber-400/10 text-amber-100"
-          : tone === "red"
-            ? "border-rose-400/25 bg-rose-400/10 text-rose-100"
-            : "border-white/10 bg-white/[0.03] text-white";
-
   return (
-    <div className={`rounded-3xl border p-5 ${className}`}>
+    <div className={`rounded-3xl border p-5 ${getToneClassName(tone)}`}>
       <p className="text-xs font-black uppercase tracking-[0.2em] opacity-60">
         {label}
       </p>
@@ -206,98 +263,215 @@ function ActionLink({
       ? "rounded-2xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/20"
       : "rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.07]";
 
+  if (href.startsWith("/")) {
+    return (
+      <Link href={href} className={className}>
+        {label}
+      </Link>
+    );
+  }
+
   return (
-    <Link href={href} className={className}>
+    <a href={href} className={className}>
       {label}
-    </Link>
+    </a>
   );
 }
 
-function DataTable({
+function MissingChecklist({
+  customerId,
+  customerEmail,
+  customerPhone,
+  customerNameValue,
+  items,
+  focus,
+}: {
+  customerId: string;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  customerNameValue: string;
+  items: CustomerMissingItem[];
+  focus: boolean;
+}) {
+  const missingItems = items.filter((item) => item.isMissing);
+  const mailtoHref =
+    customerEmail && missingItems.length > 0
+      ? buildMissingDataMailto({
+          email: customerEmail,
+          name: customerNameValue,
+          missingItems,
+        })
+      : null;
+
+  return (
+    <section
+      id="fehlende-daten"
+      className={`rounded-3xl border p-5 ${
+        focus
+          ? "border-cyan-300/50 bg-cyan-400/[0.08] ring-2 ring-cyan-300/30"
+          : "border-white/10 bg-white/[0.03]"
+      }`}
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300/70">
+            Aktions-Checkliste
+          </p>
+          <h2 className="mt-2 text-xl font-black text-white">
+            Fehlende Daten und naechste Schritte
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500">
+            Diese Checkliste gehoert nur zu diesem Kunden. Hier wird geklaert,
+            was fehlt und welche Aktion wirklich sinnvoll ist.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <ActionLink
+            href={`/dashboard/customers/${customerId}/edit`}
+            label="Daten manuell aktualisieren"
+            variant="primary"
+          />
+
+          {mailtoHref ? (
+            <ActionLink href={mailtoHref} label="E-Mail vorbereiten" />
+          ) : null}
+
+          {customerPhone ? (
+            <ActionLink href={`tel:${customerPhone}`} label="Anrufen" />
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        {items.map((item) => (
+          <article
+            key={item.key}
+            className={`rounded-2xl border p-4 ${
+              item.isMissing
+                ? getToneClassName(item.tone)
+                : "border-emerald-400/15 bg-emerald-400/[0.06] text-emerald-100"
+            }`}
+          >
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-black">
+                  {item.isMissing ? "Offen" : "OK"} · {item.title}
+                </p>
+                <p className="mt-1 text-sm leading-6 opacity-75">
+                  {item.description}
+                </p>
+              </div>
+
+              {item.isMissing ? (
+                <ActionLink href={item.actionHref} label={item.actionLabel} />
+              ) : (
+                <span className="w-fit rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black text-emerald-100">
+                  Erledigt
+                </span>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {missingItems.length === 0 ? (
+        <div className="mt-5 rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.06] p-4 text-sm font-bold text-emerald-100">
+          Kundenprofil ist ausreichend vollstaendig. Weitere Arbeit laeuft ueber
+          Auftrag, Kalkulation, Offerte oder Rechnung.
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function CustomerListSection({
+  id,
   title,
   description,
   items,
+  emptyLabel = "Keine Daten.",
 }: {
+  id?: string;
   title: string;
   description: string;
   items: TimelineItem[];
+  emptyLabel?: string;
 }) {
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+    <section
+      id={id}
+      className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-xl font-black text-white">{title}</h2>
           <p className="mt-1 text-sm text-zinc-500">{description}</p>
         </div>
 
-        <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-bold text-zinc-400">
+        <span className="w-fit rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-bold text-zinc-400">
           {items.length}
         </span>
       </div>
 
       {items.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-zinc-500">
-          Keine Daten.
+          {emptyLabel}
         </div>
       ) : (
-        <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
-          <table className="w-full min-w-[860px] text-left text-sm">
-            <thead className="bg-black/20 text-xs uppercase tracking-[0.2em] text-zinc-500">
-              <tr>
-                <th className="px-4 py-3">Name / numer</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Betrag</th>
-                <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3 text-right">Aktion</th>
-              </tr>
-            </thead>
+        <div className="mt-5 grid gap-3">
+          {items.map((item) => (
+            <article
+              key={`${item.id}-${item.href ?? item.title}`}
+              className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:bg-white/[0.035] md:grid-cols-[minmax(220px,1.5fr)_minmax(120px,0.7fr)_minmax(120px,0.7fr)_minmax(130px,0.7fr)_auto] md:items-center"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-black text-white">{item.title}</p>
+                <p className="mt-1 truncate text-xs text-zinc-500">
+                  {item.subtitle || "-"}
+                </p>
+              </div>
 
-            <tbody className="divide-y divide-white/10">
-              {items.map((item) => (
-                <tr key={`${item.id}-${item.href ?? item.title}`} className="transition hover:bg-white/[0.03]">
-                  <td className="px-4 py-3">
-                    <p className="font-bold text-white">{item.title}</p>
-                    <p className="mt-1 max-w-md truncate text-xs text-zinc-500">
-                      {item.subtitle || item.id}
-                    </p>
-                  </td>
+              <p className="text-sm font-semibold text-zinc-300">
+                {statusLabel(item.status)}
+              </p>
 
-                  <td className="px-4 py-3 text-zinc-300">
-                    {statusLabel(item.status)}
-                  </td>
+              <p className="text-sm font-semibold text-emerald-300">
+                {item.amount || "-"}
+              </p>
 
-                  <td className="px-4 py-3 font-semibold text-emerald-300">
-                    {item.amount || "—"}
-                  </td>
+              <p className="text-sm text-zinc-400">
+                {formatDate(item.createdAt)}
+              </p>
 
-                  <td className="px-4 py-3 text-zinc-400">
-                    {formatDate(item.createdAt)}
-                  </td>
-
-                  <td className="px-4 py-3 text-right">
-                    {item.href ? (
-                      <Link
-                        href={item.href}
-                        className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
-                      >
-                        Details
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-zinc-600">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              <div className="flex md:justify-end">
+                {item.href ? (
+                  <Link
+                    href={item.href}
+                    className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+                  >
+                    Oeffnen
+                  </Link>
+                ) : (
+                  <span className="text-xs text-zinc-600">-</span>
+                )}
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </section>
   );
 }
 
-export default async function CustomerDetailsPage({ params }: PageProps) {
+export default async function CustomerDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const focusMissingData = resolvedSearchParams.action === "missing-data";
+
   const prisma = getPrisma();
 
   const customer = await prisma.customer.findUnique({
@@ -375,6 +549,7 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
 
   const name = customerName(customer);
   const address = customerAddress(customer);
+
   const invoicesTotal = customer.invoices.reduce((sum, invoice) => {
     return sum + toNumber(invoice.total);
   }, 0);
@@ -382,6 +557,30 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
   const invoicesPaid = customer.invoices.reduce((sum, invoice) => {
     return sum + toNumber(invoice.paidAmount);
   }, 0);
+
+  const openInvoices = customer.invoices.filter((invoice) =>
+    isOpenInvoiceStatus(invoice.status),
+  ).length;
+
+  const overdueInvoices = customer.invoices.filter((invoice) =>
+    isInvoiceOverdue(invoice),
+  ).length;
+
+  const activeOrders = customer.orders.filter((order) => {
+    const status = String(order.status || "").toUpperCase();
+
+    return status !== "COMPLETED" && status !== "CANCELLED";
+  }).length;
+
+  const completedOrdersWithoutInvoice = customer.orders.filter((order) => {
+    const status = String(order.status || "").toUpperCase();
+
+    if (status !== "COMPLETED") {
+      return false;
+    }
+
+    return !customer.invoices.some((invoice) => invoice.orderId === order.id);
+  }).length;
 
   const payments = customer.invoices.flatMap((invoice) =>
     invoice.payments.map((payment) => ({
@@ -391,16 +590,69 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
     })),
   );
 
-  const paymentTotal = payments.reduce((sum, payment) => {
-    if (payment.status !== "PAID") return sum;
+  const estimatesNeedPhotos = customer.estimates.some(
+    (estimate) => estimate.status === "NEEDS_PHOTOS",
+  );
 
-    return sum + toNumber(payment.amount);
-  }, 0);
+  const estimatesNeedReview = customer.estimates.some(
+    (estimate) =>
+      estimate.status === "AI_REVIEW" ||
+      estimate.status === "NEEDS_HUMAN_REVIEW",
+  );
+
+  const estimatesReady = customer.estimates.some(
+    (estimate) => estimate.status === "READY_TO_SEND",
+  );
+
+  const quotesDraft = customer.quotes.filter(
+    (quote) => quote.status === "DRAFT",
+  ).length;
+
+  const quotesSent = customer.quotes.filter(
+    (quote) => quote.status === "SENT",
+  ).length;
+
+  const quotesAccepted = customer.quotes.filter(
+    (quote) => quote.status === "ACCEPTED",
+  ).length;
+
+  const nextAction = getCustomerDetailAction({
+    id: customer.id,
+    email: customer.email,
+    phone: customer.phone,
+    street: customer.street,
+    zipCode: customer.zipCode,
+    city: customer.city,
+    notes: customer.notes,
+    messagesCount: customer.messages.length,
+    estimatesNeedPhotos,
+    estimatesNeedReview,
+    estimatesReady,
+    quotesDraft,
+    quotesSent,
+    quotesAccepted,
+    openInvoices,
+    overdueInvoices,
+    activeOrders,
+    completedOrdersWithoutInvoice,
+  });
+
+  const missingItems = buildCustomerMissingItems({
+    id: customer.id,
+    email: customer.email,
+    phone: customer.phone,
+    street: customer.street,
+    zipCode: customer.zipCode,
+    city: customer.city,
+    notes: customer.notes,
+    messagesCount: customer.messages.length,
+    estimatesNeedPhotos,
+  });
 
   const orderItems: TimelineItem[] = customer.orders.map((order) => ({
     id: order.id,
     title: order.orderNumber,
-    subtitle: order.title || order.description || order.serviceType,
+    subtitle: order.title || order.description || order.serviceType || "Auftrag",
     status: order.status,
     amount:
       order.finalPrice || order.estimatedPrice
@@ -418,6 +670,16 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
     amount: formatMoney(estimate.total, estimate.currency),
     createdAt: estimate.createdAt,
     href: `/dashboard/estimates/${estimate.id}`,
+  }));
+
+  const quoteItems: TimelineItem[] = customer.quotes.map((quote) => ({
+    id: quote.id,
+    title: quote.quoteNumber,
+    subtitle: quote.notes || "Offerte",
+    status: quote.status,
+    amount: formatMoney(quote.total, quote.currency),
+    createdAt: quote.createdAt,
+    href: `/dashboard/quotes/${quote.id}`,
   }));
 
   const invoiceItems: TimelineItem[] = customer.invoices.map((invoice) => ({
@@ -440,9 +702,18 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
     href: `/dashboard/payments/${payment.id}`,
   }));
 
+  const attachmentItems: TimelineItem[] = customer.attachments.map((attachment) => ({
+    id: attachment.id,
+    title: attachment.fileName,
+    subtitle: attachment.type || attachment.url,
+    status: attachment.type,
+    createdAt: attachment.createdAt,
+    href: `/dashboard/attachments/${attachment.id}`,
+  }));
+
   const sessionItems: TimelineItem[] = customer.sessions.map((session) => ({
     id: session.id,
-    title: session.source || "Sesja",
+    title: session.source || "Kontaktquelle",
     subtitle: session.id,
     status: session.status,
     createdAt: session.createdAt,
@@ -458,23 +729,16 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
     href: null,
   }));
 
-  const notificationItems: TimelineItem[] = customer.notifications.map((notification) => ({
-    id: notification.id,
-    title: notification.subject || notification.recipient,
-    subtitle: notification.message,
-    status: notification.status,
-    createdAt: notification.createdAt,
-    href: `/dashboard/notifications/${notification.id}`,
-  }));
-
-  const attachmentItems: TimelineItem[] = customer.attachments.map((attachment) => ({
-    id: attachment.id,
-    title: attachment.fileName,
-    subtitle: attachment.url,
-    status: attachment.type,
-    createdAt: attachment.createdAt,
-    href: `/dashboard/attachments/${attachment.id}`,
-  }));
+  const notificationItems: TimelineItem[] = customer.notifications.map(
+    (notification) => ({
+      id: notification.id,
+      title: notification.subject || notification.recipient,
+      subtitle: notification.message,
+      status: notification.status,
+      createdAt: notification.createdAt,
+      href: `/dashboard/notifications/${notification.id}`,
+    }),
+  );
 
   const auditItems: TimelineItem[] = customer.auditLogs.map((log) => ({
     id: log.id,
@@ -487,142 +751,171 @@ export default async function CustomerDetailsPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-7xl flex-col gap-6">
+      <section className="mx-auto flex w-full max-w-none flex-col gap-5">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <Link
               href="/dashboard/customers"
               className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
             >
-              ← Zurück zu den Kunden
+              Zurueck zu den Kunden
             </Link>
 
             <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
-              HEXA OS CRM / Customers
+              HEXA OS CRM / Kunde
             </p>
 
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
+            <h1 className="mt-3 break-words text-3xl font-black tracking-tight text-white">
               {name}
             </h1>
 
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-              Kundendetails, Kontakt, Standort, Aufträge, Kalkulationen, Rechnungen,
-              Zahlungen und Systemhistorie.
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
+              Ein Kunde ist der zentrale Kontext. Arbeit selbst passiert im
+              passenden Modul: Kalkulation, Offerte, Auftrag, Rechnung oder
+              Zahlung.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <ActionLink href="/dashboard/customers" label="Kundenliste" />
             <ActionLink
-              href={`/dashboard/invoices?customerId=${customer.id}`}
-              label="Kundenrechnungen"
+              href={`/dashboard/customers/${customer.id}/edit`}
+              label="Kunde bearbeiten"
               variant="primary"
             />
-            <ActionLink
-              href={`/dashboard/orders?customerId=${customer.id}`}
-              label="Kundenaufträge"
-            />
+            <ActionLink href="/dashboard/customers" label="Kundenliste" />
           </div>
         </div>
 
+        <RecordActionPanel action={nextAction} />
+
+        <MissingChecklist
+          customerId={customer.id}
+          customerEmail={customer.email}
+          customerPhone={customer.phone}
+          customerNameValue={name}
+          items={missingItems}
+          focus={focusMissingData}
+        />
+
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <InfoCard label="Kundentyp" value={statusLabel(customer.type)} tone="cyan" />
-          <InfoCard label="Rechnungen" value={customer.invoices.length} />
-          <InfoCard label="Bezahlt" value={formatMoney(invoicesPaid, "CHF")} tone="green" />
-          <InfoCard label="Zahlungen" value={formatMoney(paymentTotal, "CHF")} tone="green" />
+          <InfoCard label="Aktive Auftraege" value={activeOrders} />
+          <InfoCard label="Offene Rechnungen" value={openInvoices} tone={openInvoices > 0 ? "amber" : "green"} />
+          <InfoCard label="Offen" value={formatMoney(Math.max(invoicesTotal - invoicesPaid, 0), "CHF")} tone={invoicesTotal - invoicesPaid > 0 ? "red" : "green"} />
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+        <section
+          id="kundendaten"
+          className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+        >
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-xl font-black text-white">Kundendaten</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Kontakt- und Adressdaten des Kunden.
+                Kontakt- und Adressdaten dieses Kunden.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <ActionLink href={`mailto:${customer.email ?? ""}`} label="Email" />
-              <ActionLink href={`tel:${customer.phone ?? ""}`} label="Telefon" />
+              {customer.email ? (
+                <ActionLink href={`mailto:${customer.email}`} label="E-Mail" />
+              ) : null}
+
+              {customer.phone ? (
+                <ActionLink href={`tel:${customer.phone}`} label="Telefon" />
+              ) : null}
+
+              <ActionLink
+                href={`/dashboard/customers/${customer.id}/edit`}
+                label="Bearbeiten"
+                variant="primary"
+              />
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <InfoCard label="ID" value={customer.id} />
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             <InfoCard label="Name" value={name} />
             <InfoCard label="Firma" value={customer.companyName} />
-            <InfoCard label="Person" value={[customer.firstName, customer.lastName].filter(Boolean).join(" ")} />
-            <InfoCard label="Email" value={customer.email} />
+            <InfoCard
+              label="Person"
+              value={[customer.firstName, customer.lastName].filter(Boolean).join(" ")}
+            />
+            <InfoCard label="E-Mail" value={customer.email} />
             <InfoCard label="Telefon" value={customer.phone} />
-            <InfoCard label="Adressese" value={address} />
+            <InfoCard label="Adresse" value={address} />
             <InfoCard label="Notizen" value={customer.notes} />
             <InfoCard label="Erstellt" value={customer.createdAt} />
-            <InfoCard label="Aktualisierung" value={customer.updatedAt} />
           </div>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="Aufträge" value={customer.orders.length} />
+          <InfoCard label="Auftraege" value={customer.orders.length} />
           <InfoCard label="Kalkulationen" value={customer.estimates.length} />
+          <InfoCard label="Offerten" value={customer.quotes.length} />
           <InfoCard label="Rechnungen total" value={formatMoney(invoicesTotal, "CHF")} tone="cyan" />
-          <InfoCard label="Offen" value={formatMoney(Math.max(invoicesTotal - invoicesPaid, 0), "CHF")} tone={invoicesTotal - invoicesPaid > 0 ? "red" : "green"} />
         </section>
 
-        <div className="grid gap-6">
-          <DataTable
-            title="Aufträge"
-            description="Letzte mit dem Kunden verknüpfte Aufträge."
-            items={orderItems}
-          />
+        <CustomerListSection
+          id="auftraege"
+          title="Auftraege dieses Kunden"
+          description="Nur Auftraege, die direkt mit diesem Kunden verbunden sind."
+          items={orderItems}
+        />
 
-          <DataTable
-            title="Kalkulationen"
-            description="Kalkulationen und Kostenangebote des Kunden."
-            items={estimateItems}
-          />
+        <CustomerListSection
+          id="kalkulationen"
+          title="Kalkulationen dieses Kunden"
+          description="Nur Kalkulationen, die direkt mit diesem Kunden verbunden sind. Bearbeitung passiert im Kalkulationsmodul."
+          items={estimateItems}
+        />
 
-          <DataTable
-            title="Rechnungen"
-            description="Für diesen Kunden ausgestellte Rechnungen."
-            items={invoiceItems}
-          />
+        <CustomerListSection
+          id="offerten"
+          title="Offerten dieses Kunden"
+          description="Nur Offerten und Angebotsstatus dieses Kunden. Versand, Link und Antwort passieren im Offertenmodul."
+          items={quoteItems}
+        />
 
-          <DataTable
-            title="Zahlungen"
-            description="Zahlungen aus Kundenrechnungen."
-            items={paymentItems}
-          />
+        <CustomerListSection
+          id="rechnungen"
+          title="Rechnungen dieses Kunden"
+          description="Nur Rechnungen, die fuer diesen Kunden erstellt wurden. Zahlung und Mahnung passieren im Rechnungsmodul."
+          items={invoiceItems}
+        />
 
-          <DataTable
-            title="Sesje"
-            description="Gesprächssitzungen und Kontaktquellen."
-            items={sessionItems}
-          />
+        <CustomerListSection
+          id="zahlungen"
+          title="Zahlungen dieses Kunden"
+          description="Nur Zahlungen aus Rechnungen dieses Kunden."
+          items={paymentItems}
+        />
 
-          <DataTable
-            title="Nachrichten"
-            description="Letzte Nachrichten aus Kundengesprächen."
-            items={messageItems}
-          />
+        <CustomerListSection
+          id="dateien"
+          title="Uploads und Dateien dieses Kunden"
+          description="Fotos, PDFs und Dokumente, die diesem Kunden zugeordnet sind."
+          items={attachmentItems}
+        />
 
-          <DataTable
-            title="Benachrichtigungen"
-            description="Historie der gesendeten oder ausstehenden Benachrichtigungen."
-            items={notificationItems}
-          />
+        <CustomerListSection
+          title="Kontaktverlauf"
+          description="Sessions, Nachrichten und Benachrichtigungen dieses Kunden."
+          items={[...sessionItems, ...messageItems, ...notificationItems]}
+        />
 
-          <DataTable
-            title="Anhänge"
-            description="Dokumente und Dateien des Kunden."
-            items={attachmentItems}
-          />
+        <details className="rounded-3xl border border-amber-400/15 bg-amber-400/[0.03] p-5">
+          <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.22em] text-amber-100">
+            System / Technik fuer diesen Kunden
+          </summary>
 
-          <DataTable
-            title="Audit logi"
-            description="Systemhistorie des Kunden."
-            items={auditItems}
-          />
-        </div>
+          <div className="mt-5">
+            <CustomerListSection
+              title="Audit Logs dieses Kunden"
+              description="Technische Historie nur fuer diesen Kundendatensatz."
+              items={auditItems}
+            />
+          </div>
+        </details>
       </section>
     </main>
   );

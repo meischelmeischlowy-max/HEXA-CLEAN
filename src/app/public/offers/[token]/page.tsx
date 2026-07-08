@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 
 import PublicOfferAcceptButton from "@/components/public/PublicOfferAcceptButton";
+import PublicOfferUploadBox from "@/components/public/PublicOfferUploadBox";
 import {
   createPublicOfferTokenHash,
   isPublicOfferLinkExpired,
@@ -593,6 +594,8 @@ export default async function PublicOfferPage({
                 </p>
               </section>
             ) : null}
+
+            {canDecide ? <PublicOfferUploadBox token={rawToken} /> : null}
           </div>
 
           <aside className="space-y-6">
@@ -633,7 +636,7 @@ export default async function PublicOfferPage({
               <PublicOfferAcceptButton
                 token={rawToken}
                 disabled={!canDecide}
-              acceptedAt={null}
+                acceptedAt={null}
               />
             ) : (
               <DecisionStatusBox

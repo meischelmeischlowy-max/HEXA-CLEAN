@@ -1,187 +1,255 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-type EstimateStatusActionsProps = {
-  estimateId: string;
-  currentStatus: string;
-};
-
-type StatusOption = {
-  value: string;
-  label: string;
-  description: string;
-};
-
-type WorkflowNotificationResult = {
-  created: boolean;
-  skipped: boolean;
-  reason: string | null;
-  notificationId: string | null;
-};
+type EstimateStatus =
+  | "DRAFT"
+  | "AI_REVIEW"
+  | "NEEDS_PHOTOS"
+  | "NEEDS_HUMAN_REVIEW"
+  | "READY_TO_SEND"
+  | "SENT"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "EXPIRED";
 
 type ApiResponse = {
-  layer?: string;
-  message?: string;
   data?: {
     status?: string;
     message?: string;
-    updated?: boolean;
-    created?: boolean;
-    notification?: WorkflowNotificationResult;
-    estimate?: {
-      id: string;
-      status: string;
-    } | null;
-    quote?: {
-      id: string;
-    } | null;
-    invoice?: {
-      id: string;
-    } | null;
+    currentStatus?: string;
+    requestedStatus?: string;
   };
+  message?: string;
 };
 
-const statusOptions: StatusOption[] = [
+const statuses: {
+  value: EstimateStatus;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "DRAFT",
+    label: "Entwurf",
+    description: "Interne Kalkulation ist noch nicht geprueft.",
+  },
+  {
+    value: "AI_REVIEW",
+    label: "AI-Pruefung",
+    description: "Automatisch vorbereitet, braucht Kontrolle.",
+  },
+  {
+    value: "NEEDS_PHOTOS",
+    label: "Fotos erforderlich",
+    description: "Kunde muss Fotos oder Uploads liefern.",
+  },
+  {
+    value: "NEEDS_HUMAN_REVIEW",
+    label: "Interne Pruefung",
+    description: "Inhaber / Operator muss freigeben.",
+  },
   {
     value: "READY_TO_SEND",
-    label: "Bereit zum Senden",
-    description: "Die Kalkulation ist geprüft und kann als Angebot vorbereitet werden.",
+    label: "Bereit fuer Offerte",
+    description: "Kalkulation ist freigegeben. Offerte vorbereiten.",
   },
   {
     value: "SENT",
     label: "Versendet",
-    description: "Das Angebot wurde an den Kunden gesendet.",
+    description: "Offerte / Nachricht wurde gesendet.",
   },
   {
     value: "ACCEPTED",
     label: "Akzeptiert",
-    description: "Der Kunde hat die Kalkulation akzeptiert.",
+    description: "Kunde hat zugesagt. Auftrag planen.",
   },
   {
     value: "REJECTED",
     label: "Abgelehnt",
-    description: "Der Kunde hat die Kalkulation abgelehnt.",
+    description: "Kunde hat abgelehnt.",
   },
   {
     value: "EXPIRED",
     label: "Abgelaufen",
-    description: "Die Kalkulation ist nicht mehr gültig.",
+    description: "Offerte ist nicht mehr gueltig.",
   },
 ];
 
-function notificationStatusText(notification: WorkflowNotificationResult | null) {
-  if (!notification) {
-    return null;
+function normalizeStatus(value?: string | null): EstimateStatus {
+  const normalized = String(value || "DRAFT").toUpperCase();
+
+  if (
+    normalized === "DRAFT" ||
+    normalized === "AI_REVIEW" ||
+    normalized === "NEEDS_PHOTOS" ||
+    normalized === "NEEDS_HUMAN_REVIEW" ||
+    normalized === "READY_TO_SEND" ||
+    normalized === "SENT" ||
+    normalized === "ACCEPTED" ||
+    normalized === "REJECTED" ||
+    normalized === "EXPIRED"
+  ) {
+    return normalized;
   }
 
-  if (notification.created) {
-    return "Kundenbenachrichtigung: vorbereitet und als ausstehend gespeichert.";
+  return "DRAFT";
+}
+
+function isFinalStatus(status: EstimateStatus) {
+  return status === "ACCEPTED" || status === "REJECTED" || status === "EXPIRED";
+}
+
+function canSelectStatus(current: EstimateStatus, next: EstimateStatus) {
+  if (current === next) return false;
+  if (isFinalStatus(current)) return false;
+
+  if (
+    next === "DRAFT" ||
+    next === "AI_REVIEW" ||
+    next === "NEEDS_PHOTOS" ||
+    next === "NEEDS_HUMAN_REVIEW"
+  ) {
+    return current !== "SENT";
   }
 
-  if (notification.reason === "pending_notification_already_exists") {
-    return "Kundenbenachrichtigung: bereits als ausstehend vorhanden.";
+  if (next === "READY_TO_SEND") {
+    return (
+      current === "DRAFT" ||
+      current === "AI_REVIEW" ||
+      current === "NEEDS_PHOTOS" ||
+      current === "NEEDS_HUMAN_REVIEW"
+    );
   }
 
-  if (notification.reason === "customer_contact_missing") {
-    return "Kundenbenachrichtigung: übersprungen, weil keine E-Mail oder Telefonnummer vorhanden ist.";
+  if (next === "SENT") return current === "READY_TO_SEND";
+
+  if (next === "ACCEPTED" || next === "REJECTED" || next === "EXPIRED") {
+    return current === "SENT";
   }
 
-  if (notification.reason === "status_already_set") {
-    return "Kundenbenachrichtigung: keine neue Aktion, der Status war bereits gesetzt.";
+  return false;
+}
+
+function processMessage(status: EstimateStatus) {
+  if (
+    status === "DRAFT" ||
+    status === "AI_REVIEW" ||
+    status === "NEEDS_PHOTOS" ||
+    status === "NEEDS_HUMAN_REVIEW"
+  ) {
+    return {
+      tone: "amber",
+      title: "Interne Pruefung offen",
+      message:
+        "Diese Kalkulation ist noch intern. Erst nach Kontrolle auf Bereit fuer Offerte setzen.",
+    };
   }
 
-  if (notification.reason === "not_ready_to_send_workflow") {
-    return null;
+  if (status === "READY_TO_SEND") {
+    return {
+      tone: "cyan",
+      title: "Offerte vorbereiten",
+      message:
+        "Die Kalkulation ist freigegeben. Jetzt Offerte erstellen/pruefen und danach senden.",
+    };
   }
 
-  if (notification.skipped) {
-    return "Kundenbenachrichtigung: übersprungen.";
+  if (status === "SENT") {
+    return {
+      tone: "cyan",
+      title: "Wartet auf Kundenantwort",
+      message:
+        "Der Vorgang ist als versendet markiert. Jetzt Antwort ueber E-Mail, Kundenlink, Chat oder Rueckfrage pruefen.",
+    };
   }
 
-  return null;
+  if (status === "ACCEPTED") {
+    return {
+      tone: "green",
+      title: "Kunde hat akzeptiert",
+      message:
+        "Naechster Schritt: Auftrag planen. Rechnung erst nach ausgefuehrter Leistung oder klarer Anzahlung.",
+    };
+  }
+
+  if (status === "REJECTED") {
+    return {
+      tone: "red",
+      title: "Kunde hat abgelehnt",
+      message:
+        "Fall dokumentieren, neue Version vorbereiten oder Vorgang abschliessen.",
+    };
+  }
+
+  return {
+    tone: "amber",
+    title: "Offerte abgelaufen",
+    message:
+      "Entscheiden: erneuern, neue Version vorbereiten oder Vorgang abschliessen.",
+  };
+}
+
+function messageClass(tone: string) {
+  if (tone === "green") {
+    return "border-emerald-300/20 bg-emerald-300/10 text-emerald-100";
+  }
+
+  if (tone === "red") {
+    return "border-red-300/20 bg-red-300/10 text-red-100";
+  }
+
+  if (tone === "cyan") {
+    return "border-cyan-300/20 bg-cyan-300/10 text-cyan-100";
+  }
+
+  return "border-amber-300/20 bg-amber-300/10 text-amber-100";
+}
+
+function statusButtonClass({
+  active,
+  disabled,
+}: {
+  active: boolean;
+  disabled: boolean;
+}) {
+  if (active) {
+    return "border-cyan-300/50 bg-cyan-300/15 text-cyan-50";
+  }
+
+  if (disabled) {
+    return "border-white/10 bg-white/[0.02] text-zinc-600";
+  }
+
+  return "border-white/10 bg-black/20 text-zinc-200 hover:border-cyan-300/40 hover:bg-cyan-300/10";
 }
 
 export default function EstimateStatusActions({
   estimateId,
   currentStatus,
-}: EstimateStatusActionsProps) {
+}: {
+  estimateId: string;
+  currentStatus?: string | null;
+}) {
   const router = useRouter();
-
-  const [isUpdating, setIsUpdating] = useState("");
-  const [isCreatingQuote, setIsCreatingQuote] = useState(false);
-  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const normalizedCurrentStatus = normalizeStatus(currentStatus);
+  const [pendingStatus, setPendingStatus] = useState<EstimateStatus | null>(
+    null,
+  );
   const [message, setMessage] = useState("");
-  const [notificationResult, setNotificationResult] =
-    useState<WorkflowNotificationResult | null>(null);
   const [error, setError] = useState("");
 
-  const canCreateQuote = ["READY_TO_SEND", "SENT", "ACCEPTED"].includes(
-    currentStatus,
+  const currentProcessMessage = useMemo(
+    () => processMessage(normalizedCurrentStatus),
+    [normalizedCurrentStatus],
   );
 
-  const canCreateInvoice = currentStatus === "ACCEPTED";
+  async function updateStatus(nextStatus: EstimateStatus) {
+    if (!canSelectStatus(normalizedCurrentStatus, nextStatus)) return;
 
-  const notificationText = notificationStatusText(notificationResult);
-
-  function canUseStatusAction(nextStatus: string) {
-    if (currentStatus === nextStatus) {
-      return false;
-    }
-
-    if (["ACCEPTED", "REJECTED", "EXPIRED"].includes(currentStatus)) {
-      return false;
-    }
-
-    if (nextStatus === "READY_TO_SEND") {
-      return [
-        "DRAFT",
-        "AI_REVIEW",
-        "NEEDS_PHOTOS",
-        "NEEDS_HUMAN_REVIEW",
-      ].includes(currentStatus);
-    }
-
-    if (nextStatus === "SENT") {
-      return currentStatus === "READY_TO_SEND";
-    }
-
-    if (nextStatus === "ACCEPTED" || nextStatus === "REJECTED") {
-      return currentStatus === "SENT";
-    }
-
-    if (nextStatus === "EXPIRED") {
-      return true;
-    }
-
-    return false;
-  }
-
-  async function parseApiResponse(response: Response) {
-    const rawText = await response.text();
-
-    if (!rawText.trim()) {
-      throw new Error(
-        `Die API hat eine leere Antwort zurückgegeben. HTTP-Status: ${response.status}`,
-      );
-    }
-
-    try {
-      return JSON.parse(rawText) as ApiResponse;
-    } catch {
-      throw new Error(
-        `Die API hat kein JSON zurückgegeben. HTTP-Status: ${
-          response.status
-        }. Antwort: ${rawText.slice(0, 300)}`,
-      );
-    }
-  }
-
-  async function updateStatus(nextStatus: string) {
-    setIsUpdating(nextStatus);
+    setPendingStatus(nextStatus);
     setMessage("");
-    setNotificationResult(null);
     setError("");
 
     try {
@@ -190,226 +258,163 @@ export default function EstimateStatusActions({
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "same-origin",
+        cache: "no-store",
         body: JSON.stringify({
           status: nextStatus,
         }),
       });
 
-      const data = await parseApiResponse(response);
+      const json = (await response.json()) as ApiResponse;
 
-      if (!response.ok || data.data?.status === "error") {
+      if (!response.ok) {
         throw new Error(
-          data.data?.message ??
-            data.message ??
-            "Der Status konnte nicht geändert werden.",
+          json.data?.message ??
+            json.message ??
+            "Der Status konnte nicht aktualisiert werden.",
         );
       }
 
-      setMessage(data.data?.message ?? "Der Status wurde geändert.");
-      setNotificationResult(data.data?.notification ?? null);
+      setMessage(
+        json.data?.message ??
+          `Status wurde auf ${nextStatus} aktualisiert.`,
+      );
+
       router.refresh();
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Unbekannter Fehler beim Ändern des Status.",
+          : "Unbekannter Fehler beim Statuswechsel.",
       );
     } finally {
-      setIsUpdating("");
-    }
-  }
-
-  async function createQuote() {
-    setIsCreatingQuote(true);
-    setMessage("");
-    setNotificationResult(null);
-    setError("");
-
-    try {
-      const response = await fetch(
-        `/api/dashboard/estimates/${estimateId}/quote`,
-        {
-          method: "POST",
-          credentials: "same-origin",
-        },
-      );
-
-      const data = await parseApiResponse(response);
-
-      if (!response.ok || data.data?.status === "error") {
-        throw new Error(
-          data.data?.message ??
-            data.message ??
-            "Das Angebot konnte nicht erstellt werden.",
-        );
-      }
-
-      const quoteId = data.data?.quote?.id;
-
-      if (!quoteId) {
-        throw new Error("Die API hat keine Angebots-ID zurückgegeben.");
-      }
-
-      router.push(`/dashboard/quotes/${quoteId}`);
-      router.refresh();
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Unbekannter Fehler beim Erstellen des Angebots.",
-      );
-    } finally {
-      setIsCreatingQuote(false);
-    }
-  }
-
-  async function createInvoice() {
-    setIsCreatingInvoice(true);
-    setMessage("");
-    setNotificationResult(null);
-    setError("");
-
-    try {
-      const response = await fetch(
-        `/api/dashboard/estimates/${estimateId}/invoice`,
-        {
-          method: "POST",
-          credentials: "same-origin",
-        },
-      );
-
-      const data = await parseApiResponse(response);
-
-      if (!response.ok || data.data?.status === "error") {
-        throw new Error(
-          data.data?.message ??
-            data.message ??
-            "Die Rechnung konnte nicht erstellt werden.",
-        );
-      }
-
-      const invoiceId = data.data?.invoice?.id;
-
-      if (!invoiceId) {
-        throw new Error("Die API hat keine Rechnungs-ID zurückgegeben.");
-      }
-
-      router.push(`/dashboard/invoices/${invoiceId}`);
-      router.refresh();
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Unbekannter Fehler beim Erstellen der Rechnung.",
-      );
-    } finally {
-      setIsCreatingInvoice(false);
+      setPendingStatus(null);
     }
   }
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Kalkulation Workflow</h2>
-          <p className="mt-2 text-sm text-neutral-400">
-            Der Status folgt dem echten Prozess: prüfen, freigeben, Angebot
-            erstellen, senden, akzeptieren und erst danach Rechnung erstellen.
+    <section
+      id="status-aktionen"
+      className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"
+    >
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">
+            Status und Freigabe
           </p>
-          <p className="mt-2 text-xs text-neutral-500">
-            Aktueller Status:{" "}
-            <span className="font-semibold">{currentStatus}</span>
+
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h2 className="text-xl font-black text-white">
+              Kalkulation Workflow
+            </h2>
+
+            <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-cyan-100">
+              {normalizedCurrentStatus}
+            </span>
+          </div>
+
+          <p className="mt-2 max-w-5xl text-sm leading-6 text-zinc-400">
+            Dieser Bereich steuert nur die interne Kalkulation. Offerte,
+            Auftrag, Rechnung und Zahlung bleiben eigene Prozessschritte.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={createQuote}
-            disabled={!canCreateQuote || isCreatingQuote || isCreatingInvoice}
-            className="rounded-2xl border border-cyan-300/30 bg-cyan-400/15 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-400/25 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-neutral-500"
-          >
-            {isCreatingQuote ? "Erstellen..." : "Angebot erstellen"}
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {normalizedCurrentStatus === "READY_TO_SEND" ? (
+            <Link
+              href={`/dashboard/estimates/${estimateId}/offer`}
+              className="rounded-2xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-3 text-center text-sm font-black text-cyan-100 transition hover:bg-cyan-300/25"
+            >
+              Offerte vorbereiten
+            </Link>
+          ) : null}
 
-          <button
-            type="button"
-            onClick={createInvoice}
-            disabled={!canCreateInvoice || isCreatingInvoice || isCreatingQuote}
-            className="rounded-2xl border border-emerald-300/30 bg-emerald-400/15 px-5 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-neutral-500"
+          {normalizedCurrentStatus === "SENT" ? (
+            <Link
+              href={`/dashboard/estimates/${estimateId}/offer`}
+              className="rounded-2xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-3 text-center text-sm font-black text-cyan-100 transition hover:bg-cyan-300/25"
+            >
+              Offerte / Versand pruefen
+            </Link>
+          ) : null}
+
+          {normalizedCurrentStatus === "ACCEPTED" ? (
+            <Link
+              href="/dashboard/orders"
+              className="rounded-2xl border border-emerald-300/30 bg-emerald-300/15 px-5 py-3 text-center text-sm font-black text-emerald-100 transition hover:bg-emerald-300/25"
+            >
+              Auftrag vorbereiten
+            </Link>
+          ) : null}
+
+          <Link
+            href="/dashboard/quotes"
+            className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-center text-sm font-bold text-zinc-200 transition hover:bg-white/10"
           >
-            {isCreatingInvoice ? "Erstellen..." : "Rechnung erstellen"}
-          </button>
+            Offerten oeffnen
+          </Link>
         </div>
       </div>
 
-      {!canCreateQuote ? (
-        <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Ein Angebot kann erst aus einer freigegebenen, versendeten oder
-          akzeptierten Kalkulation erstellt werden.
+      <div
+        className={`mt-4 rounded-2xl border p-4 text-sm font-bold ${messageClass(
+          currentProcessMessage.tone,
+        )}`}
+      >
+        <p className="font-black">{currentProcessMessage.title}</p>
+        <p className="mt-1 leading-6 opacity-80">
+          {currentProcessMessage.message}
+        </p>
+      </div>
+
+      {message ? (
+        <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm font-bold text-emerald-100">
+          {message}
         </div>
       ) : null}
 
-      {!canCreateInvoice ? (
-        <div className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Eine Rechnung kann erst aus einer akzeptierten Kalkulation erstellt
-          werden.
+      {error ? (
+        <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-300/10 p-4 text-sm font-bold text-red-100">
+          {error}
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        {statusOptions.map((option) => {
-          const isActive = currentStatus === option.value;
-          const isThisUpdating = isUpdating === option.value;
-          const isAllowed = canUseStatusAction(option.value);
+      <div className="mt-4 flex flex-wrap gap-2">
+        {statuses.map((status) => {
+          const isActive = normalizedCurrentStatus === status.value;
+          const isDisabled = !canSelectStatus(
+            normalizedCurrentStatus,
+            status.value,
+          );
+          const isPending = pendingStatus === status.value;
 
           return (
             <button
-              key={option.value}
+              key={status.value}
               type="button"
-              onClick={() => updateStatus(option.value)}
-              disabled={
-                isUpdating.length > 0 ||
-                isActive ||
-                isCreatingInvoice ||
-                isCreatingQuote ||
-                !isAllowed
-              }
-              className={`rounded-2xl border px-4 py-4 text-left transition disabled:cursor-not-allowed ${
-                isActive
-                  ? "border-cyan-300/50 bg-cyan-300/20 text-cyan-100"
-                  : isAllowed
-                    ? "border-white/10 bg-black/20 text-neutral-200 hover:border-cyan-300/30 hover:bg-cyan-300/10"
-                    : "border-white/5 bg-white/[0.02] text-neutral-600"
-              }`}
+              title={status.description}
+              onClick={() => updateStatus(status.value)}
+              disabled={isDisabled || Boolean(pendingStatus)}
+              className={`rounded-2xl border px-4 py-3 text-left text-sm font-black transition disabled:cursor-not-allowed ${statusButtonClass(
+                {
+                  active: isActive,
+                  disabled: isDisabled,
+                },
+              )}`}
             >
-              <span className="block text-sm font-black">{option.label}</span>
-              <span className="mt-2 block text-xs leading-5 text-neutral-400">
-                {isThisUpdating ? "Wird gespeichert..." : option.description}
+              <span>{status.label}</span>
+              <span className="ml-2 text-[10px] uppercase tracking-[0.14em] opacity-50">
+                {isPending
+                  ? "speichert"
+                  : isActive
+                    ? "aktiv"
+                    : isDisabled
+                      ? "gesperrt"
+                      : "setzen"}
               </span>
             </button>
           );
         })}
       </div>
-
-      {message ? (
-        <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-          <p>{message}</p>
-
-          {notificationText ? (
-            <p className="mt-2 text-xs text-emerald-200/80">
-              {notificationText}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-100">
-          {error}
-        </div>
-      ) : null}
     </section>
   );
 }
