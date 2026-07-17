@@ -65,11 +65,13 @@ export function RecordWorkspace({
         </div>
 
         <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">
-          Panel anklicken statt scrollen
+          6 Bereiche / 1 Panel offen
         </p>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">{children}</div>
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        {children}
+      </div>
     </section>
   );
 }
@@ -99,7 +101,8 @@ export function RecordWorkspacePanel({
     <details
       id={id}
       open={defaultOpen}
-      className={`group rounded-3xl border transition ${panelToneClass(tone)}`}
+      name="estimate-workspace"
+      className={`group rounded-3xl border transition open:col-span-full ${panelToneClass(tone)}`}
     >
       <summary className="cursor-pointer list-none p-5 outline-none">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

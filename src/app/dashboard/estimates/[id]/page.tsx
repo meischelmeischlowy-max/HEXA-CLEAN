@@ -339,11 +339,11 @@ function ReviewChecklist({
         Interne Pruefung vor Offerte
       </h3>
 
-      <div className="mt-5 grid gap-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {[...baseItems, statusItem].map((item, index) => (
           <div
             key={item}
-            className="flex gap-3 rounded-2xl border border-amber-300/15 bg-black/20 p-4 text-sm leading-6 text-amber-50"
+            className="flex gap-3 rounded-2xl border border-amber-300/15 bg-black/20 p-3 text-sm leading-5 text-amber-50"
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-300 text-xs font-black text-neutral-950">
               {index + 1}
@@ -645,8 +645,8 @@ export default async function DashboardEstimateDetailsPage({
 
             <p className="mt-2 max-w-5xl text-sm leading-6 text-zinc-400">
               Kurzer Entscheidungsbereich oben. Details liegen in Panels:
-              Anfrage, Kundendaten, Fotos, Preisberechnung, Kommunikation,
-              Verlauf und System.
+              Anfrage, Kunde, Preis, Kommunikation, Verlauf und System.
+              Immer nur ein Arbeitsbereich ist gleichzeitig geoeffnet.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -713,11 +713,12 @@ export default async function DashboardEstimateDetailsPage({
 
         <RecordWorkspace
           title="Kalkulation Workspace"
-          description="Nicht alles untereinander. Oeffne nur das Panel, das du fuer die naechste Entscheidung brauchst."
+          description="Sechs klare Arbeitsbereiche. Beim Oeffnen eines Panels wird das vorherige automatisch geschlossen."
         >
           <RecordWorkspacePanel
             id="anfrage"
             eyebrow="Lead / Anfrage"
+            defaultOpen
             title="Anfrage"
             description="Quelle, Wunschleistung, Kundentext und interne Kontrollliste."
             tone={leadTone}
@@ -727,6 +728,16 @@ export default async function DashboardEstimateDetailsPage({
                 <WorkspaceMetaPill
                   label={statusLabel(estimate.status)}
                   tone="neutral"
+                />
+                <WorkspaceMetaPill
+                  label={`${estimate.attachments.length} Fotos / Uploads`}
+                  tone={
+                    estimate.attachments.length > 0
+                      ? "green"
+                      : estimate.status === "NEEDS_PHOTOS"
+                        ? "amber"
+                        : "neutral"
+                  }
                 />
               </>
             }
@@ -877,14 +888,51 @@ export default async function DashboardEstimateDetailsPage({
                 ) : null}
               </div>
 
-              <ReviewChecklist leadType={reviewLeadType} status={estimate.status} />
+              <div className="space-y-5">
+                <ReviewChecklist
+                  leadType={reviewLeadType}
+                  status={estimate.status}
+                />
+
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">
+                        Fotos / Uploads
+                      </p>
+                      <h3 className="mt-2 text-xl font-black text-white">
+                        Nachweise zur Anfrage
+                      </h3>
+                    </div>
+
+                    <WorkspaceMetaPill
+                      label={`${estimate.attachments.length} vorhanden`}
+                      tone={
+                        estimate.attachments.length > 0
+                          ? "green"
+                          : estimate.status === "NEEDS_PHOTOS"
+                            ? "amber"
+                            : "neutral"
+                      }
+                    />
+                  </div>
+
+                  <p className="mt-3 text-sm leading-6 text-zinc-400">
+                    {estimate.attachments.length > 0
+                      ? "Uploads sind vorhanden und muessen vor der Preisfreigabe geprueft werden."
+                      : estimate.status === "NEEDS_PHOTOS"
+                        ? "Fotos fehlen. Kunde kontaktieren und Uploads anfordern."
+                        : "Keine Uploads vorhanden. Bei Preisunsicherheit Fotos anfordern."}
+                  </p>
+                </div>
+              </div>
             </div>
           </RecordWorkspacePanel>
 
           <RecordWorkspacePanel
             id="kundendaten"
             eyebrow="Kunde / Adresse"
-            title="Kundendaten"
+            title="Kunde"
             description="Kontakt, Adresse und Links zum Kundenprofil."
             tone="cyan"
             meta={
@@ -945,70 +993,9 @@ export default async function DashboardEstimateDetailsPage({
           </RecordWorkspacePanel>
 
           <RecordWorkspacePanel
-            id="fotos-uploads"
-            eyebrow="Dateien / Nachweise"
-            title="Fotos / Uploads"
-            description="Schneller Check, ob Fotos oder Anhaenge fuer die Preispruefung vorhanden sind."
-            tone={estimate.attachments.length > 0 ? "green" : "amber"}
-            count={estimate.attachments.length}
-            meta={
-              <>
-                <WorkspaceMetaPill
-                  label={`${estimate.attachments.length} Anhaenge`}
-                  tone={estimate.attachments.length > 0 ? "green" : "amber"}
-                />
-                <WorkspaceMetaPill
-                  label={
-                    estimate.status === "NEEDS_PHOTOS"
-                      ? "Fotos erforderlich"
-                      : "Kein Foto-Status"
-                  }
-                  tone={estimate.status === "NEEDS_PHOTOS" ? "amber" : "neutral"}
-                />
-              </>
-            }
-          >
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-              <h3 className="text-xl font-black text-white">
-                Upload-Pruefung
-              </h3>
-
-              {estimate.attachments.length === 0 ? (
-                <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  Keine Anhaenge gefunden. Wenn der Preis ohne Fotos unsicher
-                  ist, Status auf Fotos erforderlich setzen und Kunde um Uploads
-                  bitten.
-                </p>
-              ) : (
-                <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  Es sind Anhaenge vorhanden. Fotos in Dateien oder im
-                  zugeordneten Kunden-/Session-Kontext pruefen, bevor eine
-                  finale Offerte gesendet wird.
-                </p>
-              )}
-
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <InfoLine label="Anhaenge" value={estimate.attachments.length} />
-                <InfoLine
-                  label="Status"
-                  value={statusLabel(estimate.status)}
-                />
-                <InfoLine
-                  label="Naechste Aktion"
-                  value={
-                    estimate.status === "NEEDS_PHOTOS"
-                      ? "Fotos anfordern"
-                      : "Bei Bedarf pruefen"
-                  }
-                />
-              </div>
-            </div>
-          </RecordWorkspacePanel>
-
-          <RecordWorkspacePanel
             id="preisberechnung"
             eyebrow="Preis / Risiko"
-            title="Preisberechnung"
+            title="Preis"
             description="Positionen, Faktoren, AI-Spanne, Notizen und interne Summe."
             tone="green"
             count={estimate.items.length}
@@ -1347,7 +1334,7 @@ export default async function DashboardEstimateDetailsPage({
           <RecordWorkspacePanel
             id="system-technik"
             eyebrow="Debug / Technik"
-            title="System / Technik"
+            title="System"
             description="Technische Zaehlung fuer Uploads, Notifications und Logs. Nicht fuer taegliche Arbeit."
             tone="amber"
             meta={

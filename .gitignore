@@ -56,3 +56,9 @@ tools/verify-clean-state.cjs
 # Local route backups
 *.backup_clean_live_*
 .gitignore.backup_*
+
+# Local automatic source backups
+reports/backups/
+reports/backup-archives/
+reports/gitignore_before_*.bak
+reports/RAW_*.txt
