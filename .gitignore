@@ -41,3 +41,18 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+# Local AI/debug reports
+WYNIK_*.txt
+api.kay.txt
+# Local cleanup backups
+reports/cleanup-backups/
+# Local temporary maintenance scripts
+tools/check-quickoffer-live.cjs
+tools/clean-live-workspace.cjs
+tools/cleanup-demo-test-data.cjs
+tools/scan-demo-test-data.cjs
+tools/single-live-workspace.cjs
+tools/verify-clean-state.cjs
+# Local route backups
+*.backup_clean_live_*
+.gitignore.backup_*

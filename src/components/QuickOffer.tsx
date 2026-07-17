@@ -16,7 +16,7 @@ import {
 const services = [
   "Wohnung",
   "Haus",
-  "Büro",
+  "Buero",
   "Fenster",
   "Garten",
   "Kleine Reparaturen",
@@ -25,7 +25,7 @@ const services = [
 const extras = [
   "Fenster",
   "Backofen",
-  "Kühlschrank",
+  "Kuehlschrank",
   "Balkon",
   "Keller",
   "Garage",
@@ -40,6 +40,10 @@ type QuickOfferApiResponse = {
   message?: string;
   error?: string;
   emailSent?: boolean;
+  ownerEmailSent?: boolean;
+  customerEmailSent?: boolean;
+  customerEmailSkipped?: boolean;
+  customerEmailError?: string | null;
   crm?: {
     customerId?: string;
     sessionId?: string;
@@ -47,7 +51,8 @@ type QuickOfferApiResponse = {
     orderNumber?: string;
     estimateId?: string;
     estimateNumber?: string;
-    notificationId?: string;
+    ownerNotificationId?: string;
+    customerNotificationId?: string | null;
   };
 };
 
@@ -83,7 +88,7 @@ export default function QuickOffer() {
 
     if (service === "Wohnung") base = size * 2.6;
     if (service === "Haus") base = size * 3.1;
-    if (service === "Büro") base = size * 2.2;
+    if (service === "Buero") base = size * 2.2;
     if (service === "Fenster") base = 140;
     if (service === "Garten") base = 180;
     if (service === "Kleine Reparaturen") base = 120;
@@ -92,7 +97,7 @@ export default function QuickOffer() {
     const min = Math.round(base + extraPrice);
     const max = Math.round(min * 1.18);
 
-    return `CHF ${min}–${max}`;
+    return `CHF ${min}-${max}`;
   }, [service, size, selectedExtras]);
 
   useEffect(() => {
@@ -112,10 +117,10 @@ export default function QuickOffer() {
   function buildMessage() {
     return `Hallo HEXA CLEAN.
 
-Ich interessiere mich für eine Offerte.
+Ich interessiere mich fuer eine Offerte.
 
 Leistung: ${service}
-Grösse: ${size} m²
+Groesse: ${size} m2
 Zusatzleistungen: ${
       selectedExtras.length > 0 ? selectedExtras.join(", ") : "Keine"
     }
@@ -147,6 +152,7 @@ Kontakt: ${contact || "-"}`;
         headers: {
           "Content-Type": "application/json",
         },
+        cache: "no-store",
         body: JSON.stringify({
           name,
           contact,
@@ -165,39 +171,47 @@ Kontakt: ${contact || "-"}`;
       if (!response.ok || !data?.success) {
         setSentStatus("error");
         setStatusMessage(getErrorMessage(data));
-        return false;
+        return;
       }
 
       setCrmSummary(data.crm ?? null);
 
-      if (data.emailSent) {
+      if (data.ownerEmailSent && data.customerEmailSent) {
         setSentStatus("success");
         setStatusMessage(
-          "Anfrage wurde im CRM gespeichert. Die Benachrichtigung wurde gesendet. WhatsApp wurde geöffnet.",
+          "Anfrage wurde gespeichert. Sie erhalten eine E-Mail-Bestaetigung. HEXA CLEAN wurde automatisch informiert.",
         );
-      } else {
-        setSentStatus("partial");
-        setStatusMessage(
-          "Anfrage wurde im CRM gespeichert. Die E-Mail-Benachrichtigung muss später geprüft werden. WhatsApp wurde geöffnet.",
-        );
+        return;
       }
 
-      return true;
+      if (data.ownerEmailSent && data.customerEmailSkipped) {
+        setSentStatus("partial");
+        setStatusMessage(
+          "Anfrage wurde gespeichert. HEXA CLEAN wurde informiert. Fuer eine automatische Bestaetigung geben Sie bitte eine E-Mail-Adresse an.",
+        );
+        return;
+      }
+
+      if (data.ownerEmailSent || data.customerEmailSent) {
+        setSentStatus("partial");
+        setStatusMessage(
+          "Anfrage wurde gespeichert. Mindestens eine E-Mail-Benachrichtigung wurde gesendet. Details werden im CRM geprueft.",
+        );
+        return;
+      }
+
+      setSentStatus("partial");
+      setStatusMessage(
+        "Anfrage wurde im CRM gespeichert. E-Mail-Benachrichtigungen muessen im System geprueft werden.",
+      );
     } catch {
       setSentStatus("error");
       setStatusMessage(
         "Serverfehler. Die Anfrage konnte nicht im CRM gespeichert werden.",
       );
-
-      return false;
     } finally {
       setSending(false);
     }
-  }
-
-  async function handleSubmit() {
-    await sendQuickOfferToCrm();
-    sendWhatsApp();
   }
 
   const optionClass =
@@ -266,9 +280,9 @@ Kontakt: ${contact || "-"}`;
 
             <div className="mb-6 rounded-[20px] border border-white/10 bg-black/20 p-4">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-black">Grösse</h3>
+                <h3 className="text-lg font-black">Groesse</h3>
                 <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-sm font-black text-cyan-300">
-                  {size} m²
+                  {size} m2
                 </span>
               </div>
 
@@ -358,7 +372,7 @@ Kontakt: ${contact || "-"}`;
                     >
                       <div className="mb-3 flex items-center gap-2 text-sm text-cyan-300">
                         <ScanLine className="animate-pulse" size={19} />
-                        <span className="font-bold">Analyse läuft...</span>
+                        <span className="font-bold">Analyse laeuft...</span>
                       </div>
 
                       <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
@@ -390,7 +404,7 @@ Kontakt: ${contact || "-"}`;
               </div>
 
               <p className="mt-4 text-xs leading-5 text-slate-400">
-                Die finale Offerte erfolgt nach Prüfung der Angaben. Keine
+                Die finale Offerte erfolgt nach Pruefung der Angaben. Keine
                 automatische verbindliche Preiszusage.
               </p>
 
@@ -401,8 +415,8 @@ Kontakt: ${contact || "-"}`;
                 </div>
 
                 <div className="flex justify-between border-b border-white/10 pb-2">
-                  <span className="text-slate-400">Grösse</span>
-                  <span className="font-semibold">{size} m²</span>
+                  <span className="text-slate-400">Groesse</span>
+                  <span className="font-semibold">{size} m2</span>
                 </div>
 
                 <div className="flex justify-between border-b border-white/10 pb-2">
@@ -437,12 +451,12 @@ Kontakt: ${contact || "-"}`;
 
                 <button
                   type="button"
-                  onClick={handleSubmit}
+                  onClick={sendQuickOfferToCrm}
                   disabled={sending}
                   className="group relative mt-1 overflow-hidden rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-[#02101b] shadow-[0_0_30px_rgba(0,220,255,0.42)] transition hover:scale-[1.02] hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="relative">
-                    {sending ? "Wird gespeichert..." : "Anfrage senden →"}
+                    {sending ? "Wird gespeichert..." : "Anfrage senden"}
                   </span>
                 </button>
 
@@ -452,7 +466,7 @@ Kontakt: ${contact || "-"}`;
 
                     {crmSummary?.orderNumber || crmSummary?.estimateNumber ? (
                       <p className="mt-1 text-cyan-100/80">
-                        CRM: {crmSummary.orderNumber ?? "Order erstellt"} ·{" "}
+                        CRM: {crmSummary.orderNumber ?? "Order erstellt"} /{" "}
                         {crmSummary.estimateNumber ?? "Estimate erstellt"}
                       </p>
                     ) : null}
@@ -465,7 +479,7 @@ Kontakt: ${contact || "-"}`;
 
                     {crmSummary?.orderNumber || crmSummary?.estimateNumber ? (
                       <p className="mt-1 text-amber-50/80">
-                        CRM: {crmSummary.orderNumber ?? "Order erstellt"} ·{" "}
+                        CRM: {crmSummary.orderNumber ?? "Order erstellt"} /{" "}
                         {crmSummary.estimateNumber ?? "Estimate erstellt"}
                       </p>
                     ) : null}
@@ -478,16 +492,26 @@ Kontakt: ${contact || "-"}`;
                   </p>
                 )}
 
+                {sentStatus === "success" || sentStatus === "partial" ? (
+                  <button
+                    type="button"
+                    onClick={sendWhatsApp}
+                    className="rounded-xl border border-white/10 bg-black/30 px-5 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/10"
+                  >
+                    Optional zusaetzlich per WhatsApp senden
+                  </button>
+                ) : null}
+
                 <div className="mt-2 grid gap-1.5 text-xs text-slate-400">
                   <div className="flex items-center gap-2">
                     <Phone size={13} className="text-cyan-300" />
-                    Rückruf oder Kontakt nach Prüfung
+                    Rueckruf oder Kontakt nach Pruefung
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Mail size={13} className="text-cyan-300" />
-                    Anfrage wird im CRM gespeichert und mit Benachrichtigung
-                    verknüpft
+                    Anfrage wird im CRM gespeichert. Kunde und Inhaber werden
+                    automatisch informiert, wenn E-Mail moeglich ist.
                   </div>
                 </div>
               </div>

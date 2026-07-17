@@ -7,6 +7,7 @@ import {
   NotificationChannel,
   NotificationStatus,
   OrderStatus,
+  Prisma,
   PrismaClient,
   ServiceCatalogCategory,
   ServiceCatalogUnit,
@@ -31,7 +32,10 @@ const QUICK_OFFER_RATE_LIMIT = 10;
 const QUICK_OFFER_RATE_WINDOW_MS = 5 * 60 * 1000;
 
 const OWNER_NOTIFICATION_EMAIL =
-  process.env.HEXA_OWNER_EMAIL || "meischel.meischelowy@gmail.com";
+  process.env.HEXA_OWNER_EMAIL || "meischel23@wp.pl";
+
+const EMAIL_FROM =
+  process.env.HEXA_EMAIL_FROM || "HEXA CLEAN <onboarding@resend.dev>";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -68,6 +72,29 @@ type NormalizedQuickOffer = {
   clientPrice: string | null;
 };
 
+type CrmResult = {
+  customer: {
+    id: string;
+  };
+  session: {
+    id: string;
+  };
+  order: {
+    id: string;
+    orderNumber: string;
+  };
+  estimate: {
+    id: string;
+    estimateNumber: string;
+  };
+  ownerNotification: {
+    id: string;
+  };
+  customerNotification: {
+    id: string;
+  } | null;
+};
+
 function getPrisma() {
   if (!globalForPrisma.hexaPrisma) {
     const databaseUrl = process.env.DATABASE_URL;
@@ -92,23 +119,6 @@ function cleanText(value: unknown, maxLength = 500) {
   }
 
   const trimmed = value.replace(/\s+/g, " ").trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  return trimmed.slice(0, maxLength);
-}
-
-function cleanMultilineText(value: unknown, maxLength = 4000) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .trim();
 
   if (!trimmed) {
     return null;
@@ -204,9 +214,11 @@ function normalizeService(value: unknown) {
         unit: ServiceCatalogUnit.M2,
       };
 
+    case "Buero":
+    case "Buro":
     case "Büro":
       return {
-        service,
+        service: "Buero",
         serviceType: ServiceType.REINIGUNG,
         category: ServiceCatalogCategory.REINIGUNG,
         unit: ServiceCatalogUnit.M2,
@@ -256,7 +268,7 @@ function calculateQuickOfferPrice(
 
   if (service === "Wohnung") base = size * 2.6;
   if (service === "Haus") base = size * 3.1;
-  if (service === "Büro") base = size * 2.2;
+  if (service === "Buero") base = size * 2.2;
   if (service === "Fenster") base = 140;
   if (service === "Garten") base = 180;
   if (service === "Kleine Reparaturen") base = 120;
@@ -318,6 +330,14 @@ function getRequestBytes(request: NextRequest) {
   return contentLength;
 }
 
+function getAppUrl(request: NextRequest) {
+  return (
+    process.env.HEXA_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    request.nextUrl.origin
+  ).replace(/\/$/, "");
+}
+
 function buildPlainMessage(offer: NormalizedQuickOffer) {
   return [
     "Neue QuickOffer Anfrage von der Website.",
@@ -327,32 +347,50 @@ function buildPlainMessage(offer: NormalizedQuickOffer) {
     `E-Mail: ${offer.email ?? "-"}`,
     `Telefon: ${offer.phone ?? "-"}`,
     `Leistung: ${offer.service}`,
-    `Grösse: ${offer.size} m²`,
+    `Groesse: ${offer.size} m2`,
     `Zusatzleistungen: ${
       offer.selectedExtras.length > 0 ? offer.selectedExtras.join(", ") : "Keine"
     }`,
     `Termin: ${offer.time}`,
-    `Preisspanne Website: CHF ${offer.calculatedMinPrice}–${offer.calculatedMaxPrice}`,
+    `Preisspanne Website: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     `Client price payload: ${offer.clientPrice ?? "-"}`,
+    "",
+    "Status: Aktion erforderlich. Interne Pruefung vor finaler Offerte.",
   ].join("\n");
 }
 
-function buildOwnerEmailHtml(offer: NormalizedQuickOffer, crm: {
-  customerId: string;
-  sessionId: string;
-  orderId: string;
-  orderNumber: string;
-  estimateId: string;
-  estimateNumber: string;
-}) {
+function buildOwnerEmailHtml(
+  offer: NormalizedQuickOffer,
+  crm: {
+    customerId: string;
+    sessionId: string;
+    orderId: string;
+    orderNumber: string;
+    estimateId: string;
+    estimateNumber: string;
+  },
+  appUrl: string,
+) {
+  const estimateUrl = `${appUrl}/dashboard/estimates/${crm.estimateId}`;
+  const customerUrl = `${appUrl}/dashboard/customers/${crm.customerId}`;
+
   return `
-    <h2>Neue QuickOffer Anfrage von HEXA CLEAN</h2>
+    <h2>Neue QuickOffer Anfrage - Aktion erforderlich</h2>
+
+    <p><strong>Quelle:</strong> Schnell Offerte / QuickOffer</p>
+    <p><strong>Status:</strong> Interne Pruefung erforderlich</p>
+
+    <hr />
+
+    <h3>Kunde</h3>
     <p><strong>Name:</strong> ${escapeHtml(offer.name || "-")}</p>
     <p><strong>Kontakt:</strong> ${escapeHtml(offer.contact)}</p>
     <p><strong>E-Mail:</strong> ${escapeHtml(offer.email || "-")}</p>
     <p><strong>Telefon:</strong> ${escapeHtml(offer.phone || "-")}</p>
+
+    <h3>Anfrage</h3>
     <p><strong>Leistung:</strong> ${escapeHtml(offer.service)}</p>
-    <p><strong>Grösse:</strong> ${escapeHtml(String(offer.size))} m²</p>
+    <p><strong>Groesse:</strong> ${escapeHtml(String(offer.size))} m2</p>
     <p><strong>Zusatzleistungen:</strong> ${
       offer.selectedExtras.length > 0
         ? escapeHtml(offer.selectedExtras.join(", "))
@@ -361,7 +399,19 @@ function buildOwnerEmailHtml(offer: NormalizedQuickOffer, crm: {
     <p><strong>Termin:</strong> ${escapeHtml(offer.time)}</p>
     <p><strong>Orientierende Preisspanne:</strong> CHF ${escapeHtml(
       String(offer.calculatedMinPrice),
-    )}–${escapeHtml(String(offer.calculatedMaxPrice))}</p>
+    )}-${escapeHtml(String(offer.calculatedMaxPrice))}</p>
+
+    <hr />
+
+    <h3>Naechste Aktion</h3>
+    <p>Bitte Kalkulation pruefen: Umfang, Fotos, Adresse, Anfahrt, Material, Risiko, MwSt. und Preis. Erst danach finale Offerte senden.</p>
+
+    <p>
+      <a href="${escapeHtml(estimateUrl)}">Kalkulation im CRM oeffnen</a>
+    </p>
+    <p>
+      <a href="${escapeHtml(customerUrl)}">Kundenprofil oeffnen</a>
+    </p>
 
     <hr />
 
@@ -375,6 +425,58 @@ function buildOwnerEmailHtml(offer: NormalizedQuickOffer, crm: {
       crm.estimateNumber,
     )} / ${escapeHtml(crm.estimateId)}</p>
   `;
+}
+
+function buildCustomerEmailHtml(offer: NormalizedQuickOffer) {
+  return `
+    <h2>Ihre Anfrage bei HEXA CLEAN ist eingegangen</h2>
+
+    <p>Guten Tag${offer.name ? ` ${escapeHtml(offer.name)}` : ""}</p>
+
+    <p>Vielen Dank fuer Ihre Anfrage. Wir haben Ihre Angaben erhalten und im System gespeichert.</p>
+
+    <h3>Ihre Angaben</h3>
+    <p><strong>Leistung:</strong> ${escapeHtml(offer.service)}</p>
+    <p><strong>Groesse:</strong> ${escapeHtml(String(offer.size))} m2</p>
+    <p><strong>Zusatzleistungen:</strong> ${
+      offer.selectedExtras.length > 0
+        ? escapeHtml(offer.selectedExtras.join(", "))
+        : "Keine"
+    }</p>
+    <p><strong>Termin:</strong> ${escapeHtml(offer.time)}</p>
+    <p><strong>Orientierende Preisspanne:</strong> CHF ${escapeHtml(
+      String(offer.calculatedMinPrice),
+    )}-${escapeHtml(String(offer.calculatedMaxPrice))}</p>
+
+    <hr />
+
+    <p><strong>Wichtig:</strong> Das ist noch keine verbindliche finale Offerte.</p>
+
+    <p>Die genaue Offerte erfolgt nach Pruefung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details. Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.</p>
+
+    <p>Freundliche Gruesse<br />HEXA CLEAN</p>
+  `;
+}
+
+function buildCustomerEmailPlainText(offer: NormalizedQuickOffer) {
+  return [
+    "Ihre Anfrage bei HEXA CLEAN ist eingegangen.",
+    "",
+    `Leistung: ${offer.service}`,
+    `Groesse: ${offer.size} m2`,
+    `Zusatzleistungen: ${
+      offer.selectedExtras.length > 0 ? offer.selectedExtras.join(", ") : "Keine"
+    }`,
+    `Termin: ${offer.time}`,
+    `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
+    "",
+    "Wichtig: Das ist noch keine verbindliche finale Offerte.",
+    "Die genaue Offerte erfolgt nach Pruefung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details.",
+    "Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.",
+    "",
+    "Freundliche Gruesse",
+    "HEXA CLEAN",
+  ].join("\n");
 }
 
 function normalizeQuickOfferBody(body: QuickOfferBody): {
@@ -402,7 +504,7 @@ function normalizeQuickOfferBody(body: QuickOfferBody): {
   if (!email && !phone) {
     return {
       offer: null,
-      error: "Bitte geben Sie eine gültige Telefonnummer oder E-Mail-Adresse ein.",
+      error: "Bitte geben Sie eine gueltige Telefonnummer oder E-Mail-Adresse ein.",
     };
   }
 
@@ -434,7 +536,7 @@ function normalizeQuickOfferBody(body: QuickOfferBody): {
 }
 
 async function findOrCreateQuickOfferCustomer(
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
   offer: NormalizedQuickOffer,
 ) {
   if (offer.email) {
@@ -479,9 +581,49 @@ async function findOrCreateQuickOfferCustomer(
   });
 }
 
+async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}) {
+  if (!resend) {
+    return {
+      sent: false,
+      error: "RESEND_API_KEY is missing",
+    };
+  }
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: [to],
+    subject,
+    html,
+    text,
+  });
+
+  if (error) {
+    return {
+      sent: false,
+      error: JSON.stringify(error),
+    };
+  }
+
+  return {
+    sent: true,
+    error: null,
+  };
+}
+
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
   const requestBytes = getRequestBytes(request);
+  const appUrl = getAppUrl(request);
 
   const rateLimit = checkPublicRateLimit(request, {
     scope: "quick_offer_contact",
@@ -600,7 +742,7 @@ export async function POST(request: NextRequest) {
         : offer.calculatedMinPrice;
 
     const crmResult = await prisma.$transaction(async (tx) => {
-      const customer = await findOrCreateQuickOfferCustomer(tx as PrismaClient, offer);
+      const customer = await findOrCreateQuickOfferCustomer(tx, offer);
 
       const session = await tx.session.create({
         data: {
@@ -617,6 +759,7 @@ export async function POST(request: NextRequest) {
             calculatedMinPrice: offer.calculatedMinPrice,
             calculatedMaxPrice: offer.calculatedMaxPrice,
             clientPrice: offer.clientPrice,
+            actionRequired: true,
           },
         },
       });
@@ -632,6 +775,7 @@ export async function POST(request: NextRequest) {
             contact: offer.contact,
             email: offer.email,
             phone: offer.phone,
+            actionRequired: true,
           },
         },
       });
@@ -648,9 +792,9 @@ export async function POST(request: NextRequest) {
           estimatedPrice: money(offer.calculatedMinPrice),
           currency: "CHF",
           notesCustomer:
-            "Danke für Ihre Anfrage. Die finale Offerte erfolgt nach Prüfung der Angaben.",
+            "Danke fuer Ihre Anfrage. Die finale Offerte erfolgt nach Pruefung der Angaben.",
           notesInternal:
-            "Automatisch aus dem öffentlichen QuickOffer Formular erstellt.",
+            "Automatisch aus dem oeffentlichen QuickOffer Formular erstellt. Aktion erforderlich: Angaben pruefen, ggf. Fotos anfordern, finale Offerte erst nach Kontrolle senden.",
         },
       });
 
@@ -676,11 +820,11 @@ export async function POST(request: NextRequest) {
           aiMinTotal: money(offer.calculatedMinPrice),
           aiMaxTotal: money(offer.calculatedMaxPrice),
           aiNotes:
-            "Automatisch aus QuickOffer berechnete Orientierungsspanne. Vor Versand an den Kunden manuell prüfen.",
+            "Automatisch aus QuickOffer berechnete Orientierungsspanne. Vor Versand an den Kunden manuell pruefen.",
           notesCustomer:
-            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Prüfung durch HEXA CLEAN.",
+            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Pruefung durch HEXA CLEAN.",
           notesInternal:
-            "Public QuickOffer lead. Prüfen, ggf. Fotos/Details anfordern, dann Angebot freigeben.",
+            "Public QuickOffer lead. Aktion erforderlich: Daten, Fotos, Adresse, Anfahrt, Material, Risiko und Preis pruefen.",
           items: {
             create: [
               {
@@ -688,7 +832,7 @@ export async function POST(request: NextRequest) {
                 description:
                   offer.selectedExtras.length > 0
                     ? `Zusatzleistungen: ${offer.selectedExtras.join(", ")}`
-                    : "Keine Zusatzleistungen ausgewählt.",
+                    : "Keine Zusatzleistungen ausgewaehlt.",
                 category: offer.category,
                 unit: offer.unit,
                 quantity:
@@ -706,6 +850,7 @@ export async function POST(request: NextRequest) {
                   source: "quick_offer",
                   selectedExtras: offer.selectedExtras,
                   calculatedMaxPrice: offer.calculatedMaxPrice,
+                  actionRequired: true,
                 },
               },
             ],
@@ -713,7 +858,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const notification = await tx.notification.create({
+      const ownerNotification = await tx.notification.create({
         data: {
           customerId: customer.id,
           orderId: order.id,
@@ -722,10 +867,12 @@ export async function POST(request: NextRequest) {
           channel: NotificationChannel.EMAIL,
           status: NotificationStatus.PENDING,
           recipient: OWNER_NOTIFICATION_EMAIL,
-          subject: "Neue QuickOffer Anfrage von HEXA CLEAN",
+          subject: "Neue QuickOffer Anfrage - Aktion erforderlich",
           message: plainMessage,
           metadata: {
             source: "quick_offer",
+            type: "owner_action_required",
+            actionRequired: true,
             customerId: customer.id,
             orderId: order.id,
             estimateId: estimate.id,
@@ -737,6 +884,29 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
+      const customerNotification = offer.email
+        ? await tx.notification.create({
+            data: {
+              customerId: customer.id,
+              orderId: order.id,
+              estimateId: estimate.id,
+              sessionId: session.id,
+              channel: NotificationChannel.EMAIL,
+              status: NotificationStatus.PENDING,
+              recipient: offer.email,
+              subject: "Ihre Anfrage bei HEXA CLEAN ist eingegangen",
+              message: buildCustomerEmailPlainText(offer),
+              metadata: {
+                source: "quick_offer",
+                type: "customer_auto_confirmation",
+                estimateId: estimate.id,
+                sessionId: session.id,
+                actionRequired: false,
+              },
+            },
+          })
+        : null;
 
       await tx.auditLog.createMany({
         data: [
@@ -775,10 +945,28 @@ export async function POST(request: NextRequest) {
             entityType: "Estimate",
             entityId: estimate.id,
             actorType: "public_quick_offer",
-            message: `Estimate ${estimate.estimateNumber} created from QuickOffer.`,
+            message: `Estimate ${estimate.estimateNumber} created from QuickOffer. Aktion erforderlich.`,
             metadata: {
               source: "quick_offer",
               status: EstimateStatus.AI_REVIEW,
+              actionRequired: true,
+            },
+          },
+          {
+            customerId: customer.id,
+            orderId: order.id,
+            sessionId: session.id,
+            estimateId: estimate.id,
+            action: AuditAction.SYSTEM,
+            entityType: "Notification",
+            entityId: ownerNotification.id,
+            actorType: "communication_automation",
+            message:
+              "Owner notification queued for QuickOffer lead. Aktion erforderlich.",
+            metadata: {
+              source: "quick_offer",
+              notificationId: ownerNotification.id,
+              recipient: OWNER_NOTIFICATION_EMAIL,
             },
           },
         ],
@@ -789,49 +977,71 @@ export async function POST(request: NextRequest) {
         session,
         order,
         estimate,
-        notification,
-      };
+        ownerNotification,
+        customerNotification,
+      } satisfies CrmResult;
     });
 
-    const emailHtml = buildOwnerEmailHtml(offer, {
-      customerId: crmResult.customer.id,
-      sessionId: crmResult.session.id,
-      orderId: crmResult.order.id,
-      orderNumber: crmResult.order.orderNumber,
-      estimateId: crmResult.estimate.id,
-      estimateNumber: crmResult.estimate.estimateNumber,
+    const ownerEmailHtml = buildOwnerEmailHtml(
+      offer,
+      {
+        customerId: crmResult.customer.id,
+        sessionId: crmResult.session.id,
+        orderId: crmResult.order.id,
+        orderNumber: crmResult.order.orderNumber,
+        estimateId: crmResult.estimate.id,
+        estimateNumber: crmResult.estimate.estimateNumber,
+      },
+      appUrl,
+    );
+
+    const ownerEmail = await sendEmail({
+      to: OWNER_NOTIFICATION_EMAIL,
+      subject: "Neue QuickOffer Anfrage - Aktion erforderlich",
+      html: ownerEmailHtml,
+      text: plainMessage,
     });
-
-    let emailSent = false;
-    let emailError: string | null = null;
-
-    if (resend) {
-      const { error: resendError } = await resend.emails.send({
-        from: "HEXA CLEAN <onboarding@resend.dev>",
-        to: [OWNER_NOTIFICATION_EMAIL],
-        subject: "Neue QuickOffer Anfrage von HEXA CLEAN",
-        html: emailHtml,
-      });
-
-      if (resendError) {
-        emailError = JSON.stringify(resendError);
-      } else {
-        emailSent = true;
-      }
-    } else {
-      emailError = "RESEND_API_KEY is missing";
-    }
 
     await prisma.notification.update({
       where: {
-        id: crmResult.notification.id,
+        id: crmResult.ownerNotification.id,
       },
       data: {
-        status: emailSent ? NotificationStatus.SENT : NotificationStatus.FAILED,
-        sentAt: emailSent ? new Date() : null,
-        errorMessage: emailError,
+        status: ownerEmail.sent
+          ? NotificationStatus.SENT
+          : NotificationStatus.FAILED,
+        sentAt: ownerEmail.sent ? new Date() : null,
+        errorMessage: ownerEmail.error,
       },
     });
+
+    let customerEmailSent = false;
+    let customerEmailError: string | null = null;
+
+    if (offer.email && crmResult.customerNotification) {
+      const customerEmail = await sendEmail({
+        to: offer.email,
+        subject: "Ihre Anfrage bei HEXA CLEAN ist eingegangen",
+        html: buildCustomerEmailHtml(offer),
+        text: buildCustomerEmailPlainText(offer),
+      });
+
+      customerEmailSent = customerEmail.sent;
+      customerEmailError = customerEmail.error;
+
+      await prisma.notification.update({
+        where: {
+          id: crmResult.customerNotification.id,
+        },
+        data: {
+          status: customerEmail.sent
+            ? NotificationStatus.SENT
+            : NotificationStatus.FAILED,
+          sentAt: customerEmail.sent ? new Date() : null,
+          errorMessage: customerEmail.error,
+        },
+      });
+    }
 
     logPublicAccessEvent(request, {
       scope: "quick_offer_contact",
@@ -841,7 +1051,8 @@ export async function POST(request: NextRequest) {
       requestBytes,
       responseMs: Date.now() - startedAt,
       extra: {
-        emailSent,
+        ownerEmailSent: ownerEmail.sent,
+        customerEmailSent,
         hasEmail: Boolean(offer.email),
         hasPhone: Boolean(offer.phone),
         service: offer.service,
@@ -854,7 +1065,11 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         message: "QuickOffer Anfrage wurde im CRM gespeichert.",
-        emailSent,
+        emailSent: ownerEmail.sent || customerEmailSent,
+        ownerEmailSent: ownerEmail.sent,
+        customerEmailSent,
+        customerEmailSkipped: !offer.email,
+        customerEmailError,
         crm: {
           customerId: crmResult.customer.id,
           sessionId: crmResult.session.id,
@@ -862,7 +1077,8 @@ export async function POST(request: NextRequest) {
           orderNumber: crmResult.order.orderNumber,
           estimateId: crmResult.estimate.id,
           estimateNumber: crmResult.estimate.estimateNumber,
-          notificationId: crmResult.notification.id,
+          ownerNotificationId: crmResult.ownerNotification.id,
+          customerNotificationId: crmResult.customerNotification?.id ?? null,
         },
       },
       {
@@ -902,7 +1118,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error:
-          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
+          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es spaeter erneut.",
       },
       {
         status: 500,
