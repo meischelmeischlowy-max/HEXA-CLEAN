@@ -1,58 +1,128 @@
+import {
+  createHash,
+  timingSafeEqual,
+} from "node:crypto";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 const DASHBOARD_COOKIE_NAME = "hexa_dashboard_auth";
+const MAX_PASSWORD_LENGTH = 256;
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+
+function noStoreHeaders() {
+  return {
+    "Cache-Control": "no-store, max-age=0",
+    Pragma: "no-cache",
+  };
+}
+
+function secureTextEqual(left: string, right: string) {
+  const leftHash = createHash("sha256")
+    .update(left, "utf8")
+    .digest();
+
+  const rightHash = createHash("sha256")
+    .update(right, "utf8")
+    .digest();
+
+  return timingSafeEqual(leftHash, rightHash);
+}
+
+function invalidCredentialsResponse() {
+  return NextResponse.json(
+    {
+      layer: "dashboard-auth",
+      message: "Ungueltige Anmeldedaten.",
+      authenticated: false,
+    },
+    {
+      status: 401,
+      headers: noStoreHeaders(),
+    },
+  );
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const password = body.password;
-
     const dashboardPassword = process.env.DASHBOARD_PASSWORD;
     const dashboardToken = process.env.DASHBOARD_AUTH_TOKEN;
 
     if (!dashboardPassword || !dashboardToken) {
+      console.error(
+        "Dashboard authentication environment variables are missing.",
+      );
+
       return NextResponse.json(
         {
           layer: "dashboard-auth",
-          message: "Dashboard auth is not configured",
+          message: "Dashboard-Anmeldung ist nicht konfiguriert.",
+          authenticated: false,
         },
-        { status: 500 }
-      );
-    }
-
-    if (!password || password !== dashboardPassword) {
-      return NextResponse.json(
         {
-          layer: "dashboard-auth",
-          message: "Invalid password",
+          status: 503,
+          headers: noStoreHeaders(),
         },
-        { status: 401 }
       );
     }
 
-    const response = NextResponse.json({
-      layer: "dashboard-auth",
-      message: "Dashboard login works",
-      authenticated: true,
-    });
+    const body = await request.json().catch(() => null);
 
-    response.cookies.set(DASHBOARD_COOKIE_NAME, dashboardToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 12,
-    });
+    const password =
+      body &&
+      typeof body === "object" &&
+      "password" in body &&
+      typeof body.password === "string"
+        ? body.password
+        : "";
+
+    if (
+      password.length === 0 ||
+      password.length > MAX_PASSWORD_LENGTH ||
+      !secureTextEqual(
+        password,
+        dashboardPassword,
+      )
+    ) {
+      return invalidCredentialsResponse();
+    }
+
+    const response = NextResponse.json(
+      {
+        layer: "dashboard-auth",
+        message: "Dashboard-Anmeldung erfolgreich.",
+        authenticated: true,
+      },
+      {
+        headers: noStoreHeaders(),
+      },
+    );
+
+    response.cookies.set(
+      DASHBOARD_COOKIE_NAME,
+      dashboardToken,
+      {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: SESSION_MAX_AGE_SECONDS,
+      },
+    );
 
     return response;
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         layer: "dashboard-auth",
-        message: "Dashboard login failed",
-        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Dashboard-Anmeldung fehlgeschlagen.",
+        authenticated: false,
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: noStoreHeaders(),
+      },
     );
   }
 }
