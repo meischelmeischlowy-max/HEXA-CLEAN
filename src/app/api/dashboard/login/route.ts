@@ -11,6 +11,13 @@ import {
   DASHBOARD_COOKIE_NAME,
   DASHBOARD_SESSION_MAX_AGE_SECONDS,
 } from "@/lib/dashboard-auth";
+import {
+  createDashboardLoginRateLimitResponse,
+  inspectDashboardLoginAttempt,
+  recordDashboardLoginInvalid,
+  recordDashboardLoginRateLimited,
+  recordDashboardLoginSuccess,
+} from "@/lib/dashboard-login-security";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -89,6 +96,15 @@ export async function POST(
       );
     }
 
+    const guard = await inspectDashboardLoginAttempt(request);
+
+    if (guard.blocked) {
+      await recordDashboardLoginRateLimited(request, guard);
+      return createDashboardLoginRateLimitResponse(
+        guard.retryAfterSeconds,
+      );
+    }
+
     const body = await request
       .json()
       .catch(() => null);
@@ -110,8 +126,27 @@ export async function POST(
         dashboardPassword,
       )
     ) {
+      const invalid = await recordDashboardLoginInvalid(
+        request,
+        guard,
+      );
+
+      if (invalid.limitReached) {
+        await recordDashboardLoginRateLimited(
+          request,
+          guard,
+          invalid.failureCount,
+        );
+
+        return createDashboardLoginRateLimitResponse(
+          guard.retryAfterSeconds,
+        );
+      }
+
       return invalidCredentialsResponse();
     }
+
+    await recordDashboardLoginSuccess(request);
 
     const sessionToken =
       await createDashboardSessionToken(
@@ -146,7 +181,9 @@ export async function POST(
     );
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error("[DASHBOARD_LOGIN_FAILED]", error);
+
     return NextResponse.json(
       {
         layer: "dashboard-auth",

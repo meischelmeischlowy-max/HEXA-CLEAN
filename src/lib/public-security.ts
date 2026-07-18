@@ -47,6 +47,7 @@ type PublicAccessLogEvent = {
 type UnsafePublicSecurityPrisma = {
   publicSecurityEvent?: {
     create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+    count: (args: { where: Record<string, unknown> }) => Promise<number>;
   };
   publicAccessLog?: {
     create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
@@ -60,6 +61,7 @@ const MAX_PATH_LENGTH = 500;
 
 const PUBLIC_SECURITY_HASH_SECRET =
   process.env.HEXA_PUBLIC_SECURITY_SECRET ||
+  process.env.DASHBOARD_AUTH_TOKEN ||
   process.env.AUTH_SECRET ||
   process.env.NEXTAUTH_SECRET ||
   null;
@@ -441,6 +443,36 @@ async function persistPublicAccessLog(payload: {
   }
 }
 
+
+export async function countRecentPublicSecurityEvents(options: {
+  scope: string;
+  reason: string;
+  fingerprintHash: string;
+  since: Date;
+}) {
+  const prisma = getUnsafePublicSecurityPrisma();
+
+  if (!prisma?.publicSecurityEvent?.count) {
+    return null;
+  }
+
+  try {
+    return await prisma.publicSecurityEvent.count({
+      where: {
+        scope: safeScope(options.scope),
+        reason: safeText(options.reason, 160) ?? "unknown",
+        fingerprintHash: options.fingerprintHash,
+        createdAt: {
+          gte: options.since,
+        },
+      },
+    });
+  } catch (error) {
+    console.warn("[HEXA_PUBLIC_SECURITY_COUNT_DB_FAILED]", error);
+    return null;
+  }
+}
+
 export function logPublicSecurityEvent(request: NextRequest, event: PublicSecurityEvent) {
   const payload = {
     scope: safeScope(event.scope),
@@ -458,7 +490,7 @@ export function logPublicSecurityEvent(request: NextRequest, event: PublicSecuri
 
   console.warn("[HEXA_PUBLIC_SECURITY_EVENT]", JSON.stringify(payload));
 
-  void persistPublicSecurityEvent({
+  return persistPublicSecurityEvent({
     scope: payload.scope,
     reason: payload.reason,
     severity: payload.severity,
