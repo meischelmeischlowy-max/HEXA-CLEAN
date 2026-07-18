@@ -3,6 +3,7 @@ import { QuoteStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { dashboardRepository } from "@/repositories/dashboardRepository";
+import { canCreateInvoiceFromQuote } from "@/lib/public-offer-workflow";
 
 export async function POST(
   _request: Request,
@@ -33,7 +34,7 @@ export async function POST(
       );
     }
 
-    if (quote.status !== QuoteStatus.ACCEPTED) {
+    if (!canCreateInvoiceFromQuote(quote.status)) {
       return NextResponse.json(
         {
           status: "CONFLICT",

@@ -7,6 +7,13 @@ import {
   normalizePublicOfferToken,
 } from "@/lib/public-offer-links";
 import {
+  canRejectPublicOffer,
+  isPublicOfferAlreadyRejected,
+  isPublicOfferExpiredStatus,
+  isPublicOfferRejectionLocked,
+  normalizePublicOfferDecisionConfirmation,
+} from "@/lib/public-offer-workflow";
+import {
   checkPublicRateLimit,
   createPublicRateLimitResponse,
   createSafePublicGoneResponse,
@@ -96,15 +103,6 @@ async function readJsonObject(
   }
 }
 
-function normalizeRejectionValue(value: unknown): boolean {
-  return (
-    value === true ||
-    value === "true" ||
-    value === "yes" ||
-    value === "rejected"
-  );
-}
-
 function serializeCustomerName(customer: {
   type: "PRIVATE" | "COMPANY";
   firstName: string | null;
@@ -165,7 +163,7 @@ export async function POST(
     }
 
     const body = await readJsonObject(request);
-    const confirmRejection = normalizeRejectionValue(body.confirmRejection);
+    const confirmRejection = normalizePublicOfferDecisionConfirmation(body.confirmRejection, "reject");
 
     if (!confirmRejection) {
       logPublicSecurityEvent(request, {
@@ -235,7 +233,7 @@ export async function POST(
       return createSafePublicNotFoundResponse();
     }
 
-    if (link.acceptedAt || link.quote.status === QuoteStatus.ACCEPTED) {
+    if (isPublicOfferRejectionLocked(link.quote.status, link.acceptedAt)) {
       logPublicSecurityEvent(request, {
         scope: "public_offer_reject",
         reason: "accepted_offer_reject_attempt",
@@ -307,7 +305,7 @@ export async function POST(
       );
     }
 
-    if (link.quote.status === QuoteStatus.REJECTED) {
+    if (isPublicOfferAlreadyRejected(link.quote.status)) {
       return jsonSuccess(
         {
           ok: true,
@@ -324,13 +322,13 @@ export async function POST(
       );
     }
 
-    if (link.quote.status === QuoteStatus.EXPIRED) {
+    if (isPublicOfferExpiredStatus(link.quote.status)) {
       return createSafePublicGoneResponse(
         "Diese Offerte ist nicht mehr verfügbar.",
       );
     }
 
-    if (link.quote.status !== QuoteStatus.SENT) {
+    if (!canRejectPublicOffer(link.quote.status)) {
       logPublicSecurityEvent(request, {
         scope: "public_offer_reject",
         reason: "quote_not_rejectable",

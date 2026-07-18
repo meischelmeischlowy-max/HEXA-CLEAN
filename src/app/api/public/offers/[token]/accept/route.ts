@@ -7,6 +7,12 @@ import {
   normalizePublicOfferToken,
 } from "@/lib/public-offer-links";
 import {
+  canAcceptPublicOffer,
+  isPublicOfferAlreadyAccepted,
+  isPublicOfferInactiveForAcceptance,
+  normalizePublicOfferDecisionConfirmation,
+} from "@/lib/public-offer-workflow";
+import {
   checkPublicRateLimit,
   createPublicRateLimitResponse,
   createSafePublicGoneResponse,
@@ -96,15 +102,6 @@ async function readJsonObject(
   }
 }
 
-function normalizeAcceptanceValue(value: unknown): boolean {
-  return (
-    value === true ||
-    value === "true" ||
-    value === "yes" ||
-    value === "accepted"
-  );
-}
-
 function serializeCustomerName(customer: {
   type: "PRIVATE" | "COMPANY";
   firstName: string | null;
@@ -165,7 +162,7 @@ export async function POST(
     }
 
     const body = await readJsonObject(request);
-    const confirmAcceptance = normalizeAcceptanceValue(body.confirmAcceptance);
+    const confirmAcceptance = normalizePublicOfferDecisionConfirmation(body.confirmAcceptance, "accept");
 
     if (!confirmAcceptance) {
       logPublicSecurityEvent(request, {
@@ -285,8 +282,7 @@ export async function POST(
     }
 
     if (
-      link.quote.status === QuoteStatus.REJECTED ||
-      link.quote.status === QuoteStatus.EXPIRED
+      isPublicOfferInactiveForAcceptance(link.quote.status)
     ) {
       logPublicSecurityEvent(request, {
         scope: "public_offer_accept",
@@ -304,7 +300,7 @@ export async function POST(
       );
     }
 
-    if (link.quote.status === QuoteStatus.ACCEPTED && link.quote.acceptedAt) {
+    if (isPublicOfferAlreadyAccepted(link.quote.status, link.quote.acceptedAt)) {
       return jsonSuccess(
         {
           ok: true,
@@ -313,7 +309,7 @@ export async function POST(
             quoteId: link.quote.id,
             quoteNumber: link.quote.quoteNumber,
             status: link.quote.status,
-            acceptedAt: link.quote.acceptedAt.toISOString(),
+            acceptedAt: link.quote.acceptedAt?.toISOString() ?? null,
             customerName: serializeCustomerName(link.quote.customer),
           },
         },
@@ -322,7 +318,7 @@ export async function POST(
       );
     }
 
-    if (link.quote.status !== QuoteStatus.SENT) {
+    if (!canAcceptPublicOffer(link.quote.status)) {
       logPublicSecurityEvent(request, {
         scope: "public_offer_accept",
         reason: "quote_not_acceptable",
