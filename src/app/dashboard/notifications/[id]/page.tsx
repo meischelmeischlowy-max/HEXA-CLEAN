@@ -4,6 +4,31 @@ import { notFound } from "next/navigation";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
+type RecordItem = Record<string, unknown>;
+
+function asRecord(value: unknown): RecordItem {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as RecordItem;
+}
+
+function asOptionalRecord(value: unknown): RecordItem | null {
+  const record = asRecord(value);
+  return Object.keys(record).length > 0 ? record : null;
+}
+
+function toRecords(value: unknown): RecordItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is RecordItem => {
+    return Boolean(item && typeof item === "object" && !Array.isArray(item));
+  });
+}
+
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "—";
@@ -149,20 +174,22 @@ export default async function NotificationDetailsPage({
 }) {
   const { id } = await params;
 
-  const result = (await dashboardService.getNotificationDetails(id)) as any;
+  const result = asRecord(
+    await dashboardService.getNotificationDetails(id),
+  );
 
   if (result.status !== "OK" || !result.details) {
     notFound();
   }
 
-  const details = result.details;
+  const details = asRecord(result.details);
 
-  const notification = details.notification;
-  const customer = details.customer;
-  const order = details.order;
-  const session = details.session;
-  const conversationMessages = details.conversationMessages ?? [];
-  const auditLogs = details.auditLogs ?? [];
+  const notification = asRecord(details.notification);
+  const customer = asOptionalRecord(details.customer);
+  const order = asOptionalRecord(details.order);
+  const session = asOptionalRecord(details.session);
+  const conversationMessages = toRecords(details.conversationMessages);
+  const auditLogs = toRecords(details.auditLogs);
 
   return (
     <main className="min-h-screen p-6 lg:p-10">
@@ -197,13 +224,13 @@ export default async function NotificationDetailsPage({
           <RecordLink
             label="Kunde"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={customer?.name ?? customer?.email ?? customer?.id}
+            value={formatValue(customer?.name ?? customer?.email ?? customer?.id)}
           />
 
           <RecordLink
             label="Auftrag"
             href={order?.id ? `/dashboard/orders/${order.id}` : null}
-            value={order?.orderNumber ?? order?.number ?? order?.id}
+            value={formatValue(order?.orderNumber ?? order?.number ?? order?.id)}
           />
 
           <RecordLink
@@ -213,13 +240,13 @@ export default async function NotificationDetailsPage({
                 ? `/dashboard/audit-logs/${auditLogs[0].id}`
                 : null
             }
-            value={auditLogs[0]?.action ?? auditLogs[0]?.id}
+            value={formatValue(auditLogs[0]?.action ?? auditLogs[0]?.id)}
           />
 
           <RecordLink
             label="Powiadomienie"
             href={`/dashboard/notifications/${notification.id}`}
-            value={notification.subject ?? notification.title ?? notification.id}
+            value={formatValue(notification.subject ?? notification.title ?? notification.id)}
           />
         </div>
       </section>
@@ -265,7 +292,7 @@ export default async function NotificationDetailsPage({
               <RecordLink
                 label="Kunde öffnen"
                 href={`/dashboard/customers/${customer.id}`}
-                value={customer.name ?? customer.email ?? customer.id}
+                value={formatValue(customer.name ?? customer.email ?? customer.id)}
               />
               <InfoCard label="ID" value={customer.id} />
               <InfoCard label="Name" value={customer.name} />
@@ -287,7 +314,7 @@ export default async function NotificationDetailsPage({
               <RecordLink
                 label="Auftrag öffnen"
                 href={`/dashboard/orders/${order.id}`}
-                value={order.orderNumber ?? order.number ?? order.id}
+                value={formatValue(order.orderNumber ?? order.number ?? order.id)}
               />
               <InfoCard label="ID" value={order.id} />
               <InfoCard

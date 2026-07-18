@@ -316,7 +316,11 @@ export default function DashboardOrdersPage() {
   }, []);
 
   useEffect(() => {
-    loadOrders();
+    const timeoutId = window.setTimeout(() => {
+      void loadOrders();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadOrders]);
 
   const stats = useMemo(() => {

@@ -186,7 +186,11 @@ export default function DashboardPaymentsPage() {
   }, []);
 
   useEffect(() => {
-    loadPayments();
+    const timeoutId = window.setTimeout(() => {
+      void loadPayments();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadPayments]);
 
   const selectedInvoice = useMemo(() => {

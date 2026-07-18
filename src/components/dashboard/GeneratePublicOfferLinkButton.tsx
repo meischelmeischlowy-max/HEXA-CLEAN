@@ -173,7 +173,11 @@ export default function GeneratePublicOfferLinkButton({
   }
 
   useEffect(() => {
-    void loadLinks();
+    const timeoutId = window.setTimeout(() => {
+      void loadLinks();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteId]);
 

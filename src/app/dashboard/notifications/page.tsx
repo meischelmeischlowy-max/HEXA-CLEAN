@@ -146,7 +146,11 @@ export default function DashboardNotificationsPage() {
   }
 
   useEffect(() => {
-    loadNotifications();
+    const timeoutId = window.setTimeout(() => {
+      void loadNotifications();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const stats = useMemo(() => {

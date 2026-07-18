@@ -553,7 +553,9 @@ export default async function QuoteDetailsPage({
 }) {
   const { id } = await params;
 
-  const result = (await dashboardService.getQuoteDetails(id)) as any;
+  const result = asRecord(
+    await dashboardService.getQuoteDetails(id),
+  );
 
   if (result.status !== "OK" || !result.details) {
     notFound();

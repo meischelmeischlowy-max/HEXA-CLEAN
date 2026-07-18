@@ -157,7 +157,11 @@ export default function DashboardAuditLogsPage() {
   }, []);
 
   useEffect(() => {
-    loadAuditLogs();
+    const timeoutId = window.setTimeout(() => {
+      void loadAuditLogs();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadAuditLogs]);
 
   const stats = useMemo(() => {

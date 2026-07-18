@@ -101,9 +101,17 @@ export default function QuickOffer() {
   }, [service, size, selectedExtras]);
 
   useEffect(() => {
-    setAnalyzing(true);
-    const timer = setTimeout(() => setAnalyzing(false), 500);
-    return () => clearTimeout(timer);
+    const startTimer = window.setTimeout(() => {
+      setAnalyzing(true);
+    }, 0);
+    const stopTimer = window.setTimeout(() => {
+      setAnalyzing(false);
+    }, 500);
+
+    return () => {
+      window.clearTimeout(startTimer);
+      window.clearTimeout(stopTimer);
+    };
   }, [service, size, selectedExtras, time]);
 
   function toggleExtra(extra: string) {

@@ -273,7 +273,11 @@ export default function DashboardInvoiceEditPage() {
   }, [invoiceId]);
 
   useEffect(() => {
-    loadInvoice();
+    const timeoutId = window.setTimeout(() => {
+      void loadInvoice();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadInvoice]);
 
   function updateField(field: keyof InvoiceForm, value: string) {

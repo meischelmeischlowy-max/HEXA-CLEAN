@@ -137,7 +137,11 @@ export default function DashboardQuotesPage() {
   }, []);
 
   useEffect(() => {
-    loadQuotes();
+    const timeoutId = window.setTimeout(() => {
+      void loadQuotes();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadQuotes]);
 
   const stats = useMemo(() => {

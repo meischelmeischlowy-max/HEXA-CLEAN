@@ -4,6 +4,31 @@ import { notFound } from "next/navigation";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
+type RecordItem = Record<string, unknown>;
+
+function asRecord(value: unknown): RecordItem {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as RecordItem;
+}
+
+function asOptionalRecord(value: unknown): RecordItem | null {
+  const record = asRecord(value);
+  return Object.keys(record).length > 0 ? record : null;
+}
+
+function toRecords(value: unknown): RecordItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is RecordItem => {
+    return Boolean(item && typeof item === "object" && !Array.isArray(item));
+  });
+}
+
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "—";
@@ -159,23 +184,25 @@ export default async function AttachmentDetailsPage({
 }) {
   const { id } = await params;
 
-  const result = (await dashboardService.getAttachmentDetails(id)) as any;
+  const result = asRecord(
+    await dashboardService.getAttachmentDetails(id),
+  );
 
   if (result.status !== "OK" || !result.details) {
     notFound();
   }
 
-  const details = result.details;
+  const details = asRecord(result.details);
 
-  const attachment = details.attachment;
-  const invoice = details.invoice;
-  const customer = details.customer;
-  const order = details.order;
-  const quote = details.quote;
-  const session = details.session;
-  const conversationMessages = details.conversationMessages ?? [];
-  const notifications = details.notifications ?? [];
-  const auditLogs = details.auditLogs ?? [];
+  const attachment = asRecord(details.attachment);
+  const invoice = asOptionalRecord(details.invoice);
+  const customer = asOptionalRecord(details.customer);
+  const order = asOptionalRecord(details.order);
+  const quote = asOptionalRecord(details.quote);
+  const session = asOptionalRecord(details.session);
+  const conversationMessages = toRecords(details.conversationMessages);
+  const notifications = toRecords(details.notifications);
+  const auditLogs = toRecords(details.auditLogs);
 
   const fileUrl =
     attachment.url ??
@@ -226,25 +253,25 @@ export default async function AttachmentDetailsPage({
           <RecordLink
             label="Kunde"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={customer?.name ?? customer?.email ?? customer?.id}
+            value={formatValue(customer?.name ?? customer?.email ?? customer?.id)}
           />
 
           <RecordLink
             label="Auftrag"
             href={order?.id ? `/dashboard/orders/${order.id}` : null}
-            value={order?.orderNumber ?? order?.number ?? order?.id}
+            value={formatValue(order?.orderNumber ?? order?.number ?? order?.id)}
           />
 
           <RecordLink
             label="Angebot"
             href={quote?.id ? `/dashboard/quotes/${quote.id}` : null}
-            value={quote?.quoteNumber ?? quote?.number ?? quote?.id}
+            value={formatValue(quote?.quoteNumber ?? quote?.number ?? quote?.id)}
           />
 
           <RecordLink
             label="Rechnung"
             href={invoice?.id ? `/dashboard/invoices/${invoice.id}` : null}
-            value={invoice?.invoiceNumber ?? invoice?.number ?? invoice?.id}
+            value={formatValue(invoice?.invoiceNumber ?? invoice?.number ?? invoice?.id)}
           />
         </div>
       </section>
@@ -286,7 +313,7 @@ export default async function AttachmentDetailsPage({
               <RecordLink
                 label="Kunden öffnen"
                 href={`/dashboard/customers/${customer.id}`}
-                value={customer.name ?? customer.email ?? customer.id}
+                value={formatValue(customer.name ?? customer.email ?? customer.id)}
               />
               <InfoCard label="ID" value={customer.id} />
               <InfoCard label="Name" value={customer.name} />
@@ -308,7 +335,7 @@ export default async function AttachmentDetailsPage({
               <RecordLink
                 label="Auftrag öffnen"
                 href={`/dashboard/orders/${order.id}`}
-                value={order.orderNumber ?? order.number ?? order.id}
+                value={formatValue(order.orderNumber ?? order.number ?? order.id)}
               />
               <InfoCard label="ID" value={order.id} />
               <InfoCard
@@ -337,7 +364,7 @@ export default async function AttachmentDetailsPage({
                 <RecordLink
                   label="Angebot öffnen"
                   href={`/dashboard/quotes/${quote.id}`}
-                  value={quote.quoteNumber ?? quote.number ?? quote.id}
+                  value={formatValue(quote.quoteNumber ?? quote.number ?? quote.id)}
                 />
                 <InfoCard label="Angebot ID" value={quote.id} />
                 <InfoCard
@@ -356,7 +383,7 @@ export default async function AttachmentDetailsPage({
                 <RecordLink
                   label="Rechnung öffnen"
                   href={`/dashboard/invoices/${invoice.id}`}
-                  value={invoice.invoiceNumber ?? invoice.number ?? invoice.id}
+                  value={formatValue(invoice.invoiceNumber ?? invoice.number ?? invoice.id)}
                 />
                 <InfoCard label="Rechnung ID" value={invoice.id} />
                 <InfoCard

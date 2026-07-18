@@ -28,8 +28,32 @@ type CreatePaymentBody = {
   paidAt?: string;
 };
 
-const paymentStatuses = ["PENDING", "PAID", "FAILED", "REFUNDED", "CANCELLED"];
-const paymentMethods = ["CASH", "BANK_TRANSFER", "TWINT", "CARD", "OTHER"];
+const paymentStatuses = [
+  "PENDING",
+  "PAID",
+  "FAILED",
+  "REFUNDED",
+  "CANCELLED",
+] as const;
+
+const paymentMethods = [
+  "CASH",
+  "BANK_TRANSFER",
+  "TWINT",
+  "CARD",
+  "OTHER",
+] as const;
+
+type PaymentStatusInput = (typeof paymentStatuses)[number];
+type PaymentMethodInput = (typeof paymentMethods)[number];
+
+function isPaymentStatus(value: string): value is PaymentStatusInput {
+  return paymentStatuses.some((status) => status === value);
+}
+
+function isPaymentMethod(value: string): value is PaymentMethodInput {
+  return paymentMethods.some((method) => method === value);
+}
 
 function getPrisma() {
   if (!globalForPrisma.hexaPrisma) {
@@ -89,20 +113,20 @@ function cleanMoney(value: unknown) {
   return roundMoney(parsed).toFixed(2);
 }
 
-function cleanPaymentStatus(value: unknown) {
+function cleanPaymentStatus(value: unknown): PaymentStatusInput {
   const raw = String(value || "PAID").trim().toUpperCase();
 
   if (raw === "CANCELED") {
     return "CANCELLED";
   }
 
-  return paymentStatuses.includes(raw) ? raw : "PAID";
+  return isPaymentStatus(raw) ? raw : "PAID";
 }
 
-function cleanPaymentMethod(value: unknown) {
+function cleanPaymentMethod(value: unknown): PaymentMethodInput {
   const raw = String(value || "BANK_TRANSFER").trim().toUpperCase();
 
-  return paymentMethods.includes(raw) ? raw : "BANK_TRANSFER";
+  return isPaymentMethod(raw) ? raw : "BANK_TRANSFER";
 }
 
 function cleanDate(value: unknown) {
@@ -268,8 +292,8 @@ export async function POST(request: Request) {
           orderId: invoice.orderId,
           amount,
           currency,
-          status: paymentStatus as any,
-          method: method as any,
+          status: paymentStatus,
+          method,
           externalRef: cleanText(body.externalRef),
           notes: cleanText(body.notes),
           paidAt: paymentPaidAt,

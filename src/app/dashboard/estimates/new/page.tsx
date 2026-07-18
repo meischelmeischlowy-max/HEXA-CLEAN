@@ -233,7 +233,11 @@ export default function NewEstimatePage() {
   }, []);
 
   useEffect(() => {
-    loadServices();
+    const timeoutId = window.setTimeout(() => {
+      void loadServices();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadServices]);
 
   const servicesById = useMemo(() => {

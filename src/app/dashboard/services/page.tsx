@@ -222,7 +222,11 @@ export default function DashboardServicesPage() {
   }, [loadServices]);
 
   useEffect(() => {
-    loadServices();
+    const timeoutId = window.setTimeout(() => {
+      void loadServices();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadServices]);
 
   const stats = useMemo(() => {

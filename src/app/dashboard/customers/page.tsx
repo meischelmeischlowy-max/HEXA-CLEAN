@@ -121,7 +121,11 @@ export default function DashboardCustomersPage() {
   }, []);
 
   useEffect(() => {
-    loadCustomers();
+    const timeoutId = window.setTimeout(() => {
+      void loadCustomers();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadCustomers]);
 
   const stats = useMemo(() => {

@@ -25,18 +25,18 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.hexaPrisma = prisma;
 }
 
-type Row = Record<string, any>;
+type Row = Record<string, unknown>;
 
 type PrismaModel = {
-  findUnique?: (args: any) => Promise<unknown>;
-  findMany?: (args: any) => Promise<unknown>;
+  findUnique?: (args: unknown) => Promise<unknown>;
+  findMany?: (args: unknown) => Promise<unknown>;
 };
 
 const prismaAny = prisma as unknown as Record<string, PrismaModel>;
 
 async function safeFindUnique<T = Row>(
   modelName: string,
-  args: any,
+  args: unknown,
 ): Promise<T | null> {
   const model = prismaAny[modelName];
 
@@ -54,7 +54,7 @@ async function safeFindUnique<T = Row>(
 
 async function safeFindMany<T = Row>(
   modelName: string,
-  args: any,
+  args: unknown,
 ): Promise<T[]> {
   const model = prismaAny[modelName];
 
@@ -97,7 +97,7 @@ function formatValue(value: unknown) {
   return String(value);
 }
 
-function formatMoney(value: unknown, currency = "CHF") {
+function formatMoney(value: unknown, currency: unknown = "CHF") {
   if (value === null || value === undefined || value === "") {
     return "—";
   }
@@ -110,7 +110,10 @@ function formatMoney(value: unknown, currency = "CHF") {
 
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
-    currency,
+    currency:
+      typeof currency === "string" && currency.trim()
+        ? currency
+        : "CHF",
   }).format(amount);
 }
 
@@ -837,7 +840,7 @@ export default async function OrderDetailsPage({
               Auftrag abgeschlossen
             </div>
           ) : (
-            <MarkOrderAsCompletedButton orderId={order.id} />
+            <MarkOrderAsCompletedButton orderId={String(order.id)} />
           )}
         </div>
       </div>
@@ -1091,7 +1094,7 @@ export default async function OrderDetailsPage({
             <div className="max-h-[480px] space-y-4 overflow-auto pr-2">
               {conversationMessages.map((message) => (
                 <div
-                  key={message.id}
+                  key={String(message.id ?? JSON.stringify(message))}
                   className="rounded-2xl border border-neutral-800 bg-neutral-950/50 p-4"
                 >
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

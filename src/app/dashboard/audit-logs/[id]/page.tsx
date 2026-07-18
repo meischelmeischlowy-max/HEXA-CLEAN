@@ -4,6 +4,31 @@ import { notFound } from "next/navigation";
 import RecordLink from "@/components/dashboard/RecordLink";
 import { dashboardService } from "@/services/dashboardService";
 
+type RecordItem = Record<string, unknown>;
+
+function asRecord(value: unknown): RecordItem {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as RecordItem;
+}
+
+function asOptionalRecord(value: unknown): RecordItem | null {
+  const record = asRecord(value);
+  return Object.keys(record).length > 0 ? record : null;
+}
+
+function toRecords(value: unknown): RecordItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is RecordItem => {
+    return Boolean(item && typeof item === "object" && !Array.isArray(item));
+  });
+}
+
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "—";
@@ -169,20 +194,22 @@ export default async function AuditLogDetailsPage({
 }) {
   const { id } = await params;
 
-  const result = (await dashboardService.getAuditLogDetails(id)) as any;
+  const result = asRecord(
+    await dashboardService.getAuditLogDetails(id),
+  );
 
   if (result.status !== "OK" || !result.details) {
     notFound();
   }
 
-  const details = result.details;
+  const details = asRecord(result.details);
 
-  const auditLog = details.auditLog;
-  const customer = details.customer;
-  const order = details.order;
-  const session = details.session;
-  const conversationMessages = details.conversationMessages ?? [];
-  const relatedAuditLogs = details.relatedAuditLogs ?? [];
+  const auditLog = asRecord(details.auditLog);
+  const customer = asOptionalRecord(details.customer);
+  const order = asOptionalRecord(details.order);
+  const session = asOptionalRecord(details.session);
+  const conversationMessages = toRecords(details.conversationMessages);
+  const relatedAuditLogs = toRecords(details.relatedAuditLogs);
 
   const entityHref = getEntityHref(auditLog.entityType, auditLog.entityId);
 
@@ -217,19 +244,19 @@ export default async function AuditLogDetailsPage({
           <RecordLink
             label="Verknüpfter Datensatz"
             href={entityHref}
-            value={auditLog.entityType ?? auditLog.entityId}
+            value={formatValue(auditLog.entityType ?? auditLog.entityId)}
           />
 
           <RecordLink
             label="Kunde"
             href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-            value={customer?.name ?? customer?.email ?? customer?.id}
+            value={formatValue(customer?.name ?? customer?.email ?? customer?.id)}
           />
 
           <RecordLink
             label="Auftrag"
             href={order?.id ? `/dashboard/orders/${order.id}` : null}
-            value={order?.orderNumber ?? order?.number ?? order?.id}
+            value={formatValue(order?.orderNumber ?? order?.number ?? order?.id)}
           />
 
           <RecordLink
@@ -239,7 +266,7 @@ export default async function AuditLogDetailsPage({
                 ? `/dashboard/audit-logs/${relatedAuditLogs[0].id}`
                 : null
             }
-            value={relatedAuditLogs[0]?.action ?? relatedAuditLogs[0]?.id}
+            value={formatValue(relatedAuditLogs[0]?.action ?? relatedAuditLogs[0]?.id)}
           />
         </div>
       </section>
@@ -286,7 +313,7 @@ export default async function AuditLogDetailsPage({
               <RecordLink
                 label="Kunde öffnen"
                 href={`/dashboard/customers/${customer.id}`}
-                value={customer.name ?? customer.email ?? customer.id}
+                value={formatValue(customer.name ?? customer.email ?? customer.id)}
               />
               <InfoCard label="ID" value={customer.id} />
               <InfoCard label="Name" value={customer.name} />
@@ -308,7 +335,7 @@ export default async function AuditLogDetailsPage({
               <RecordLink
                 label="Auftrag öffnen"
                 href={`/dashboard/orders/${order.id}`}
-                value={order.orderNumber ?? order.number ?? order.id}
+                value={formatValue(order.orderNumber ?? order.number ?? order.id)}
               />
               <InfoCard label="ID" value={order.id} />
               <InfoCard

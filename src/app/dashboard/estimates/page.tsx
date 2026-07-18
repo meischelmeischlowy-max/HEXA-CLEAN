@@ -241,7 +241,11 @@ export default function DashboardEstimatesPage() {
   }
 
   useEffect(() => {
-    void loadEstimates();
+    const timeoutId = window.setTimeout(() => {
+      void loadEstimates();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   return (
