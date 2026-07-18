@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  DASHBOARD_COOKIE_NAME,
+} from "@/lib/dashboard-auth";
 
 export const dynamic = "force-dynamic";
-
-const DASHBOARD_COOKIE_NAME = "hexa_dashboard_auth";
 
 function noStoreHeaders() {
   return {
@@ -15,7 +16,8 @@ export async function POST() {
   const response = NextResponse.json(
     {
       layer: "dashboard-auth",
-      message: "Dashboard-Abmeldung erfolgreich.",
+      message:
+        "Dashboard-Abmeldung erfolgreich.",
       authenticated: false,
     },
     {
@@ -29,7 +31,9 @@ export async function POST() {
     {
       httpOnly: true,
       sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
+      secure:
+        process.env.NODE_ENV ===
+        "production",
       path: "/",
       maxAge: 0,
       expires: new Date(0),

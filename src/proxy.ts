@@ -2,8 +2,9 @@ import {
   NextRequest,
   NextResponse,
 } from "next/server";
-
-const DASHBOARD_COOKIE_NAME = "hexa_dashboard_auth";
+import {
+  getDashboardAuthorization,
+} from "@/lib/dashboard-auth";
 
 function isDashboardPage(pathname: string) {
   return (
@@ -13,7 +14,9 @@ function isDashboardPage(pathname: string) {
 }
 
 function isDashboardApi(pathname: string) {
-  return pathname.startsWith("/api/dashboard/");
+  return pathname.startsWith(
+    "/api/dashboard/",
+  );
 }
 
 function isPublicDashboardApi(pathname: string) {
@@ -30,32 +33,27 @@ function unauthorizedHeaders() {
   };
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(
+  request: NextRequest,
+) {
   const { pathname } = request.nextUrl;
-
-  const dashboardToken =
-    process.env.DASHBOARD_AUTH_TOKEN;
-
-  const cookieToken = request.cookies.get(
-    DASHBOARD_COOKIE_NAME,
-  )?.value;
-
-  const isAuthenticated =
-    Boolean(dashboardToken) &&
-    cookieToken === dashboardToken;
 
   if (isPublicDashboardApi(pathname)) {
     return NextResponse.next();
   }
 
+  const authorization =
+    await getDashboardAuthorization(request);
+
   if (
     isDashboardApi(pathname) &&
-    !isAuthenticated
+    !authorization.ok
   ) {
     return NextResponse.json(
       {
         layer: "dashboard-auth",
-        message: "Nicht autorisierte Dashboard-Anfrage.",
+        message:
+          "Nicht autorisierte Dashboard-Anfrage.",
       },
       {
         status: 401,
@@ -66,11 +64,14 @@ export function proxy(request: NextRequest) {
 
   if (
     isDashboardPage(pathname) &&
-    !isAuthenticated
+    !authorization.ok
   ) {
-    const loginUrl = request.nextUrl.clone();
+    const loginUrl =
+      request.nextUrl.clone();
 
-    loginUrl.pathname = "/dashboard-login";
+    loginUrl.pathname =
+      "/dashboard-login";
+
     loginUrl.searchParams.set(
       "redirect",
       pathname,

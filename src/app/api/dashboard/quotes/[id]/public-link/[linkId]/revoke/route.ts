@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isDashboardRequestAuthorized } from "@/lib/dashboard-auth";
 import { AuditAction, PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -75,22 +76,6 @@ function normalizeUuid(value: unknown): string | null {
   return trimmedValue;
 }
 
-function isDashboardRequestAuthorized(request: NextRequest) {
-  const dashboardToken = process.env.DASHBOARD_AUTH_TOKEN;
-
-  if (!dashboardToken) {
-    return false;
-  }
-
-  const authorizationHeader = request.headers.get("authorization");
-  const bearerToken = authorizationHeader?.replace(/^Bearer\s+/i, "").trim();
-
-  if (bearerToken && bearerToken === dashboardToken) {
-    return true;
-  }
-
-  return request.cookies.getAll().some((cookie) => cookie.value === dashboardToken);
-}
 
 function serializeRevokedLink(link: {
   id: string;
@@ -124,7 +109,7 @@ export async function POST(
   context: { params: Promise<{ id: string; linkId: string }> },
 ) {
   try {
-    if (!isDashboardRequestAuthorized(request)) {
+    if (!(await isDashboardRequestAuthorized(request))) {
       return jsonError("Nicht autorisierte Dashboard-Anfrage.", 401);
     }
 

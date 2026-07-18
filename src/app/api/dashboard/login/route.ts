@@ -2,14 +2,20 @@ import {
   createHash,
   timingSafeEqual,
 } from "node:crypto";
-import { NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+import {
+  createDashboardSessionToken,
+  DASHBOARD_COOKIE_NAME,
+  DASHBOARD_SESSION_MAX_AGE_SECONDS,
+} from "@/lib/dashboard-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DASHBOARD_COOKIE_NAME = "hexa_dashboard_auth";
 const MAX_PASSWORD_LENGTH = 256;
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 function noStoreHeaders() {
   return {
@@ -18,7 +24,10 @@ function noStoreHeaders() {
   };
 }
 
-function secureTextEqual(left: string, right: string) {
+function secureTextEqual(
+  left: string,
+  right: string,
+) {
   const leftHash = createHash("sha256")
     .update(left, "utf8")
     .digest();
@@ -27,7 +36,10 @@ function secureTextEqual(left: string, right: string) {
     .update(right, "utf8")
     .digest();
 
-  return timingSafeEqual(leftHash, rightHash);
+  return timingSafeEqual(
+    leftHash,
+    rightHash,
+  );
 }
 
 function invalidCredentialsResponse() {
@@ -44,20 +56,30 @@ function invalidCredentialsResponse() {
   );
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: NextRequest,
+) {
   try {
-    const dashboardPassword = process.env.DASHBOARD_PASSWORD;
-    const dashboardToken = process.env.DASHBOARD_AUTH_TOKEN;
+    const dashboardPassword =
+      process.env.DASHBOARD_PASSWORD;
 
-    if (!dashboardPassword || !dashboardToken) {
+    const dashboardSecret =
+      process.env.DASHBOARD_AUTH_TOKEN;
+
+    if (
+      !dashboardPassword ||
+      !dashboardSecret ||
+      dashboardSecret.length < 32
+    ) {
       console.error(
-        "Dashboard authentication environment variables are missing.",
+        "Dashboard authentication environment variables are missing or insecure.",
       );
 
       return NextResponse.json(
         {
           layer: "dashboard-auth",
-          message: "Dashboard-Anmeldung ist nicht konfiguriert.",
+          message:
+            "Dashboard-Anmeldung ist nicht konfiguriert.",
           authenticated: false,
         },
         {
@@ -67,7 +89,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json().catch(() => null);
+    const body = await request
+      .json()
+      .catch(() => null);
 
     const password =
       body &&
@@ -79,7 +103,8 @@ export async function POST(request: Request) {
 
     if (
       password.length === 0 ||
-      password.length > MAX_PASSWORD_LENGTH ||
+      password.length >
+        MAX_PASSWORD_LENGTH ||
       !secureTextEqual(
         password,
         dashboardPassword,
@@ -88,10 +113,16 @@ export async function POST(request: Request) {
       return invalidCredentialsResponse();
     }
 
+    const sessionToken =
+      await createDashboardSessionToken(
+        dashboardSecret,
+      );
+
     const response = NextResponse.json(
       {
         layer: "dashboard-auth",
-        message: "Dashboard-Anmeldung erfolgreich.",
+        message:
+          "Dashboard-Anmeldung erfolgreich.",
         authenticated: true,
       },
       {
@@ -101,13 +132,16 @@ export async function POST(request: Request) {
 
     response.cookies.set(
       DASHBOARD_COOKIE_NAME,
-      dashboardToken,
+      sessionToken,
       {
         httpOnly: true,
         sameSite: "strict",
-        secure: process.env.NODE_ENV === "production",
+        secure:
+          process.env.NODE_ENV ===
+          "production",
         path: "/",
-        maxAge: SESSION_MAX_AGE_SECONDS,
+        maxAge:
+          DASHBOARD_SESSION_MAX_AGE_SECONDS,
       },
     );
 
@@ -116,7 +150,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         layer: "dashboard-auth",
-        message: "Dashboard-Anmeldung fehlgeschlagen.",
+        message:
+          "Dashboard-Anmeldung fehlgeschlagen.",
         authenticated: false,
       },
       {

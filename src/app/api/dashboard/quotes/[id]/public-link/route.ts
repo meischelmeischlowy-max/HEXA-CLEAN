@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDashboardAuthorization } from "@/lib/dashboard-auth";
 import {
   AuditAction,
   NotificationChannel,
@@ -79,42 +80,6 @@ function normalizeUuid(value: unknown): string | null {
   return trimmedValue;
 }
 
-function isDashboardRequestAuthorized(request: NextRequest) {
-  const dashboardToken = process.env.DASHBOARD_AUTH_TOKEN;
-
-  if (!dashboardToken) {
-    return {
-      ok: false,
-      reason: "missing_dashboard_token",
-    };
-  }
-
-  const authorizationHeader = request.headers.get("authorization");
-  const bearerToken = authorizationHeader?.replace(/^Bearer\s+/i, "").trim();
-
-  if (bearerToken && bearerToken === dashboardToken) {
-    return {
-      ok: true,
-      reason: "authorization_header",
-    };
-  }
-
-  const hasMatchingCookie = request.cookies
-    .getAll()
-    .some((cookie) => cookie.value === dashboardToken);
-
-  if (hasMatchingCookie) {
-    return {
-      ok: true,
-      reason: "dashboard_cookie",
-    };
-  }
-
-  return {
-    ok: false,
-    reason: "unauthorized",
-  };
-}
 
 async function readJsonObject(
   request: NextRequest,
@@ -221,7 +186,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = isDashboardRequestAuthorized(request);
+    const auth = await getDashboardAuthorization(request);
 
     if (!auth.ok) {
       return jsonError("Nicht autorisierte Dashboard-Anfrage.", 401, {
@@ -318,7 +283,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = isDashboardRequestAuthorized(request);
+    const auth = await getDashboardAuthorization(request);
 
     if (!auth.ok) {
       return jsonError("Nicht autorisierte Dashboard-Anfrage.", 401, {
