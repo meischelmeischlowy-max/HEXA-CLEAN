@@ -25,6 +25,19 @@ type ApiResponse = {
   message?: string;
 };
 
+type QuoteApiResponse = {
+  data?: {
+    status?: string;
+    message?: string;
+    created?: boolean;
+    quote?: {
+      id?: string;
+      quoteNumber?: string;
+    } | null;
+  };
+  message?: string;
+};
+
 const statuses: {
   value: EstimateStatus;
   label: string;
@@ -239,6 +252,7 @@ export default function EstimateStatusActions({
   );
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isCreatingQuote, setIsCreatingQuote] = useState(false);
 
   const currentProcessMessage = useMemo(
     () => processMessage(normalizedCurrentStatus),
@@ -291,6 +305,56 @@ export default function EstimateStatusActions({
     }
   }
 
+  async function createQuote() {
+    if (normalizedCurrentStatus !== "READY_TO_SEND" || isCreatingQuote) {
+      return;
+    }
+
+    setIsCreatingQuote(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const response = await fetch(
+        `/api/dashboard/estimates/${estimateId}/quote`,
+        {
+          method: "POST",
+          cache: "no-store",
+          credentials: "same-origin",
+        },
+      );
+
+      const json = (await response.json()) as QuoteApiResponse;
+
+      if (!response.ok || json.data?.status === "error") {
+        throw new Error(
+          json.data?.message ??
+            json.message ??
+            "Die Offerte konnte nicht erstellt werden.",
+        );
+      }
+
+      const quoteId = json.data?.quote?.id;
+
+      if (!quoteId) {
+        throw new Error(
+          "Die API meldet Erfolg, aber es wurde keine Quote-ID zurückgegeben.",
+        );
+      }
+
+      router.push(`/dashboard/quotes/${quoteId}`);
+      router.refresh();
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unbekannter Fehler beim Erstellen der Offerte.",
+      );
+    } finally {
+      setIsCreatingQuote(false);
+    }
+  }
+
   return (
     <section
       id="status-aktionen"
@@ -320,12 +384,14 @@ export default function EstimateStatusActions({
 
         <div className="flex flex-wrap gap-2">
           {normalizedCurrentStatus === "READY_TO_SEND" ? (
-            <Link
-              href={`/dashboard/estimates/${estimateId}/offer`}
-              className="rounded-2xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-3 text-center text-sm font-black text-cyan-100 transition hover:bg-cyan-300/25"
+            <button
+              type="button"
+              onClick={() => void createQuote()}
+              disabled={isCreatingQuote}
+              className="rounded-2xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-3 text-center text-sm font-black text-cyan-100 transition hover:bg-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Offerte vorbereiten
-            </Link>
+              {isCreatingQuote ? "Offerte wird erstellt..." : "Offerte erstellen"}
+            </button>
           ) : null}
 
           {normalizedCurrentStatus === "SENT" ? (

@@ -484,8 +484,8 @@ export function getEstimateAction(
       tone: "cyan",
       status,
       owner: "quote",
-      href: `/dashboard/estimates/${estimate.id}/offer`,
-      primaryLabel: "Offerte vorbereiten",
+      href: `/dashboard/estimates/${estimate.id}#status-aktionen`,
+      primaryLabel: "Offerte erstellen",
       secondaryLabel: "Freigabe pruefen",
       secondaryHref: `/dashboard/estimates/${estimate.id}#status-aktionen`,
     };
