@@ -5,6 +5,7 @@ import CreateInvoiceFromQuoteButton from "@/components/dashboard/CreateInvoiceFr
 import GeneratePublicOfferLinkButton from "@/components/dashboard/GeneratePublicOfferLinkButton";
 import MarkQuoteAsAcceptedButton from "@/components/dashboard/MarkQuoteAsAcceptedButton";
 import MarkQuoteAsSentButton from "@/components/dashboard/MarkQuoteAsSentButton";
+import RepairInvoiceFromQuoteButton from "@/components/dashboard/RepairInvoiceFromQuoteButton";
 import { dashboardService } from "@/services/dashboardService";
 
 type RecordItem = Record<string, unknown>;
@@ -674,12 +675,19 @@ export default async function QuoteDetailsPage({
                 ) : null}
 
                 {isAccepted && firstInvoice?.id ? (
-                  <Link
-                    href={`/dashboard/invoices/${String(firstInvoice.id)}`}
-                    className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70"
-                  >
-                    Rechnung öffnen
-                  </Link>
+                  <>
+                    <Link
+                      href={`/dashboard/invoices/${String(firstInvoice.id)}`}
+                      className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70"
+                    >
+                      Rechnung öffnen
+                    </Link>
+
+                    <RepairInvoiceFromQuoteButton
+                      quoteId={String(quote.id)}
+                      invoiceId={String(firstInvoice.id)}
+                    />
+                  </>
                 ) : null}
 
                 {isAccepted && !firstInvoice ? (
