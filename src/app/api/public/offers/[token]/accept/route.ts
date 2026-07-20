@@ -19,6 +19,13 @@ import {
   createSafePublicNotFoundResponse,
   logPublicSecurityEvent,
 } from "@/lib/public-security";
+import {
+  sendInvoiceEmailWorkflow,
+} from "@/lib/invoice-email-service";
+import {
+  dashboardRepository,
+} from "@/repositories/dashboardRepository";
+
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -118,6 +125,94 @@ function serializeCustomerName(customer: {
     .trim();
 
   return fullName || "Kunde";
+}
+
+
+type AcceptedQuoteAutomationResult = {
+  status:
+    | "COMPLETED"
+    | "ALREADY_COMPLETED"
+    | "ACTION_REQUIRED";
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  invoiceCreated: boolean;
+  emailSent: boolean;
+  emailAlreadySent: boolean;
+  actionRequired: boolean;
+  message: string;
+  error: string | null;
+};
+
+async function runAcceptedQuoteAutomation(
+  quoteId: string,
+): Promise<AcceptedQuoteAutomationResult> {
+  try {
+    const invoiceResult =
+      await dashboardRepository
+        .createInvoiceFromQuote(quoteId);
+
+    if (!invoiceResult) {
+      return {
+        status: "ACTION_REQUIRED",
+        invoiceId: null,
+        invoiceNumber: null,
+        invoiceCreated: false,
+        emailSent: false,
+        emailAlreadySent: false,
+        actionRequired: true,
+        message:
+          "Die Offerte wurde akzeptiert, aber die Rechnung konnte nicht automatisch erstellt werden.",
+        error: "INVOICE_CREATION_RETURNED_NULL",
+      };
+    }
+
+    const emailResult =
+      await sendInvoiceEmailWorkflow(
+        invoiceResult.invoice.id,
+      );
+
+    return {
+      status: emailResult.alreadySent
+        ? "ALREADY_COMPLETED"
+        : emailResult.ok
+          ? "COMPLETED"
+          : "ACTION_REQUIRED",
+      invoiceId:
+        invoiceResult.invoice.id,
+      invoiceNumber:
+        invoiceResult.invoice.invoiceNumber,
+      invoiceCreated:
+        invoiceResult.created,
+      emailSent: emailResult.sent,
+      emailAlreadySent:
+        emailResult.alreadySent,
+      actionRequired:
+        emailResult.actionRequired,
+      message: emailResult.message,
+      error: emailResult.error ?? null,
+    };
+  } catch (error) {
+    console.error(
+      "Accepted quote automation error:",
+      error,
+    );
+
+    return {
+      status: "ACTION_REQUIRED",
+      invoiceId: null,
+      invoiceNumber: null,
+      invoiceCreated: false,
+      emailSent: false,
+      emailAlreadySent: false,
+      actionRequired: true,
+      message:
+        "Die Offerte wurde akzeptiert, aber die automatische Rechnungsverarbeitung ist fehlgeschlagen.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "UNKNOWN_ACCEPTED_QUOTE_AUTOMATION_ERROR",
+    };
+  }
 }
 
 export async function POST(
@@ -300,18 +395,36 @@ export async function POST(
       );
     }
 
-    if (isPublicOfferAlreadyAccepted(link.quote.status, link.quote.acceptedAt)) {
+    if (
+      isPublicOfferAlreadyAccepted(
+        link.quote.status,
+        link.quote.acceptedAt,
+      )
+    ) {
+      const automation =
+        await runAcceptedQuoteAutomation(
+          link.quote.id,
+        );
+
       return jsonSuccess(
         {
           ok: true,
-          message: "Diese Offerte wurde bereits akzeptiert.",
+          message:
+            "Diese Offerte wurde bereits akzeptiert.",
           offer: {
             quoteId: link.quote.id,
-            quoteNumber: link.quote.quoteNumber,
+            quoteNumber:
+              link.quote.quoteNumber,
             status: link.quote.status,
-            acceptedAt: link.quote.acceptedAt?.toISOString() ?? null,
-            customerName: serializeCustomerName(link.quote.customer),
+            acceptedAt:
+              link.quote.acceptedAt?.toISOString() ??
+              null,
+            customerName:
+              serializeCustomerName(
+                link.quote.customer,
+              ),
           },
+          automation,
         },
         200,
         rateLimit.headers,
@@ -416,6 +529,11 @@ export async function POST(
       return updatedQuote;
     });
 
+    const automation =
+      await runAcceptedQuoteAutomation(
+        acceptedQuote.id,
+      );
+
     return jsonSuccess(
       {
         ok: true,
@@ -427,6 +545,7 @@ export async function POST(
           acceptedAt: acceptedQuote.acceptedAt?.toISOString() ?? null,
           customerName: serializeCustomerName(acceptedQuote.customer),
         },
+        automation,
       },
       200,
       rateLimit.headers,

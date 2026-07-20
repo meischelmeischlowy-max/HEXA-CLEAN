@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import CreateInvoiceFromQuoteButton from "@/components/dashboard/CreateInvoiceFromQuoteButton";
 import GeneratePublicOfferLinkButton from "@/components/dashboard/GeneratePublicOfferLinkButton";
 import MarkQuoteAsAcceptedButton from "@/components/dashboard/MarkQuoteAsAcceptedButton";
 import MarkQuoteAsSentButton from "@/components/dashboard/MarkQuoteAsSentButton";
@@ -229,19 +228,32 @@ function getNextStep({
 
   if (status === "ACCEPTED" && !firstInvoice) {
     return {
-      title: "Rechnung erstellen",
+      title: "Automatisierung fehlgeschlagen",
       description:
-        "Die Offerte wurde akzeptiert. Der nächste sinnvolle Schritt ist die Rechnung.",
-      tone: "emerald",
+        "Die Offerte wurde akzeptiert, aber es wurde keine Rechnung erstellt. Das System hat eine Aktion-erforderlich-Meldung protokolliert.",
+      tone: "red",
     };
   }
 
   if (status === "ACCEPTED" && firstInvoice) {
+    const invoiceStatus = String(
+      firstInvoice.status ?? "",
+    ).toUpperCase();
+
+    if (invoiceStatus === "SENT") {
+      return {
+        title: "Automatisch abgeschlossen",
+        description:
+          "Die Rechnung wurde automatisch erstellt und der E-Mail-Versand wurde erfolgreich bestätigt.",
+        tone: "emerald",
+      };
+    }
+
     return {
-      title: "Rechnung verfolgen",
+      title: "Automatischer Versand prüfen",
       description:
-        "Für diese Offerte gibt es bereits eine Rechnung. Prüfen Sie Rechnung und Zahlungseingang.",
-      tone: "emerald",
+        "Die Rechnung wurde erstellt, aber der erfolgreiche E-Mail-Versand wurde noch nicht bestätigt. Prüfen Sie die Fehlermeldung in Benachrichtigungen oder Audit-Logs.",
+      tone: "red",
     };
   }
 
@@ -690,9 +702,6 @@ export default async function QuoteDetailsPage({
                   </>
                 ) : null}
 
-                {isAccepted && !firstInvoice ? (
-                  <CreateInvoiceFromQuoteButton quoteId={String(quote.id)} />
-                ) : null}
 
                 {!isDraft && !isSent && !isAccepted ? (
                   <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 px-4 py-3 text-sm font-semibold text-neutral-300">
