@@ -59,6 +59,9 @@ export const dashboardOrderActionsRepository = {
         updatedOrder,
         updated: true,
       };
+    }, {
+      maxWait: 10_000,
+      timeout: 15_000,
     });
   },
 };
