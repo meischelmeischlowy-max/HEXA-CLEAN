@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import {
+  createInvoiceItemsFromQuote,
+  sanitizeInvoiceNoteFromQuote,
+} from "@/lib/invoice-from-quote";
 
 export const dashboardRepository = {
   async getSystemCounts() {
@@ -1319,6 +1323,13 @@ export const dashboardRepository = {
         return null;
       }
 
+      const invoiceItems = createInvoiceItemsFromQuote(
+        quote.items,
+      );
+
+      const safeInvoiceNote =
+        sanitizeInvoiceNoteFromQuote(quote.notes);
+
       const existingInvoice = await tx.invoice.findFirst({
         where: {
           quoteId: quote.id,
@@ -1326,13 +1337,81 @@ export const dashboardRepository = {
         orderBy: {
           createdAt: "desc",
         },
+        include: {
+          items: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+          },
+        },
       });
 
       if (existingInvoice) {
+        const needsItemsRepair =
+          existingInvoice.items.length === 0 &&
+          invoiceItems.length > 0;
+
+        const notesChanged =
+          existingInvoice.notes !== safeInvoiceNote;
+
+        if (needsItemsRepair || notesChanged) {
+          const repairedInvoice = await tx.invoice.update({
+            where: {
+              id: existingInvoice.id,
+            },
+            data: {
+              notes: safeInvoiceNote,
+              ...(needsItemsRepair
+                ? {
+                    items: {
+                      create: invoiceItems,
+                    },
+                  }
+                : {}),
+            },
+            include: {
+              items: {
+                orderBy: {
+                  sortOrder: "asc",
+                },
+              },
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              customerId: quote.customerId,
+              orderId: quote.orderId,
+              sessionId: quote.sessionId,
+              action: "UPDATE",
+              entityType: "Invoice",
+              entityId: repairedInvoice.id,
+              actorType: "dashboard",
+              message: `Invoice ${repairedInvoice.invoiceNumber} repaired from quote ${quote.quoteNumber}`,
+              metadata: {
+                source: "dashboard_quick_action_repair",
+                quoteId: quote.id,
+                invoiceId: repairedInvoice.id,
+                repairedItems: needsItemsRepair,
+                sanitizedNotes: notesChanged,
+                itemCount: repairedInvoice.items.length,
+              },
+            },
+          });
+
+          return {
+            quote,
+            invoice: repairedInvoice,
+            created: false,
+            repaired: true,
+          };
+        }
+
         return {
           quote,
           invoice: existingInvoice,
           created: false,
+          repaired: false,
         };
       }
 
@@ -1340,9 +1419,17 @@ export const dashboardRepository = {
       const dueDate = new Date(now);
       dueDate.setDate(dueDate.getDate() + 14);
 
-      const datePart = now.toISOString().slice(0, 10).replaceAll("-", "");
-      const randomPart = Math.floor(1000 + Math.random() * 9000);
-      const invoiceNumber = `INV-${datePart}-${randomPart}`;
+      const datePart = now
+        .toISOString()
+        .slice(0, 10)
+        .replaceAll("-", "");
+
+      const randomPart = Math.floor(
+        1000 + Math.random() * 9000,
+      );
+
+      const invoiceNumber =
+        `INV-${datePart}-${randomPart}`;
 
       const invoice = await tx.invoice.create({
         data: {
@@ -1359,7 +1446,17 @@ export const dashboardRepository = {
           total: quote.total,
           paidAmount: 0,
           currency: quote.currency,
-          notes: quote.notes,
+          notes: safeInvoiceNote,
+          items: {
+            create: invoiceItems,
+          },
+        },
+        include: {
+          items: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+          },
         },
       });
 
@@ -1377,6 +1474,7 @@ export const dashboardRepository = {
             source: "dashboard_quick_action",
             quoteId: quote.id,
             invoiceId: invoice.id,
+            itemCount: invoice.items.length,
           },
         },
       });
@@ -1385,6 +1483,7 @@ export const dashboardRepository = {
         quote,
         invoice,
         created: true,
+        repaired: false,
       };
     });
   },
