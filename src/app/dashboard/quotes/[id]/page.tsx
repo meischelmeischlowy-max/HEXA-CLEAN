@@ -628,7 +628,7 @@ export default async function QuoteDetailsPage({
         </div>
 
         <section className="rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-          <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+          <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-300">
                 Nächster Schritt
@@ -653,7 +653,7 @@ export default async function QuoteDetailsPage({
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-neutral-950/50 p-5">
+            <div className="min-w-0 max-w-full overflow-hidden rounded-3xl border border-white/10 bg-neutral-950/50 p-5">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-neutral-500">
                 Hauptaktion
               </p>

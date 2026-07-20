@@ -319,9 +319,9 @@ export default function GeneratePublicOfferLinkButton({
   }
 
   return (
-    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.05] p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.05] p-4">
+      <div className="min-w-0 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-black text-emerald-100">
             Öffentliche Angebotslinks
           </p>
@@ -330,7 +330,7 @@ export default function GeneratePublicOfferLinkButton({
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:items-end">
+        <div className="flex min-w-0 shrink-0 flex-col gap-2 lg:items-end">
           <button
             type="button"
             onClick={generateLink}
@@ -359,13 +359,13 @@ export default function GeneratePublicOfferLinkButton({
       ) : null}
 
       {publicUrl ? (
-        <div className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+        <div className="mt-4 min-w-0 max-w-full space-y-4 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/60 p-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
               Link nur jetzt kopieren
             </p>
 
-            <div className="mt-3 break-all rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-slate-100">
+            <div className="mt-3 min-w-0 max-w-full overflow-hidden break-all rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-slate-100">
               {publicUrl}
             </div>
 
@@ -378,30 +378,30 @@ export default function GeneratePublicOfferLinkButton({
             </button>
           </div>
 
-          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.05] p-4">
+          <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.05] p-4">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
               E-Mail-Entwurf
             </p>
 
-            <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-xs leading-6 text-slate-200">
+            <div className="mt-3 min-w-0 max-w-full overflow-hidden rounded-xl border border-white/10 bg-black/30 p-3 text-xs leading-6 text-slate-200">
               <p className="font-bold text-slate-100">Betreff: {emailSubject}</p>
-              <pre className="mt-3 whitespace-pre-wrap font-sans text-xs leading-6 text-slate-300">
+              <pre className="mt-3 max-w-full whitespace-pre-wrap break-words font-sans text-xs leading-6 text-slate-300">
                 {emailBody}
               </pre>
             </div>
 
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={copyEmailText}
-                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                className="min-w-0 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
               >
                 {emailCopied ? "E-Mail kopiert" : "E-Mail-Text kopieren"}
               </button>
 
               <a
                 href={mailToHref}
-                className="rounded-xl border border-cyan-400/30 px-4 py-2 text-center text-xs font-bold text-cyan-200 transition hover:bg-cyan-500/10"
+                className="min-w-0 rounded-xl border border-cyan-400/30 px-3 py-2 text-center text-xs font-bold text-cyan-200 transition hover:bg-cyan-500/10"
               >
                 Im Mailprogramm öffnen
               </a>
