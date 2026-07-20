@@ -11,6 +11,10 @@ import {
   normalizePublicOfferToken,
 } from "@/lib/public-offer-links";
 import {
+  normalizePublicOfferItems,
+  sanitizePublicCustomerNote,
+} from "@/lib/public-offer-presentation";
+import {
   checkPublicRateLimit,
   logPublicSecurityEvent,
 } from "@/lib/public-security";
@@ -23,15 +27,6 @@ const PUBLIC_OFFER_PAGE_RATE_WINDOW_MS = 60 * 1000;
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
-};
-
-type PublicOfferItem = {
-  name: string;
-  description: string | null;
-  quantity: string;
-  unitPrice: string;
-  subtotal: string;
-  total: string;
 };
 
 function getPrisma() {
@@ -148,54 +143,6 @@ function serializeCustomerName(customer: {
     .trim();
 
   return fullName || "Kunde";
-}
-
-function readString(value: unknown, fallback = "") {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
-  }
-
-  if (value && typeof value === "object" && "toString" in value) {
-    return String(value.toString());
-  }
-
-  return fallback;
-}
-
-function readNullableString(value: unknown) {
-  const text = readString(value).trim();
-
-  return text.length > 0 ? text : null;
-}
-
-function normalizeOfferItems(items: unknown): PublicOfferItem[] {
-  if (!Array.isArray(items)) {
-    return [];
-  }
-
-  return items
-    .map((item) => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) {
-        return null;
-      }
-
-      const itemRecord = item as Record<string, unknown>;
-      const name = readString(itemRecord.name, "Leistung").trim() || "Leistung";
-
-      return {
-        name,
-        description: readNullableString(itemRecord.description),
-        quantity: readString(itemRecord.quantity, "1"),
-        unitPrice: readString(itemRecord.unitPrice, "0.00"),
-        subtotal: readString(itemRecord.subtotal, "0.00"),
-        total: readString(itemRecord.total ?? itemRecord.subtotal, "0.00"),
-      };
-    })
-    .filter((item): item is PublicOfferItem => Boolean(item));
 }
 
 function statusLabel(status: QuoteStatus) {
@@ -472,7 +419,8 @@ export default async function PublicOfferPage({
 
   const customerName = serializeCustomerName(link.quote.customer);
   const quoteAcceptedAt = link.quote.acceptedAt ?? link.acceptedAt;
-  const items = normalizeOfferItems(link.quote.items);
+  const items = normalizePublicOfferItems(link.quote.items);
+  const customerNote = sanitizePublicCustomerNote(link.quote.notes);
   const canDecide = link.quote.status === QuoteStatus.SENT && !quoteAcceptedAt;
 
   return (
@@ -584,13 +532,13 @@ export default async function PublicOfferPage({
               )}
             </section>
 
-            {link.quote.notes ? (
+            {customerNote ? (
               <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-[0_25px_90px_rgba(15,23,42,0.45)]">
                 <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
                   Hinweise
                 </p>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-300">
-                  {link.quote.notes}
+                  {customerNote}
                 </p>
               </section>
             ) : null}

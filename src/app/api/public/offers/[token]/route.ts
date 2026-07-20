@@ -13,6 +13,10 @@ import {
   createSafePublicNotFoundResponse,
   logPublicSecurityEvent,
 } from "@/lib/public-security";
+import {
+  extractPublicOfferItems,
+  sanitizePublicCustomerNote,
+} from "@/lib/public-offer-presentation";
 
 const PUBLIC_OFFER_VIEW_RATE_LIMIT = 30;
 const PUBLIC_OFFER_VIEW_RATE_WINDOW_MS = 60 * 1000;
@@ -261,8 +265,8 @@ export async function GET(
         taxAmount: decimalToString(link.quote.taxAmount),
         total: decimalToString(link.quote.total),
         currency: link.quote.currency,
-        items: serializeJsonValue(link.quote.items),
-        notes: link.quote.notes,
+        items: serializeJsonValue(extractPublicOfferItems(link.quote.items)),
+        notes: sanitizePublicCustomerNote(link.quote.notes),
         validUntil: link.quote.validUntil?.toISOString() ?? null,
         sentAt: link.quote.sentAt?.toISOString() ?? null,
         acceptedAt: quoteAcceptedAt?.toISOString() ?? null,
