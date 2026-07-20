@@ -7,19 +7,15 @@ type MarkInvoiceAsSentButtonProps = {
   invoiceId: string;
 };
 
-type ApiResponse = {
-  status?: string;
+type InvoiceUpdateResponse = {
   message?: string;
-  invoice?: {
-    id: string;
-    status: string;
-  } | null;
   data?: {
     status?: string;
     message?: string;
     invoice?: {
-      id: string;
-      status: string;
+      id?: string;
+      status?: string;
+      sentAt?: string | null;
     } | null;
   };
 };
@@ -28,12 +24,17 @@ export default function MarkInvoiceAsSentButton({
   invoiceId,
 }: MarkInvoiceAsSentButtonProps) {
   const router = useRouter();
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleMarkAsSent() {
+  async function markAsSent() {
+    if (isLoading) {
+      return;
+    }
+
     const confirmed = window.confirm(
-      "Möchten Sie diese Rechnung wirklich als versendet markieren?"
+      "Bestätigen Sie, dass die Rechnung an den Kunden versendet wurde.",
     );
 
     if (!confirmed) {
@@ -44,52 +45,67 @@ export default function MarkInvoiceAsSentButton({
     setError("");
 
     try {
-      const response = await fetch(`/api/dashboard/invoices/${invoiceId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/dashboard/invoices/${invoiceId}`,
+        {
+          method: "PATCH",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "SENT",
+          }),
         },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          status: "SENT",
-        }),
-      });
+      );
 
-      const result = (await response.json()) as ApiResponse;
+      const result = (await response
+        .json()
+        .catch(() => null)) as InvoiceUpdateResponse | null;
+
+      const updatedInvoice = result?.data?.invoice;
 
       if (
         !response.ok ||
-        result.status === "ERROR" ||
-        result.data?.status === "error"
+        result?.data?.status !== "success" ||
+        updatedInvoice?.status !== "SENT"
       ) {
         setError(
-          result.data?.message ??
-            result.message ??
-            "Die Rechnung konnte nicht als versendet markiert werden."
+          result?.data?.message ||
+            result?.message ||
+            "Die Rechnung konnte nicht als versendet markiert werden.",
         );
+
         return;
       }
 
       router.refresh();
     } catch {
-      setError("Verbindungsfehler zur API.");
+      setError("Verbindungsfehler zur Rechnungs-API.");
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <div className="flex flex-col items-start gap-2 lg:items-end">
+    <div className="flex min-w-0 flex-col gap-2">
       <button
         type="button"
-        onClick={handleMarkAsSent}
+        onClick={markAsSent}
         disabled={isLoading}
-        className="rounded-xl border border-sky-600 bg-sky-950/50 px-4 py-3 text-sm font-semibold text-sky-100 transition hover:border-sky-300 hover:bg-sky-900/70 disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-full min-h-14 rounded-2xl border border-violet-300/30 bg-violet-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.14em] text-violet-100 transition hover:border-violet-200 hover:bg-violet-300/20 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Wird markiert..." : "Als versendet markieren"}
+        {isLoading
+          ? "Wird aktualisiert..."
+          : "Als gesendet markieren"}
       </button>
 
-      {error ? <p className="text-xs text-red-400">{error}</p> : null}
+      {error ? (
+        <p className="text-xs leading-5 text-red-300">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

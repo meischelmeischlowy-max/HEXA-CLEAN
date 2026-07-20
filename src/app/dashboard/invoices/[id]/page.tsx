@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import AddInvoicePaymentForm from "../../../../components/dashboard/AddInvoicePaymentForm";
+import MarkInvoiceAsSentButton from "../../../../components/dashboard/MarkInvoiceAsSentButton";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -323,7 +324,7 @@ export default async function DashboardInvoiceDetailsPage({
           </div>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <Link
             href={`/documents/invoices/${invoice.id}/print`}
             className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20"
@@ -344,6 +345,10 @@ export default async function DashboardInvoiceDetailsPage({
           >
             Rechnung bearbeiten
           </Link>
+
+          {invoice.status === "DRAFT" ? (
+            <MarkInvoiceAsSentButton invoiceId={invoice.id} />
+          ) : null}
 
           <Link
             href={`/dashboard/customers/${invoice.customerId}`}
