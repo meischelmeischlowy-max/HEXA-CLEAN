@@ -1,4 +1,3 @@
-import { Resend } from "resend";
 import {
   AuditAction,
   CustomerType,
@@ -17,6 +16,7 @@ import {
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextRequest, NextResponse } from "next/server";
 
+import { emailConfiguration, resend } from "@/lib/email-config";
 import {
   checkPublicRateLimit,
   createPublicRateLimitResponse,
@@ -31,12 +31,9 @@ const TENANT_KEY = "hexa-clean";
 const CHAT_LEAD_RATE_LIMIT = 8;
 const CHAT_LEAD_RATE_WINDOW_MS = 5 * 60 * 1000;
 
-const OWNER_NOTIFICATION_EMAIL =
-  process.env.HEXA_OWNER_EMAIL || "meischel.meischelowy@gmail.com";
-
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const OWNER_NOTIFICATION_EMAIL = emailConfiguration.ownerEmail;
+const EMAIL_FROM = emailConfiguration.from;
+const EMAIL_REPLY_TO = emailConfiguration.replyTo;
 
 const globalForPrisma = globalThis as unknown as {
   hexaPrisma?: PrismaClient;
@@ -1001,7 +998,8 @@ export async function POST(request: NextRequest) {
 
     if (resend) {
       const { error: resendError } = await resend.emails.send({
-        from: "HEXA CLEAN <onboarding@resend.dev>",
+        from: EMAIL_FROM,
+        replyTo: EMAIL_REPLY_TO,
         to: [OWNER_NOTIFICATION_EMAIL],
         subject: "Neue AI Chatbox Anfrage von HEXA CLEAN",
         html: emailHtml,
