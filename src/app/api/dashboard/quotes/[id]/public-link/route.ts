@@ -532,6 +532,12 @@ export async function POST(
               currentQuote.sentAt ??
               existingSentNotification.sentAt ??
               now,
+            validUntil:
+              currentQuote.validUntil ??
+              new Date(
+                now.getTime() +
+                  14 * 24 * 60 * 60 * 1000,
+              ),
           },
         });
       }
@@ -710,6 +716,10 @@ export async function POST(
         ? currentQuote.validUntil
         : tokenData.expiresAt;
 
+    const effectiveValidUntil =
+      currentQuote.validUntil ??
+      finalExpiresAt;
+
     const subject =
       buildQuoteEmailSubject(
         currentQuote.quoteNumber,
@@ -730,7 +740,7 @@ export async function POST(
         currentQuote.currency || "CHF",
       publicUrl,
       validUntil:
-        currentQuote.validUntil,
+        effectiveValidUntil,
     };
 
     const text =
@@ -1100,6 +1110,8 @@ export async function POST(
           status:
             QuoteStatus.SENT,
           sentAt,
+          validUntil:
+            effectiveValidUntil,
         },
       }),
 
