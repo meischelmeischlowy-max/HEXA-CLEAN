@@ -6,6 +6,10 @@ import {
 } from "next/server";
 
 import {
+  sendInvoiceEmailWorkflow,
+  type InvoiceEmailWorkflowResult,
+} from "@/lib/invoice-email-service";
+import {
   prisma,
 } from "@/lib/prisma";
 import {
@@ -20,6 +24,46 @@ export const dynamic =
 export const runtime =
   "nodejs";
 
+type InvoiceAutomation =
+  | {
+      status:
+        "CREATED" |
+        "EXISTING";
+      quoteId: string;
+      quoteNumber: string;
+      created: boolean;
+      invoice: {
+        id: string;
+        invoiceNumber: string;
+        status: string;
+      };
+    }
+  | {
+      status:
+        "NO_ACCEPTED_QUOTE";
+      quoteId: null;
+      quoteNumber: null;
+      created: false;
+      invoice: null;
+    };
+
+type EmailAutomation =
+  | {
+      status:
+        "SENT" |
+        "ALREADY_SENT" |
+        "ACTION_REQUIRED";
+      attempted: true;
+      result:
+        InvoiceEmailWorkflowResult;
+    }
+  | {
+      status:
+        "NOT_APPLICABLE";
+      attempted: false;
+      result: null;
+    };
+
 export async function POST(
   _request: Request,
   context: {
@@ -32,11 +76,11 @@ export async function POST(
     const { id } =
       await context.params;
 
-    const result =
+    const completionResult =
       await dashboardOrderActionsRepository
         .markOrderAsCompleted(id);
 
-    if (!result) {
+    if (!completionResult) {
       return NextResponse.json(
         {
           status:
@@ -63,7 +107,8 @@ export async function POST(
             QuoteStatus.ACCEPTED,
         },
         orderBy: {
-          acceptedAt: "desc",
+          acceptedAt:
+            "desc",
         },
         select: {
           id: true,
@@ -72,23 +117,15 @@ export async function POST(
       });
 
     let invoiceAutomation:
-      | {
-          status:
-            "CREATED" |
-            "EXISTING";
-          quoteId: string;
-          quoteNumber: string;
-          created: boolean;
-          invoice: unknown;
-        }
-      | {
-          status:
-            "NO_ACCEPTED_QUOTE";
-          quoteId: null;
-          quoteNumber: null;
-          created: false;
-          invoice: null;
-        };
+      InvoiceAutomation;
+
+    let emailAutomation:
+      EmailAutomation = {
+        status:
+          "NOT_APPLICABLE",
+        attempted: false,
+        result: null,
+      };
 
     if (acceptedQuote) {
       const invoiceResult =
@@ -114,8 +151,33 @@ export async function POST(
           acceptedQuote.quoteNumber,
         created:
           invoiceResult.created,
-        invoice:
-          invoiceResult.invoice,
+        invoice: {
+          id:
+            invoiceResult.invoice.id,
+          invoiceNumber:
+            invoiceResult.invoice
+              .invoiceNumber,
+          status:
+            invoiceResult.invoice
+              .status,
+        },
+      };
+
+      const emailResult =
+        await sendInvoiceEmailWorkflow(
+          invoiceResult.invoice.id,
+        );
+
+      emailAutomation = {
+        status:
+          emailResult.alreadySent
+            ? "ALREADY_SENT"
+            : emailResult.sent
+              ? "SENT"
+              : "ACTION_REQUIRED",
+        attempted: true,
+        result:
+          emailResult,
       };
     } else {
       invoiceAutomation = {
@@ -130,23 +192,27 @@ export async function POST(
       await prisma.auditLog.create({
         data: {
           customerId:
-            result.updatedOrder
+            completionResult
+              .updatedOrder
               .customerId,
           orderId:
-            result.updatedOrder.id,
+            completionResult
+              .updatedOrder.id,
           sessionId:
-            result.updatedOrder
+            completionResult
+              .updatedOrder
               .sessionId,
           action:
             "UPDATE",
           entityType:
             "Order",
           entityId:
-            result.updatedOrder.id,
+            completionResult
+              .updatedOrder.id,
           actorType:
             "invoice_automation",
           message:
-            `Order ${result.updatedOrder.orderNumber} was completed, but no accepted quote was found for automatic invoice creation.`,
+            `Order ${completionResult.updatedOrder.orderNumber} was completed, but no accepted quote was found for automatic invoice creation.`,
           metadata: {
             source:
               "mark_completed_auto_invoice",
@@ -155,32 +221,48 @@ export async function POST(
             reason:
               "NO_ACCEPTED_QUOTE",
             orderId:
-              result.updatedOrder.id,
+              completionResult
+                .updatedOrder.id,
             orderNumber:
-              result.updatedOrder
+              completionResult
+                .updatedOrder
                 .orderNumber,
           },
         },
       });
     }
 
+    const actionRequired =
+      invoiceAutomation.status ===
+        "NO_ACCEPTED_QUOTE" ||
+      emailAutomation.status ===
+        "ACTION_REQUIRED";
+
+    const message =
+      invoiceAutomation.status ===
+      "NO_ACCEPTED_QUOTE"
+        ? "Der Auftrag wurde abgeschlossen, aber es wurde keine akzeptierte Offerte für die automatische Rechnung gefunden."
+        : emailAutomation.status ===
+            "SENT"
+          ? "Der Auftrag wurde abgeschlossen, die Rechnung erstellt und automatisch per E-Mail versendet."
+          : emailAutomation.status ===
+              "ALREADY_SENT"
+            ? "Der Auftrag ist abgeschlossen. Die Rechnung existiert und wurde bereits per E-Mail versendet."
+            : "Der Auftrag wurde abgeschlossen und die Rechnung erstellt. Der E-Mail-Versand benötigt eine Prüfung.";
+
     return NextResponse.json(
       {
         status: "OK",
-        message:
-          invoiceAutomation.status ===
-          "CREATED"
-            ? "Der Auftrag wurde abgeschlossen und der Rechnungsentwurf automatisch erstellt."
-            : invoiceAutomation.status ===
-                "EXISTING"
-              ? "Der Auftrag ist abgeschlossen. Der Rechnungsentwurf existierte bereits."
-              : "Der Auftrag wurde abgeschlossen, aber es wurde keine akzeptierte Offerte für die automatische Rechnung gefunden.",
+        message,
+        actionRequired,
         orderId: id,
         updated:
-          result.updated,
+          completionResult.updated,
         order:
-          result.updatedOrder,
+          completionResult
+            .updatedOrder,
         invoiceAutomation,
+        emailAutomation,
       },
       {
         status: 200,
@@ -192,7 +274,7 @@ export async function POST(
     );
   } catch (error) {
     console.error(
-      "Complete order and create invoice error:",
+      "Complete order, create invoice and send email error:",
       error,
     );
 
@@ -202,6 +284,7 @@ export async function POST(
           "ERROR",
         message:
           "Der Auftrag konnte nicht vollständig abgeschlossen werden.",
+        actionRequired: true,
         error:
           error instanceof Error
             ? error.message
