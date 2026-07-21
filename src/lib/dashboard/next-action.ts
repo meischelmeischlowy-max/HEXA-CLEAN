@@ -653,7 +653,44 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
     };
   }
 
-  if (status === "COMPLETED" && !order.hasInvoice) {
+  if (
+    status === "COMPLETED" &&
+    order.hasPaidInvoice
+  ) {
+    return {
+      label: "Abgeschlossen",
+      title: "Vorgang abgeschlossen",
+      description:
+        "Der Auftrag ist abgeschlossen und die Rechnung vollstaendig bezahlt. Es ist keine weitere Aktion erforderlich.",
+      tone: "green",
+      status,
+      owner: "order",
+      href: `/dashboard/orders/${order.id}`,
+      primaryLabel: "Details ansehen",
+    };
+  }
+
+  if (
+    status === "COMPLETED" &&
+    order.hasOpenInvoice
+  ) {
+    return {
+      label: "Zahlung offen",
+      title: "Zahlungseingang abwarten",
+      description:
+        "Der Auftrag ist abgeschlossen und die Rechnung versendet. Der Vorgang bleibt bis zur vollstaendigen Zahlung offen.",
+      tone: "amber",
+      status,
+      owner: "invoice",
+      href: `/dashboard/orders/${order.id}`,
+      primaryLabel: "Rechnung pruefen",
+    };
+  }
+
+  if (
+    status === "COMPLETED" &&
+    !order.hasInvoice
+  ) {
     return {
       label: "Rechnung fehlt",
       title: "Rechnung erstellen",
@@ -670,8 +707,12 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
   return {
     label: status,
     title: "Auftrag oeffnen",
-    description: "Auftrag im Auftragsmodul weiterbearbeiten.",
-    tone: status === "COMPLETED" ? "green" : "cyan",
+    description:
+      "Auftrag im Auftragsmodul weiterbearbeiten.",
+    tone:
+      status === "COMPLETED"
+        ? "green"
+        : "cyan",
     status,
     owner: "order",
     href: `/dashboard/orders/${order.id}`,
@@ -712,11 +753,40 @@ export function getInvoiceAction(
     };
   }
 
+  if (status === "PAID") {
+    return {
+      label: "Bezahlt",
+      title: "Zahlungsworkflow abgeschlossen",
+      description:
+        "Die Rechnung ist vollstaendig bezahlt. Der Vorgang ist abgeschlossen und erfordert keine weitere Aktion.",
+      tone: "green",
+      status,
+      owner: "invoice",
+      href: `/dashboard/invoices/${invoice.id}`,
+      primaryLabel: "Details ansehen",
+    };
+  }
+
+  if (status === "CANCELLED") {
+    return {
+      label: "Storniert",
+      title: "Rechnung storniert",
+      description:
+        "Die Rechnung ist storniert. Es ist keine Zahlungsaktion erforderlich.",
+      tone: "neutral",
+      status,
+      owner: "invoice",
+      href: `/dashboard/invoices/${invoice.id}`,
+      primaryLabel: "Details ansehen",
+    };
+  }
+
   return {
-    label: status === "PAID" ? "Bezahlt" : status,
+    label: status,
     title: "Rechnung oeffnen",
-    description: "Rechnung im Rechnungsmodul pruefen.",
-    tone: status === "PAID" ? "green" : "neutral",
+    description:
+      "Rechnung im Rechnungsmodul pruefen.",
+    tone: "neutral",
     status,
     owner: "invoice",
     href: `/dashboard/invoices/${invoice.id}`,
