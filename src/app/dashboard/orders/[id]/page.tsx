@@ -5,6 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import MarkOrderAsCompletedButton from "@/components/dashboard/MarkOrderAsCompletedButton";
+import ScheduleOrderButton from "@/components/dashboard/ScheduleOrderButton";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -663,7 +664,10 @@ export default async function OrderDetailsPage({
   ]);
 
   const currency = String(order.currency ?? "CHF");
-  const completed = order.status === "COMPLETED";
+  const orderStatus = String(order.status ?? "");
+  const completed = orderStatus === "COMPLETED";
+  const confirmed = orderStatus === "CONFIRMED";
+  const scheduled = orderStatus === "SCHEDULED";
   const latestEstimate = firstEstimate(estimates);
   const leadMessage = firstMessage(conversationMessages);
   const metadata = leadMetadata({
@@ -839,8 +843,28 @@ export default async function OrderDetailsPage({
             <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
               Auftrag abgeschlossen
             </div>
+          ) : confirmed ? (
+            <ScheduleOrderButton
+              orderId={String(order.id)}
+              initialStart={
+                order.scheduledStart
+                  ? String(order.scheduledStart)
+                  : null
+              }
+              initialEnd={
+                order.scheduledEnd
+                  ? String(order.scheduledEnd)
+                  : null
+              }
+            />
+          ) : scheduled ? (
+            <MarkOrderAsCompletedButton
+              orderId={String(order.id)}
+            />
           ) : (
-            <MarkOrderAsCompletedButton orderId={String(order.id)} />
+            <div className="rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-400">
+              Nächster Schritt wird automatisch angezeigt
+            </div>
           )}
         </div>
       </div>
