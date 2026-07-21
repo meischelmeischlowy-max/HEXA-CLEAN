@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import {
+  sendPaymentConfirmationWorkflow,
+} from "@/lib/payment-confirmation-service";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
@@ -291,7 +294,22 @@ export async function POST(
       };
     });
 
-    return NextResponse.json(result, { status: 201 });
+    const paymentConfirmation =
+      result.automation.nextStatus === "PAID"
+        ? await sendPaymentConfirmationWorkflow(
+            result.invoice.id,
+          )
+        : null;
+
+    return NextResponse.json(
+      {
+        ...result,
+        paymentConfirmation,
+      },
+      {
+        status: 201,
+      },
+    );
   } catch (error) {
     console.error("POST invoice payment error:", error);
 

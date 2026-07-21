@@ -2,6 +2,9 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { NextResponse } from "next/server";
 import {
+  sendPaymentConfirmationWorkflow,
+} from "@/lib/payment-confirmation-service";
+import {
   calculateAutomatedInvoiceState,
   calculatePaidPaymentsTotal,
   decimalToNumber,
@@ -412,15 +415,26 @@ export async function POST(request: Request) {
       };
     });
 
+    const paymentConfirmation =
+      result.automation.nextStatus === "PAID"
+        ? await sendPaymentConfirmationWorkflow(
+            result.invoice.id,
+          )
+        : null;
+
     return NextResponse.json({
       layer: "dashboard-payments-api",
       message: "Payment created",
       data: {
         status: "success",
-        message: "Zahlung wurde gespeichert.",
+        message:
+          paymentConfirmation?.actionRequired
+            ? "Zahlung wurde gespeichert. Die Zahlungsbestätigung braucht Prüfung."
+            : "Zahlung wurde gespeichert.",
         payment: result.payment,
         invoice: result.invoice,
         automation: result.automation,
+        paymentConfirmation,
       },
     });
   } catch (error) {

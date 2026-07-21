@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import {
+  sendPaymentConfirmationWorkflow,
+} from "@/lib/payment-confirmation-service";
 
 import { dashboardPaymentActionsRepository } from "@/repositories/dashboardPaymentActionsRepository";
 
@@ -21,6 +24,17 @@ export async function POST(
     );
   }
 
+  const finalInvoice =
+    result.updatedInvoice ??
+    result.invoice;
+
+  const paymentConfirmation =
+    finalInvoice?.status === "PAID"
+      ? await sendPaymentConfirmationWorkflow(
+          finalInvoice.id,
+        )
+      : null;
+
   return NextResponse.json(
     {
       status: "OK",
@@ -31,7 +45,8 @@ export async function POST(
       invoiceId: result.updatedInvoice?.id ?? result.invoice?.id ?? null,
       updated: result.updated,
       payment: result.payment,
-      invoice: result.updatedInvoice ?? result.invoice,
+      invoice: finalInvoice,
+      paymentConfirmation,
     },
     {
       status: 200,
