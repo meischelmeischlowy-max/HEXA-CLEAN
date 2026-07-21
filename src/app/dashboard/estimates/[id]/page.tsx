@@ -108,6 +108,18 @@ function formatDate(value: Date | null | undefined) {
   });
 }
 
+function formatFileSize(value: number | null | undefined) {
+  if (!value || value <= 0) {
+    return "Groesse unbekannt";
+  }
+
+  if (value < 1024 * 1024) {
+    return `${Math.max(1, Math.round(value / 1024))} KB`;
+  }
+
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function customerName(customer: {
   firstName: string | null;
   lastName: string | null;
@@ -531,15 +543,43 @@ export default async function DashboardEstimateDetailsPage({
   const isQuickOffer = isQuickOfferSource(estimate.source);
   const isChatbot = isChatbotSource(estimate.source);
 
-  const quickOfferMetadata =
-    conversationMessages[0]?.metadata ?? estimate.session?.metadata ?? null;
+  const quickOfferSessionMetadata = estimate.session?.metadata ?? null;
+  const quickOfferMessageMetadata =
+    conversationMessages[0]?.metadata ?? null;
 
   const quickOfferService =
-    metadataValue(quickOfferMetadata, "service") ?? estimate.title ?? "-";
-  const quickOfferSize = metadataValue(quickOfferMetadata, "size");
-  const quickOfferTime = metadataValue(quickOfferMetadata, "time");
-  const quickOfferMin = metadataValue(quickOfferMetadata, "calculatedMinPrice");
-  const quickOfferMax = metadataValue(quickOfferMetadata, "calculatedMaxPrice");
+    metadataValue(quickOfferSessionMetadata, "service") ??
+    metadataValue(quickOfferMessageMetadata, "service") ??
+    estimate.title ??
+    "-";
+
+  const quickOfferSize =
+    metadataValue(quickOfferSessionMetadata, "size") ??
+    metadataValue(quickOfferMessageMetadata, "size");
+
+  const quickOfferTime =
+    metadataValue(quickOfferSessionMetadata, "time") ??
+    metadataValue(quickOfferMessageMetadata, "time");
+
+  const quickOfferMin =
+    metadataValue(
+      quickOfferSessionMetadata,
+      "calculatedMinPrice",
+    ) ??
+    metadataValue(
+      quickOfferMessageMetadata,
+      "calculatedMinPrice",
+    );
+
+  const quickOfferMax =
+    metadataValue(
+      quickOfferSessionMetadata,
+      "calculatedMaxPrice",
+    ) ??
+    metadataValue(
+      quickOfferMessageMetadata,
+      "calculatedMaxPrice",
+    );
 
   const chatMetadata = estimate.session?.metadata ?? null;
   const chatAnswers = metadataObject(chatMetadata, "answers");
@@ -882,11 +922,61 @@ export default async function DashboardEstimateDetailsPage({
 
                   <p className="mt-3 text-sm leading-6 text-zinc-400">
                     {estimate.attachments.length > 0
-                      ? "Uploads sind vorhanden und muessen vor der Preisfreigabe geprueft werden."
+                      ? "Diese Fotos muessen vor der Preisfreigabe geprueft werden."
                       : estimate.status === "NEEDS_PHOTOS"
                         ? "Fotos fehlen. Kunde kontaktieren und Uploads anfordern."
                         : "Keine Uploads vorhanden. Bei Preisunsicherheit Fotos anfordern."}
                   </p>
+
+                  {estimate.attachments.length > 0 ? (
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      {estimate.attachments.map((attachment) => (
+                        <article
+                          key={attachment.id}
+                          className="overflow-hidden rounded-2xl border border-white/10 bg-black/25"
+                        >
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group block"
+                          >
+                            <div className="aspect-[4/3] overflow-hidden bg-black/40">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={attachment.url}
+                                alt={
+                                  attachment.fileName ||
+                                  "Kundenfoto zur Anfrage"
+                                }
+                                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                              />
+                            </div>
+
+                            <div className="p-4">
+                              <p className="truncate text-sm font-black text-white">
+                                {attachment.fileName ||
+                                  "Kundenfoto"}
+                              </p>
+
+                              <p className="mt-1 text-xs text-zinc-500">
+                                {formatFileSize(
+                                  attachment.sizeBytes,
+                                )}
+                                {attachment.mimeType
+                                  ? ` · ${attachment.mimeType}`
+                                  : ""}
+                              </p>
+
+                              <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                                Foto oeffnen
+                              </p>
+                            </div>
+                          </a>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
