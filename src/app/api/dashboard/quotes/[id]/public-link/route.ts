@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDashboardAuthorization } from "@/lib/dashboard-auth";
 import {
+  emailConfiguration,
+  resend,
+} from "@/lib/email-config";
+import {
+  buildQuoteEmailHtml,
+  buildQuoteEmailSubject,
+  buildQuoteEmailText,
+  quoteNotificationMatches,
+} from "@/lib/quote-email";
+import {
   AuditAction,
   NotificationChannel,
   NotificationStatus,
@@ -159,26 +169,87 @@ function buildMaskedPublicOfferUrl(
   return publicUrl.replace(rawToken, `${tokenPrefix}...`);
 }
 
-function buildOfferEmailSubject(quoteNumber: string) {
-  return `Ihre Offerte ${quoteNumber} von HEXA CLEAN`;
+function normalizeEmail(
+  value?: string | null,
+) {
+  const email = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ? email
+    : null;
 }
 
-function buildOfferEmailLogMessage(maskedPublicUrl: string) {
-  return [
-    "Guten Tag",
-    "",
-    "vielen Dank für Ihre Anfrage.",
-    "",
-    "Ihre Offerte wurde als öffentlicher Kundenlink vorbereitet.",
-    "",
-    "Geschützter Link:",
-    maskedPublicUrl,
-    "",
-    "Hinweis: Aus Sicherheitsgründen wird der vollständige Token nicht in der Datenbank gespeichert.",
-    "",
-    "Freundliche Grüsse",
-    "HEXA CLEAN",
-  ].join("\n");
+function customerDisplayName(customer: {
+  companyName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}) {
+  if (customer.companyName?.trim()) {
+    return customer.companyName.trim();
+  }
+
+  const fullName = [
+    customer.firstName,
+    customer.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return (
+    fullName ||
+    customer.email ||
+    "Kundin / Kunde"
+  );
+}
+
+function decimalToNumber(
+  value: unknown,
+) {
+  if (
+    value &&
+    typeof value === "object" &&
+    "toString" in value &&
+    typeof value.toString === "function"
+  ) {
+    const parsed = Number(
+      value.toString(),
+    );
+
+    return Number.isFinite(parsed)
+      ? parsed
+      : 0;
+  }
+
+  const parsed = Number(value ?? 0);
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : 0;
+}
+
+function errorMessage(
+  value: unknown,
+) {
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    "message" in value &&
+    typeof value.message === "string"
+  ) {
+    return value.message;
+  }
+
+  return String(
+    value || "Unbekannter E-Mail-Fehler",
+  );
 }
 
 export async function GET(
@@ -280,249 +351,853 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> },
+  context: {
+    params: Promise<{ id: string }>;
+  },
 ) {
   try {
-    const auth = await getDashboardAuthorization(request);
+    const auth =
+      await getDashboardAuthorization(
+        request,
+      );
 
     if (!auth.ok) {
-      return jsonError("Nicht autorisierte Dashboard-Anfrage.", 401, {
-        reason: auth.reason,
-      });
+      return jsonError(
+        "Nicht autorisierte Dashboard-Anfrage.",
+        401,
+        {
+          reason: auth.reason,
+        },
+      );
     }
 
-    const { id } = await context.params;
-    const quoteId = normalizeUuid(id);
+    const { id } =
+      await context.params;
+
+    const quoteId =
+      normalizeUuid(id);
 
     if (!quoteId) {
-      return jsonError("Ungültige Angebots-ID.", 400);
+      return jsonError(
+        "Ungültige Angebots-ID.",
+        400,
+      );
     }
 
-    const body = await readJsonObject(request);
-    const expiresInDays = normalizeExpiresInDays(body.expiresInDays);
-    const revokeExisting = normalizeBoolean(body.revokeExisting, true);
+    const body =
+      await readJsonObject(
+        request,
+      );
+
+    const expiresInDays =
+      normalizeExpiresInDays(
+        body.expiresInDays,
+      );
+
+    const revokeExisting =
+      normalizeBoolean(
+        body.revokeExisting,
+        true,
+      );
 
     const prisma = getPrisma();
 
-    const quote = await prisma.quote.findUnique({
-      where: {
-        id: quoteId,
-      },
-      select: {
-        id: true,
-        quoteNumber: true,
-        status: true,
-        customerId: true,
-        orderId: true,
-        sessionId: true,
-        validUntil: true,
-        sentAt: true,
-        acceptedAt: true,
-        customer: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            companyName: true,
+    const quote =
+      await prisma.quote.findUnique({
+        where: {
+          id: quoteId,
+        },
+        select: {
+          id: true,
+          quoteNumber: true,
+          status: true,
+          customerId: true,
+          orderId: true,
+          sessionId: true,
+          validUntil: true,
+          sentAt: true,
+          acceptedAt: true,
+          total: true,
+          currency: true,
+          customer: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              companyName: true,
+            },
           },
         },
-      },
-    });
+      });
 
     if (!quote) {
-      return jsonError("Das Angebot wurde nicht gefunden.", 404);
-    }
-
-    if (quote.status === QuoteStatus.ACCEPTED) {
-      return jsonError("Das Angebot wurde bereits akzeptiert.", 409, {
-        quoteStatus: quote.status,
-      });
-    }
-
-    if (quote.status !== QuoteStatus.SENT) {
       return jsonError(
-        "Ein öffentlicher Angebotslink kann nur für ein versendetes Angebot erstellt werden.",
+        "Das Angebot wurde nicht gefunden.",
+        404,
+      );
+    }
+
+    const currentQuote = quote;
+
+    if (
+      currentQuote.status ===
+      QuoteStatus.ACCEPTED
+    ) {
+      return jsonError(
+        "Das Angebot wurde bereits akzeptiert.",
         409,
         {
-          quoteStatus: quote.status,
-          requiredStatus: QuoteStatus.SENT,
+          quoteStatus:
+            currentQuote.status,
+        },
+      );
+    }
+
+    if (
+      currentQuote.status !==
+        QuoteStatus.DRAFT &&
+      currentQuote.status !==
+        QuoteStatus.SENT
+    ) {
+      return jsonError(
+        "Nur ein Entwurf kann an den Kunden versendet werden.",
+        409,
+        {
+          quoteStatus:
+            currentQuote.status,
+          requiredStatus:
+            QuoteStatus.DRAFT,
         },
       );
     }
 
     const now = new Date();
 
-    if (quote.validUntil && quote.validUntil.getTime() <= now.getTime()) {
-      return jsonError("Die Gültigkeit des Angebots ist bereits abgelaufen.", 409, {
-        validUntil: quote.validUntil.toISOString(),
-      });
+    if (
+      currentQuote.validUntil &&
+      currentQuote.validUntil.getTime() <=
+        now.getTime()
+    ) {
+      return jsonError(
+        "Die Gültigkeit des Angebots ist bereits abgelaufen.",
+        409,
+        {
+          validUntil:
+            currentQuote.validUntil.toISOString(),
+        },
+      );
     }
 
-    const tokenData = createPublicOfferTokenData(expiresInDays);
-    const publicUrl = buildPublicOfferUrl(tokenData.rawToken);
-    const maskedPublicUrl = buildMaskedPublicOfferUrl(
-      publicUrl,
-      tokenData.rawToken,
-      tokenData.tokenPrefix,
-    );
+    const sentCandidates =
+      await prisma.notification.findMany({
+        where: {
+          customerId:
+            currentQuote.customerId,
+          orderId:
+            currentQuote.orderId,
+          channel:
+            NotificationChannel.EMAIL,
+          status:
+            NotificationStatus.SENT,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 50,
+      });
 
-    const finalExpiresAt =
-      quote.validUntil && quote.validUntil.getTime() < tokenData.expiresAt.getTime()
-        ? quote.validUntil
-        : tokenData.expiresAt;
+    const existingSentNotification =
+      sentCandidates.find(
+        (notification) =>
+          quoteNotificationMatches(
+            notification.metadata,
+            currentQuote.id,
+          ),
+      ) ?? null;
 
-    const result = await prisma.$transaction(async (tx) => {
-      if (revokeExisting) {
-        await tx.publicOfferLink.updateMany({
+    if (existingSentNotification) {
+      if (
+        currentQuote.status !==
+        QuoteStatus.SENT
+      ) {
+        await prisma.quote.update({
           where: {
-            quoteId: quote.id,
-            acceptedAt: null,
-            revokedAt: null,
+            id: currentQuote.id,
           },
           data: {
-            revokedAt: now,
+            status:
+              QuoteStatus.SENT,
+            sentAt:
+              currentQuote.sentAt ??
+              existingSentNotification.sentAt ??
+              now,
           },
         });
       }
 
-      const link = await tx.publicOfferLink.create({
-        data: {
-          tokenHash: tokenData.tokenHash,
-          tokenPrefix: tokenData.tokenPrefix,
-          quoteId: quote.id,
-          customerId: quote.customerId,
-          expiresAt: finalExpiresAt,
-          createdBy: "dashboard",
-          metadata: {
-            expiresInDays,
-            revokeExisting,
-            rawTokenStored: false,
-            fullPublicUrlStored: false,
-            maskedPublicUrl,
-          },
+      return NextResponse.json(
+        {
+          ok: true,
+          alreadySent: true,
+          message:
+            "Die Offerte wurde bereits per E-Mail versendet.",
+          quoteId:
+            currentQuote.id,
+          quoteNumber:
+            currentQuote.quoteNumber,
+          recipient:
+            existingSentNotification.recipient,
+          notificationId:
+            existingSentNotification.id,
         },
-        select: {
-          id: true,
-          tokenPrefix: true,
-          expiresAt: true,
-          acceptedAt: true,
-          revokedAt: true,
-          lastViewedAt: true,
-          viewCount: true,
-          createdAt: true,
-          updatedAt: true,
+        {
+          status: 200,
+          headers:
+            responseHeaders(),
+        },
+      );
+    }
+
+    const recipient =
+      normalizeEmail(
+        currentQuote.customer.email,
+      );
+
+    async function recordBlockingFailure({
+      message,
+      error,
+      statusCode,
+    }: {
+      message: string;
+      error: string;
+      statusCode: number;
+    }) {
+      const notification =
+        await prisma.notification.create({
+          data: {
+            customerId:
+              currentQuote.customerId,
+            orderId:
+              currentQuote.orderId,
+            sessionId:
+              currentQuote.sessionId,
+            channel:
+              NotificationChannel.EMAIL,
+            status:
+              NotificationStatus.FAILED,
+            recipient:
+              recipient ||
+              emailConfiguration.ownerEmail,
+            subject:
+              `Offertenversand fehlgeschlagen: ${currentQuote.quoteNumber}`,
+            message,
+            errorMessage:
+              error,
+            metadata: {
+              source:
+                "automatic_quote_email",
+              type:
+                "customer_quote",
+              quoteId:
+                currentQuote.id,
+              quoteNumber:
+                currentQuote.quoteNumber,
+              automatic: true,
+              actionRequired: true,
+              error,
+            },
+          },
+        });
+
+      await prisma.auditLog.create({
+        data: {
+          customerId:
+            currentQuote.customerId,
+          orderId:
+            currentQuote.orderId,
+          sessionId:
+            currentQuote.sessionId,
+          action:
+            AuditAction.SYSTEM,
+          entityType:
+            "Quote",
+          entityId:
+            currentQuote.id,
+          actorType:
+            "dashboard",
+          message,
+          after: {
+            quoteId:
+              currentQuote.id,
+            quoteNumber:
+              currentQuote.quoteNumber,
+            quoteStatus:
+              currentQuote.status,
+            emailSent: false,
+            notificationId:
+              notification.id,
+            actionRequired: true,
+            error,
+          },
+          metadata: {
+            source:
+              "automatic_quote_email",
+            quoteId:
+              currentQuote.id,
+            automatic: true,
+            actionRequired: true,
+          },
         },
       });
 
-      const notification = quote.customer.email
-        ? await tx.notification.create({
+      return jsonError(
+        message,
+        statusCode,
+        {
+          error,
+          quoteId:
+            currentQuote.id,
+          quoteNumber:
+            currentQuote.quoteNumber,
+          notificationId:
+            notification.id,
+        },
+      );
+    }
+
+    if (!recipient) {
+      return recordBlockingFailure({
+        message:
+          "Die Offerte konnte nicht versendet werden, weil keine gültige Kunden-E-Mail vorhanden ist.",
+        error:
+          "CUSTOMER_EMAIL_MISSING_OR_INVALID",
+        statusCode: 409,
+      });
+    }
+
+    if (!resend) {
+      return recordBlockingFailure({
+        message:
+          "Der Offertenversand ist nicht konfiguriert.",
+        error:
+          "RESEND_API_KEY is missing",
+        statusCode: 503,
+      });
+    }
+
+    const tokenData =
+      createPublicOfferTokenData(
+        expiresInDays,
+      );
+
+    const publicUrl =
+      buildPublicOfferUrl(
+        tokenData.rawToken,
+      );
+
+    const maskedPublicUrl =
+      buildMaskedPublicOfferUrl(
+        publicUrl,
+        tokenData.rawToken,
+        tokenData.tokenPrefix,
+      );
+
+    const finalExpiresAt =
+      currentQuote.validUntil &&
+      currentQuote.validUntil.getTime() <
+        tokenData.expiresAt.getTime()
+        ? currentQuote.validUntil
+        : tokenData.expiresAt;
+
+    const subject =
+      buildQuoteEmailSubject(
+        currentQuote.quoteNumber,
+      );
+
+    const emailPayload = {
+      quoteNumber:
+        currentQuote.quoteNumber,
+      customerName:
+        customerDisplayName(
+          currentQuote.customer,
+        ),
+      total:
+        decimalToNumber(
+          currentQuote.total,
+        ),
+      currency:
+        currentQuote.currency || "CHF",
+      publicUrl,
+      validUntil:
+        currentQuote.validUntil,
+    };
+
+    const text =
+      buildQuoteEmailText(
+        emailPayload,
+      );
+
+    const html =
+      buildQuoteEmailHtml(
+        emailPayload,
+      );
+
+    const prepared =
+      await prisma.$transaction(
+        async (tx) => {
+          if (revokeExisting) {
+            await tx.publicOfferLink.updateMany({
+              where: {
+                quoteId:
+                  currentQuote.id,
+                acceptedAt: null,
+                revokedAt: null,
+              },
+              data: {
+                revokedAt: now,
+              },
+            });
+          }
+
+          const link =
+            await tx.publicOfferLink.create({
+              data: {
+                tokenHash:
+                  tokenData.tokenHash,
+                tokenPrefix:
+                  tokenData.tokenPrefix,
+                quoteId:
+                  currentQuote.id,
+                customerId:
+                  currentQuote.customerId,
+                expiresAt:
+                  finalExpiresAt,
+                createdBy:
+                  "dashboard",
+                metadata: {
+                  source:
+                    "automatic_quote_email",
+                  expiresInDays,
+                  revokeExisting,
+                  rawTokenStored:
+                    false,
+                  fullPublicUrlStored:
+                    false,
+                  maskedPublicUrl,
+                },
+              },
+              select: {
+                id: true,
+                tokenPrefix: true,
+                expiresAt: true,
+                acceptedAt: true,
+                revokedAt: true,
+                lastViewedAt: true,
+                viewCount: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            });
+
+          const notification =
+            await tx.notification.create({
+              data: {
+                customerId:
+                  currentQuote.customerId,
+                orderId:
+                  currentQuote.orderId,
+                sessionId:
+                  currentQuote.sessionId,
+                channel:
+                  NotificationChannel.EMAIL,
+                status:
+                  NotificationStatus.PENDING,
+                recipient,
+                subject,
+                message: [
+                  `Offerte ${currentQuote.quoteNumber}`,
+                  `Empfänger: ${recipient}`,
+                  `Geschützter Link: ${maskedPublicUrl}`,
+                  "Der vollständige Token wird nicht gespeichert.",
+                ].join("\n"),
+                metadata: {
+                  source:
+                    "automatic_quote_email",
+                  type:
+                    "customer_quote",
+                  quoteId:
+                    currentQuote.id,
+                  quoteNumber:
+                    currentQuote.quoteNumber,
+                  publicOfferLinkId:
+                    link.id,
+                  tokenPrefix:
+                    tokenData.tokenPrefix,
+                  maskedPublicUrl,
+                  rawTokenStored:
+                    false,
+                  fullPublicUrlStored:
+                    false,
+                  automatic: true,
+                  actionRequired:
+                    false,
+                },
+              },
+            });
+
+          await tx.auditLog.create({
             data: {
-              customerId: quote.customerId,
-              orderId: quote.orderId,
-              sessionId: quote.sessionId,
-              channel: NotificationChannel.EMAIL,
-              status: NotificationStatus.PENDING,
-              recipient: quote.customer.email,
-              subject: buildOfferEmailSubject(quote.quoteNumber),
-              message: buildOfferEmailLogMessage(maskedPublicUrl),
+              customerId:
+                currentQuote.customerId,
+              orderId:
+                currentQuote.orderId,
+              sessionId:
+                currentQuote.sessionId,
+              action:
+                AuditAction.CREATE,
+              entityType:
+                "PublicOfferLink",
+              entityId:
+                link.id,
+              actorType:
+                "dashboard",
+              message:
+                `Geschützter Kundenlink für Offerte ${currentQuote.quoteNumber} wurde für den automatischen Versand erstellt.`,
+              after: {
+                quoteId:
+                  currentQuote.id,
+                quoteNumber:
+                  currentQuote.quoteNumber,
+                publicOfferLinkId:
+                  link.id,
+                tokenPrefix:
+                  tokenData.tokenPrefix,
+                expiresAt:
+                  finalExpiresAt.toISOString(),
+                notificationId:
+                  notification.id,
+                rawTokenStored:
+                  false,
+                fullPublicUrlStored:
+                  false,
+              },
               metadata: {
-                source: "public_offer_link_generation",
-                quoteId: quote.id,
-                quoteNumber: quote.quoteNumber,
-                publicOfferLinkId: link.id,
-                tokenPrefix: tokenData.tokenPrefix,
-                maskedPublicUrl,
-                rawTokenStored: false,
-                fullPublicUrlStored: false,
-                draftOnly: true,
-                requiresManualSend: true,
+                source:
+                  "automatic_quote_email",
+                quoteId:
+                  currentQuote.id,
+                automatic: true,
               },
             },
-            select: {
-              id: true,
-              recipient: true,
-              subject: true,
-              status: true,
-              createdAt: true,
-            },
-          })
-        : null;
+          });
 
-      await tx.auditLog.create({
-        data: {
-          customerId: quote.customerId,
-          orderId: quote.orderId,
-          sessionId: quote.sessionId,
-          action: AuditAction.CREATE,
-          entityType: "PublicOfferLink",
-          entityId: link.id,
-          actorType: "dashboard",
-          message: `Öffentlicher Angebotslink für Angebot ${quote.quoteNumber} wurde erstellt.`,
-          after: {
-            quoteId: quote.id,
-            quoteNumber: quote.quoteNumber,
-            tokenPrefix: tokenData.tokenPrefix,
-            expiresAt: finalExpiresAt.toISOString(),
-            rawTokenStored: false,
-            fullPublicUrlStored: false,
-            previousOpenLinksRevoked: revokeExisting,
-            notificationCreated: Boolean(notification),
-            notificationId: notification?.id ?? null,
-            maskedPublicUrl,
+          return {
+            link,
+            notification,
+          };
+        },
+      );
+
+    let providerMessageId:
+      string | null = null;
+
+    let sendError:
+      string | null = null;
+
+    try {
+      const result =
+        await resend.emails.send({
+          from:
+            emailConfiguration.from,
+          replyTo:
+            emailConfiguration.replyTo,
+          to: [recipient],
+          subject,
+          html,
+          text,
+        });
+
+      if (result.error) {
+        sendError =
+          result.error.message ||
+          JSON.stringify(
+            result.error,
+          );
+      } else {
+        providerMessageId =
+          result.data?.id ?? null;
+      }
+    } catch (error) {
+      sendError =
+        errorMessage(error);
+    }
+
+    if (sendError) {
+      const failedAt =
+        new Date();
+
+      await prisma.$transaction([
+        prisma.notification.update({
+          where: {
+            id:
+              prepared.notification.id,
           },
+          data: {
+            status:
+              NotificationStatus.FAILED,
+            sentAt: null,
+            errorMessage:
+              sendError,
+            metadata: {
+              source:
+                "automatic_quote_email",
+              type:
+                "customer_quote",
+              quoteId:
+                currentQuote.id,
+              quoteNumber:
+                currentQuote.quoteNumber,
+              publicOfferLinkId:
+                prepared.link.id,
+              tokenPrefix:
+                tokenData.tokenPrefix,
+              maskedPublicUrl,
+              rawTokenStored:
+                false,
+              fullPublicUrlStored:
+                false,
+              automatic: true,
+              actionRequired: true,
+              error:
+                sendError,
+            },
+          },
+        }),
+
+        prisma.publicOfferLink.update({
+          where: {
+            id:
+              prepared.link.id,
+          },
+          data: {
+            revokedAt:
+              failedAt,
+          },
+        }),
+
+        prisma.auditLog.create({
+          data: {
+            customerId:
+              currentQuote.customerId,
+            orderId:
+              currentQuote.orderId,
+            sessionId:
+              currentQuote.sessionId,
+            action:
+              AuditAction.SYSTEM,
+            entityType:
+              "Quote",
+            entityId:
+              currentQuote.id,
+            actorType:
+              "dashboard",
+            message:
+              `Automatischer E-Mail-Versand der Offerte ${currentQuote.quoteNumber} ist fehlgeschlagen.`,
+            after: {
+              quoteId:
+                currentQuote.id,
+              quoteNumber:
+                currentQuote.quoteNumber,
+              quoteStatus:
+                currentQuote.status,
+              emailSent: false,
+              recipient,
+              notificationId:
+                prepared.notification.id,
+              publicOfferLinkId:
+                prepared.link.id,
+              publicOfferLinkRevoked:
+                true,
+              actionRequired: true,
+              error:
+                sendError,
+            },
+            metadata: {
+              source:
+                "automatic_quote_email",
+              quoteId:
+                currentQuote.id,
+              automatic: true,
+              actionRequired: true,
+            },
+          },
+        }),
+      ]);
+
+      return jsonError(
+        "Die Offerte wurde nicht als versendet markiert, weil der E-Mail-Provider den Versand nicht bestätigt hat.",
+        502,
+        {
+          error:
+            sendError,
+          quoteId:
+            currentQuote.id,
+          quoteNumber:
+            currentQuote.quoteNumber,
+          recipient,
+          notificationId:
+            prepared.notification.id,
+        },
+      );
+    }
+
+    const sentAt =
+      new Date();
+
+    await prisma.$transaction([
+      prisma.notification.update({
+        where: {
+          id:
+            prepared.notification.id,
+        },
+        data: {
+          status:
+            NotificationStatus.SENT,
+          sentAt,
+          errorMessage: null,
           metadata: {
-            source: "public_offer_link_api",
-            quoteId: quote.id,
-            quoteNumber: quote.quoteNumber,
-            publicOfferLinkId: link.id,
-            tokenPrefix: tokenData.tokenPrefix,
-            rawTokenStored: false,
-            fullPublicUrlStored: false,
+            source:
+              "automatic_quote_email",
+            type:
+              "customer_quote",
+            quoteId:
+              currentQuote.id,
+            quoteNumber:
+              currentQuote.quoteNumber,
+            publicOfferLinkId:
+              prepared.link.id,
+            tokenPrefix:
+              tokenData.tokenPrefix,
+            maskedPublicUrl,
+            rawTokenStored:
+              false,
+            fullPublicUrlStored:
+              false,
+            automatic: true,
+            actionRequired: false,
+            providerMessageId,
           },
         },
-      });
+      }),
 
-      return {
-        link,
-        notification,
-      };
-    });
+      prisma.quote.update({
+        where: {
+          id:
+            currentQuote.id,
+        },
+        data: {
+          status:
+            QuoteStatus.SENT,
+          sentAt,
+        },
+      }),
+
+      prisma.auditLog.create({
+        data: {
+          customerId:
+            currentQuote.customerId,
+          orderId:
+            currentQuote.orderId,
+          sessionId:
+            currentQuote.sessionId,
+          action:
+            AuditAction.SYSTEM,
+          entityType:
+            "Quote",
+          entityId:
+            currentQuote.id,
+          actorType:
+            "dashboard",
+          message:
+            `Offerte ${currentQuote.quoteNumber} wurde per E-Mail an ${recipient} übergeben.`,
+          before: {
+            quoteStatus:
+              currentQuote.status,
+            sentAt:
+              currentQuote.sentAt?.toISOString() ??
+              null,
+          },
+          after: {
+            quoteStatus:
+              QuoteStatus.SENT,
+            sentAt:
+              sentAt.toISOString(),
+            emailProviderAccepted:
+              true,
+            recipient,
+            notificationId:
+              prepared.notification.id,
+            publicOfferLinkId:
+              prepared.link.id,
+            providerMessageId,
+          },
+          metadata: {
+            source:
+              "automatic_quote_email",
+            quoteId:
+              currentQuote.id,
+            automatic: true,
+            rawTokenStored: false,
+            fullPublicUrlStored:
+              false,
+          },
+        },
+      }),
+    ]);
 
     return NextResponse.json(
       {
         ok: true,
+        alreadySent: false,
+        emailProviderAccepted:
+          true,
         message:
-          "Der öffentliche Angebotslink wurde erstellt. Kopieren Sie diese URL jetzt, da der vollständige Token nicht gespeichert wird.",
-        publicUrl,
-        rawTokenShownOnce: true,
-        link: serializePublicOfferLink(result.link),
-        notification: result.notification
-          ? {
-              id: result.notification.id,
-              recipient: result.notification.recipient,
-              subject: result.notification.subject,
-              status: result.notification.status,
-              createdAt: result.notification.createdAt.toISOString(),
-              rawTokenStored: false,
-              fullPublicUrlStored: false,
-            }
-          : null,
-        notificationNote: result.notification
-          ? "Eine E-Mail-Notification mit Status PENDING wurde erstellt. Sie enthält nur die maskierte URL."
-          : "Es wurde keine Notification erstellt, weil der Kunde keine E-Mail-Adresse hat.",
+          "Der E-Mail-Provider hat den Versand der Offerte angenommen.",
+        quoteId:
+          currentQuote.id,
+        quoteNumber:
+          currentQuote.quoteNumber,
+        quoteStatus:
+          QuoteStatus.SENT,
+        recipient,
+        notificationId:
+          prepared.notification.id,
+        publicOfferLinkId:
+          prepared.link.id,
+        providerMessageId,
+        sentAt:
+          sentAt.toISOString(),
       },
       {
         status: 201,
-        headers: responseHeaders(),
+        headers:
+          responseHeaders(),
       },
     );
   } catch (error) {
-    console.error("Public offer link generation error:", error);
+    console.error(
+      "Automatic quote email error:",
+      error,
+    );
 
     return jsonError(
-      "Der öffentliche Angebotslink konnte nicht erstellt werden.",
+      "Die Offerte konnte nicht automatisch versendet werden.",
       500,
+      {
+        error:
+          errorMessage(error),
+      },
     );
   }
 }

@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import GeneratePublicOfferLinkButton from "@/components/dashboard/GeneratePublicOfferLinkButton";
-import MarkQuoteAsAcceptedButton from "@/components/dashboard/MarkQuoteAsAcceptedButton";
-import MarkQuoteAsSentButton from "@/components/dashboard/MarkQuoteAsSentButton";
-import RepairInvoiceFromQuoteButton from "@/components/dashboard/RepairInvoiceFromQuoteButton";
+import SendQuoteToCustomerButton from "@/components/dashboard/SendQuoteToCustomerButton";
 import { dashboardService } from "@/services/dashboardService";
 
 type RecordItem = Record<string, unknown>;
@@ -210,9 +207,9 @@ function getNextStep({
 
   if (status === "DRAFT") {
     return {
-      title: "Offerte freigeben",
+      title: "Offerte prüfen und senden",
       description:
-        "Die Offerte ist noch ein Entwurf. Prüfen Sie die Daten und markieren Sie sie danach als gesendet.",
+        "Prüfen Sie Preis, Leistungsumfang und Kundendaten. Die eine Hauptaktion erstellt den geschützten Kundenlink, versendet die E-Mail und setzt den Status erst nach Bestätigung des E-Mail-Providers auf SENT.",
       tone: "amber",
     };
   }
@@ -673,39 +670,35 @@ export default async function QuoteDetailsPage({
 
               <div className="mt-4 grid gap-3">
                 {isDraft ? (
-                  <MarkQuoteAsSentButton quoteId={String(quote.id)} />
+                  <SendQuoteToCustomerButton
+                    quoteId={String(quote.id)}
+                  />
                 ) : null}
 
                 {isSent ? (
-                  <>
-                    <GeneratePublicOfferLinkButton
-                      quoteId={String(quote.id)}
-                      quoteStatus={String(quote.status)}
-                    />
-                    <MarkQuoteAsAcceptedButton quoteId={String(quote.id)} />
-                  </>
+                  <div className="rounded-2xl border border-sky-300/25 bg-sky-400/10 px-4 py-4 text-sm leading-6 text-sky-100">
+                    Die Offerte wurde per E-Mail übergeben. Der Kunde entscheidet jetzt ausschließlich über den geschützten Kundenlink.
+                  </div>
                 ) : null}
 
                 {isAccepted && firstInvoice?.id ? (
-                  <>
-                    <Link
-                      href={`/dashboard/invoices/${String(firstInvoice.id)}`}
-                      className="rounded-xl border border-emerald-600 bg-emerald-950/50 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300 hover:bg-emerald-900/70"
-                    >
-                      Rechnung öffnen
-                    </Link>
-
-                    <RepairInvoiceFromQuoteButton
-                      quoteId={String(quote.id)}
-                      invoiceId={String(firstInvoice.id)}
-                    />
-                  </>
+                  <Link
+                    href={`/dashboard/invoices/${String(firstInvoice.id)}`}
+                    className="rounded-2xl border border-emerald-300/40 bg-emerald-300 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.1em] text-neutral-950 transition hover:bg-emerald-200"
+                  >
+                    Rechnung öffnen
+                  </Link>
                 ) : null}
 
+                {isAccepted && !firstInvoice ? (
+                  <div className="rounded-2xl border border-red-300/30 bg-red-400/10 px-4 py-4 text-sm leading-6 text-red-100">
+                    Die automatische Rechnungserstellung ist fehlgeschlagen. Details stehen in Benachrichtigungen und Audit-Logs.
+                  </div>
+                ) : null}
 
                 {!isDraft && !isSent && !isAccepted ? (
-                  <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 px-4 py-3 text-sm font-semibold text-neutral-300">
-                    Keine Hauptaktion für diesen Status.
+                  <div className="rounded-2xl border border-neutral-700 bg-neutral-900/70 px-4 py-4 text-sm font-semibold text-neutral-300">
+                    Für diesen Status ist keine manuelle Hauptaktion erforderlich.
                   </div>
                 ) : null}
               </div>
