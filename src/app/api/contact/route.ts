@@ -230,7 +230,7 @@ function normalizeService(value: unknown) {
 
     case "Buero":
     case "Buro":
-    case "Büro":
+    case "BĂĽro":
       return {
         service: "Buero",
         serviceType: ServiceType.REINIGUNG,
@@ -622,19 +622,7 @@ async function findOrCreateQuickOfferCustomer(
     }
   }
 
-  if (offer.phone) {
-    const existingCustomer = await prisma.customer.findFirst({
-      where: {
-        phone: offer.phone,
-      },
-    });
-
-    if (existingCustomer) {
-      return existingCustomer;
-    }
-  }
-
-  const nameParts = splitName(offer.name);
+const nameParts = splitName(offer.name);
 
   return prisma.customer.create({
     data: {

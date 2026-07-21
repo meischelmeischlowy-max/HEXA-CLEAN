@@ -441,7 +441,7 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
   if (!email && !phone) {
     return {
       lead: null,
-      error: "Bitte geben Sie eine gültige Telefonnummer oder E-Mail-Adresse ein.",
+      error: "Bitte geben Sie eine gĂĽltige Telefonnummer oder E-Mail-Adresse ein.",
     };
   }
 
@@ -458,7 +458,7 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
   const date = cleanText(answers.date, 200);
 
   const estimatedPrice = clampMoney(cleanNumber(body.session?.estimatedPrice, 0));
-  const priceRange = cleanText(body.session?.priceRange, 120) ?? "Wird geprüft";
+  const priceRange = cleanText(body.session?.priceRange, 120) ?? "Wird geprĂĽft";
   const range = parsePriceRange(priceRange, estimatedPrice);
 
   const quantity =
@@ -522,7 +522,7 @@ function buildPlainMessage(lead: NormalizedChatLead) {
     `E-Mail: ${lead.email ?? "-"}`,
     `Telefon: ${lead.phone ?? "-"}`,
     `Leistung: ${lead.serviceLabel}`,
-    `Fläche: ${lead.answers.area ? `${lead.answers.area} m²` : "-"}`,
+    `FlĂ¤che: ${lead.answers.area ? `${lead.answers.area} mÂ˛` : "-"}`,
     `Fenster: ${lead.answers.windows ?? "-"}`,
     `Etage: ${lead.answers.floor ?? "-"}`,
     `Lift: ${
@@ -545,7 +545,7 @@ function buildPlainMessage(lead: NormalizedChatLead) {
     `Rhythmus: ${lead.answers.frequency ?? "-"}`,
     `Beschreibung: ${lead.answers.description ?? "-"}`,
     `Wunschtermin: ${lead.answers.date ?? "-"}`,
-    `Geschätzter Preis: ${lead.priceRange}`,
+    `GeschĂ¤tzter Preis: ${lead.priceRange}`,
     `Seite: ${lead.pageUrl ?? "-"}`,
     "",
     "Chatverlauf:",
@@ -588,13 +588,13 @@ function buildOwnerEmailHtml(
     <p><strong>E-Mail:</strong> ${escapeHtml(lead.email || "-")}</p>
     <p><strong>Telefon:</strong> ${escapeHtml(lead.phone || "-")}</p>
     <p><strong>Leistung:</strong> ${escapeHtml(lead.serviceLabel)}</p>
-    <p><strong>Geschätzter Preis:</strong> ${escapeHtml(lead.priceRange)}</p>
+    <p><strong>GeschĂ¤tzter Preis:</strong> ${escapeHtml(lead.priceRange)}</p>
 
     <hr />
 
     <h3>Angaben</h3>
-    <p><strong>Fläche:</strong> ${
-      lead.answers.area ? `${escapeHtml(lead.answers.area)} m²` : "-"
+    <p><strong>FlĂ¤che:</strong> ${
+      lead.answers.area ? `${escapeHtml(lead.answers.area)} mÂ˛` : "-"
     }</p>
     <p><strong>Fenster:</strong> ${escapeHtml(lead.answers.windows ?? "-")}</p>
     <p><strong>Etage:</strong> ${escapeHtml(lead.answers.floor ?? "-")}</p>
@@ -642,19 +642,7 @@ async function findOrCreateChatCustomer(
     }
   }
 
-  if (lead.phone) {
-    const existingCustomer = await prisma.customer.findFirst({
-      where: {
-        phone: lead.phone,
-      },
-    });
-
-    if (existingCustomer) {
-      return existingCustomer;
-    }
-  }
-
-  const nameParts = splitName(lead.name);
+const nameParts = splitName(lead.name);
 
   return prisma.customer.create({
     data: {
@@ -844,9 +832,9 @@ export async function POST(request: NextRequest) {
           estimatedPrice: money(lead.estimatedPrice),
           currency: "CHF",
           notesCustomer:
-            "Danke für Ihre Anfrage. Die finale Offerte erfolgt nach Prüfung der Angaben.",
+            "Danke fĂĽr Ihre Anfrage. Die finale Offerte erfolgt nach PrĂĽfung der Angaben.",
           notesInternal:
-            "Automatisch aus der öffentlichen AI Chatbox erstellt. Vor Kontaktaufnahme prüfen.",
+            "Automatisch aus der Ă¶ffentlichen AI Chatbox erstellt. Vor Kontaktaufnahme prĂĽfen.",
         },
       });
 
@@ -872,11 +860,11 @@ export async function POST(request: NextRequest) {
           aiMinTotal: money(lead.aiMinTotal),
           aiMaxTotal: money(lead.aiMaxTotal),
           aiNotes:
-            "Automatisch aus AI Chatbox berechnete Orientierungsspanne. Vor Versand an den Kunden manuell prüfen.",
+            "Automatisch aus AI Chatbox berechnete Orientierungsspanne. Vor Versand an den Kunden manuell prĂĽfen.",
           notesCustomer:
-            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Prüfung durch HEXA CLEAN.",
+            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach PrĂĽfung durch HEXA CLEAN.",
           notesInternal:
-            "Public AI Chatbox lead. Prüfen, ggf. Fotos/Details anfordern, dann Angebot freigeben.",
+            "Public AI Chatbox lead. PrĂĽfen, ggf. Fotos/Details anfordern, dann Angebot freigeben.",
           items: {
             create: [
               {
@@ -1096,7 +1084,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error:
-          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
+          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es spĂ¤ter erneut.",
       },
       {
         status: 500,
