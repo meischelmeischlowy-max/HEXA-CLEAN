@@ -282,7 +282,9 @@ export async function POST(
           ]
             .filter(Boolean)
             .join("\n"),
-          validUntil: estimate.validUntil,
+          validUntil:
+            estimate.validUntil ??
+            new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
           sentAt: quoteSentAt,
           acceptedAt: quoteAcceptedAt,
         },

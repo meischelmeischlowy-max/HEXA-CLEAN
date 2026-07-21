@@ -100,12 +100,20 @@ function readMetadata(item: RecordItem) {
   return asRecord(item.metadata);
 }
 
-function isCustomerUploadAttachment(item: RecordItem) {
+function isCustomerRequestAttachment(item: RecordItem) {
   const metadata = readMetadata(item);
   const uploadedBy = readString(item.uploadedBy);
   const source = readString(metadata.source);
+  const purpose = readString(metadata.purpose);
+  const stage = readString(metadata.stage);
 
-  return uploadedBy === "customer_public_link" || source === "public_offer_upload";
+  return (
+    purpose === "pricing_evidence" ||
+    stage === "before_quote" ||
+    uploadedBy === "customer_quickoffer" ||
+    uploadedBy === "customer_public_link" ||
+    source === "public_offer_upload"
+  );
 }
 
 function fileTypeLabel(value: unknown) {
@@ -296,7 +304,7 @@ function CustomerUploadsSection({
   attachments: RecordItem[];
 }) {
   const customerUploads = attachments
-    .filter(isCustomerUploadAttachment)
+    .filter(isCustomerRequestAttachment)
     .sort((a, b) => {
       const aTime = new Date(String(a.createdAt ?? 0)).getTime();
       const bTime = new Date(String(b.createdAt ?? 0)).getTime();
@@ -309,29 +317,29 @@ function CustomerUploadsSection({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.25em] text-sky-300">
-            Kunden-Uploads
+            Anfrage-Unterlagen
           </p>
           <h2 className="mt-2 text-xl font-bold text-white">
-            Fotos und Dateien vom Kunden
+            Fotos zur Kundenanfrage
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
-            Hier sehen Sie nur die Unterlagen, die der Kunde über den
-            geschützten Angebotslink hochgeladen hat.
+            Diese Unterlagen wurden bereits mit der ursprünglichen
+            Kundenanfrage übermittelt und dienten als Grundlage der Kalkulation.
           </p>
         </div>
 
         <span className="w-fit rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-bold text-sky-100">
-          {customerUploads.length} Uploads
+          {customerUploads.length} Unterlagen
         </span>
       </div>
 
       {customerUploads.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-white/10 bg-neutral-950/40 p-5">
           <p className="text-sm font-semibold text-neutral-200">
-            Noch keine Kunden-Uploads.
+            Keine Anfrage-Unterlagen vorhanden.
           </p>
           <p className="mt-2 text-sm leading-6 text-neutral-500">
-            Wenn der Kunde Fotos oder PDF-Dateien hochlädt, erscheinen sie hier.
+            Für diese Anfrage wurden keine Fotos oder Dateien gespeichert.
           </p>
         </div>
       ) : (
@@ -344,9 +352,32 @@ function CustomerUploadsSection({
             return (
               <article
                 key={attachmentId || JSON.stringify(attachment)}
-                className="rounded-2xl border border-white/10 bg-neutral-950/40 p-5"
+                className="overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/40"
               >
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                {readString(attachment.mimeType).startsWith("image/") &&
+                readString(attachment.url) ? (
+                  <a
+                    href={readString(attachment.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group block"
+                  >
+                    <div className="aspect-[4/3] overflow-hidden bg-black/40">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={readString(attachment.url)}
+                        alt={
+                          readString(attachment.fileName) ||
+                          "Foto zur Kundenanfrage"
+                        }
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                      />
+                    </div>
+                  </a>
+                ) : null}
+
+                <div className="p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-base font-bold text-white">
                       {formatValue(attachment.fileName)}
@@ -371,16 +402,17 @@ function CustomerUploadsSection({
                   ) : null}
                 </div>
 
-                {note ? (
-                  <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">
-                      Kundenhinweis
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-300">
-                      {note}
-                    </p>
-                  </div>
-                ) : null}
+                  {note ? (
+                    <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">
+                        Kundenhinweis
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-300">
+                        {note}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
               </article>
             );
           })}
