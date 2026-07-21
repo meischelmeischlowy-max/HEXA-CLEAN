@@ -496,7 +496,25 @@ export const dashboardRepository = {
 
       prisma.attachment.findMany({
         where: {
-          quoteId,
+          OR: [
+            {
+              quoteId,
+            },
+            ...(orderId
+              ? [
+                  {
+                    orderId,
+                  },
+                ]
+              : []),
+            ...(sessionId
+              ? [
+                  {
+                    sessionId,
+                  },
+                ]
+              : []),
+          ],
         },
         take: 50,
         orderBy: {
