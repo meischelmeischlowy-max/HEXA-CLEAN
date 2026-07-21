@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import {
   createInvoiceItemsFromQuote,
   sanitizeInvoiceNoteFromQuote,
@@ -500,6 +500,13 @@ export const dashboardRepository = {
             {
               quoteId,
             },
+            ...(customerId
+              ? [
+                  {
+                    customerId,
+                  },
+                ]
+              : []),
             ...(orderId
               ? [
                   {
