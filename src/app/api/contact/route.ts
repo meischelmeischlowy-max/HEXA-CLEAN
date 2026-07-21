@@ -1,4 +1,5 @@
 import {
+  AttachmentType,
   AuditAction,
   CustomerType,
   EstimateStatus,
@@ -30,6 +31,14 @@ export const runtime = "nodejs";
 const TENANT_KEY = "hexa-clean";
 const QUICK_OFFER_RATE_LIMIT = 10;
 const QUICK_OFFER_RATE_WINDOW_MS = 5 * 60 * 1000;
+const QUICK_OFFER_MAX_PHOTOS = 5;
+const QUICK_OFFER_MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+const QUICK_OFFER_MAX_TOTAL_PHOTO_BYTES = 7 * 1024 * 1024;
+const QUICK_OFFER_PHOTO_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 const OWNER_NOTIFICATION_EMAIL = emailConfiguration.ownerEmail;
 const EMAIL_FROM = emailConfiguration.from;
@@ -66,6 +75,13 @@ type NormalizedQuickOffer = {
   clientPrice: string | null;
 };
 
+type NormalizedQuickOfferPhoto = {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  dataUrl: string;
+};
+
 type CrmResult = {
   customer: {
     id: string;
@@ -87,6 +103,10 @@ type CrmResult = {
   customerNotification: {
     id: string;
   } | null;
+  attachments: Array<{
+    id: string;
+    fileName: string;
+  }>;
 };
 
 function getPrisma() {
@@ -322,6 +342,63 @@ function getRequestBytes(request: NextRequest) {
   }
 
   return contentLength;
+}
+
+
+function sanitizeFileName(value: string, index: number) {
+  const normalized = value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .slice(0, 120);
+
+  return normalized || `quickoffer_foto_${index + 1}.jpg`;
+}
+
+async function normalizeQuickOfferPhotos(
+  values: FormDataEntryValue[],
+): Promise<NormalizedQuickOfferPhoto[]> {
+  const files = values.filter(
+    (value): value is File => value instanceof File && value.size > 0,
+  );
+
+  if (files.length > QUICK_OFFER_MAX_PHOTOS) {
+    throw new Error(
+      `Maximal ${QUICK_OFFER_MAX_PHOTOS} Fotos sind erlaubt.`,
+    );
+  }
+
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+
+  if (totalBytes > QUICK_OFFER_MAX_TOTAL_PHOTO_BYTES) {
+    throw new Error(
+      "Die Fotos sind zusammen zu gross. Bitte waehlen Sie kleinere Dateien.",
+    );
+  }
+
+  const normalized: NormalizedQuickOfferPhoto[] = [];
+
+  for (const [index, file] of files.entries()) {
+    if (
+      !QUICK_OFFER_PHOTO_TYPES.has(file.type) ||
+      file.size > QUICK_OFFER_MAX_PHOTO_BYTES
+    ) {
+      throw new Error(
+        "Erlaubt sind JPG, PNG und WEBP bis 3 MB pro Foto.",
+      );
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
+
+    normalized.push({
+      fileName: sanitizeFileName(file.name, index),
+      mimeType: file.type,
+      sizeBytes: file.size,
+      dataUrl,
+    });
+  }
+
+  return normalized;
 }
 
 function getAppUrl(request: NextRequest) {
@@ -653,7 +730,40 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = (await request.json().catch(() => null)) as QuickOfferBody | null;
+    const contentType = request.headers.get("content-type") ?? "";
+
+    if (!contentType.toLowerCase().includes("multipart/form-data")) {
+      logPublicSecurityEvent(request, {
+        scope: "quick_offer_contact",
+        reason: "invalid_content_type",
+        severity: "info",
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Die Anfrage muss als Formular gesendet werden.",
+        },
+        {
+          status: 415,
+          headers: {
+            ...rateLimit.headers,
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    }
+
+    const formData = await request.formData();
+    const payloadValue = formData.get("payload");
+    const parsedPayload =
+      typeof payloadValue === "string"
+        ? JSON.parse(payloadValue)
+        : null;
+    const body = parsedPayload as QuickOfferBody | null;
+    const photos = await normalizeQuickOfferPhotos(
+      formData.getAll("photos"),
+    );
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       logPublicSecurityEvent(request, {
@@ -853,6 +963,37 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      const attachments =
+        photos.length > 0
+          ? await Promise.all(
+              photos.map((photo) =>
+                tx.attachment.create({
+                  data: {
+                    customerId: customer.id,
+                    orderId: order.id,
+                    estimateId: estimate.id,
+                    sessionId: session.id,
+                    type: AttachmentType.PHOTO,
+                    fileName: photo.fileName,
+                    mimeType: photo.mimeType,
+                    url: photo.dataUrl,
+                    sizeBytes: photo.sizeBytes,
+                    uploadedBy: "customer_quick_offer",
+                    metadata: {
+                      source: "quick_offer",
+                      purpose: "pricing_evidence",
+                      stage: "before_quote",
+                    },
+                  },
+                  select: {
+                    id: true,
+                    fileName: true,
+                  },
+                }),
+              ),
+            )
+          : [];
+
       const ownerNotification = await tx.notification.create({
         data: {
           customerId: customer.id,
@@ -876,6 +1017,8 @@ export async function POST(request: NextRequest) {
             customerContact: offer.contact,
             customerEmail: offer.email,
             customerPhone: offer.phone,
+            photoCount: attachments.length,
+            photosAvailableBeforePricing: attachments.length > 0,
           },
         },
       });
@@ -947,6 +1090,22 @@ export async function POST(request: NextRequest) {
               actionRequired: true,
             },
           },
+          ...attachments.map((attachment) => ({
+            customerId: customer.id,
+            orderId: order.id,
+            sessionId: session.id,
+            estimateId: estimate.id,
+            action: AuditAction.CREATE,
+            entityType: "Attachment",
+            entityId: attachment.id,
+            actorType: "public_quick_offer",
+            message: `Foto ${attachment.fileName} wurde vor der Preisfreigabe hochgeladen.`,
+            metadata: {
+              source: "quick_offer",
+              purpose: "pricing_evidence",
+              stage: "before_quote",
+            },
+          })),
           {
             customerId: customer.id,
             orderId: order.id,
@@ -974,8 +1133,14 @@ export async function POST(request: NextRequest) {
         estimate,
         ownerNotification,
         customerNotification,
+        attachments,
       } satisfies CrmResult;
     });
+
+    const photoSummary =
+      crmResult.attachments.length > 0
+        ? `\nFotos fuer die Preispruefung: ${crmResult.attachments.length}`
+        : "\nFotos fuer die Preispruefung: Keine";
 
     const ownerEmailHtml = buildOwnerEmailHtml(
       offer,
@@ -994,7 +1159,7 @@ export async function POST(request: NextRequest) {
       to: OWNER_NOTIFICATION_EMAIL,
       subject: "Neue QuickOffer Anfrage - Aktion erforderlich",
       html: ownerEmailHtml,
-      text: plainMessage,
+      text: `${plainMessage}${photoSummary}`,
     });
 
     await prisma.notification.update({
@@ -1053,6 +1218,7 @@ export async function POST(request: NextRequest) {
         service: offer.service,
         estimateNumber: crmResult.estimate.estimateNumber,
         orderNumber: crmResult.order.orderNumber,
+        photoCount: crmResult.attachments.length,
       },
     });
 
@@ -1074,6 +1240,10 @@ export async function POST(request: NextRequest) {
           estimateNumber: crmResult.estimate.estimateNumber,
           ownerNotificationId: crmResult.ownerNotification.id,
           customerNotificationId: crmResult.customerNotification?.id ?? null,
+          attachmentCount: crmResult.attachments.length,
+          attachmentIds: crmResult.attachments.map(
+            (attachment) => attachment.id,
+          ),
         },
       },
       {

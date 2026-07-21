@@ -62,3 +62,5 @@ reports/backups/
 reports/backup-archives/
 reports/gitignore_before_*.bak
 reports/RAW_*.txt
+.vercel
+.env*

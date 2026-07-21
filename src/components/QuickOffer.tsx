@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import QuickOfferPhotoUpload from "./QuickOfferPhotoUpload";
 import {
   Calculator,
   Check,
@@ -76,6 +77,7 @@ export default function QuickOffer() {
   const [analyzing, setAnalyzing] = useState(false);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [sentStatus, setSentStatus] = useState<SentStatus>("idle");
   const [statusMessage, setStatusMessage] = useState("");
@@ -155,13 +157,11 @@ Kontakt: ${contact || "-"}`;
     setCrmSummary(null);
 
     try {
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-        body: JSON.stringify({
+      const formData = new FormData();
+
+      formData.set(
+        "payload",
+        JSON.stringify({
           name,
           contact,
           service,
@@ -170,6 +170,16 @@ Kontakt: ${contact || "-"}`;
           time,
           price,
         }),
+      );
+
+      for (const photo of photos) {
+        formData.append("photos", photo, photo.name);
+      }
+
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        cache: "no-store",
+        body: formData,
       });
 
       const data = (await response
@@ -457,6 +467,12 @@ Kontakt: ${contact || "-"}`;
                   className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-cyan-300/60"
                 />
 
+                <QuickOfferPhotoUpload
+                  files={photos}
+                  disabled={sending}
+                  onChange={setPhotos}
+                />
+
                 <button
                   type="button"
                   onClick={sendQuickOfferToCrm}
@@ -518,8 +534,8 @@ Kontakt: ${contact || "-"}`;
 
                   <div className="flex items-center gap-2">
                     <Mail size={13} className="text-cyan-300" />
-                    Anfrage wird im CRM gespeichert. Kunde und Inhaber werden
-                    automatisch informiert, wenn E-Mail moeglich ist.
+                    Anfrage und Fotos werden im CRM gespeichert. Der Inhaber
+                    prueft sie vor der verbindlichen Offerte.
                   </div>
                 </div>
               </div>
