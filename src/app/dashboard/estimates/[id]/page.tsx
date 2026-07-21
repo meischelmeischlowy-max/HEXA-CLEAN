@@ -3,17 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import EstimateStatusActions from "../../../../components/dashboard/EstimateStatusActions";
-import RecordActionPanel from "../../../../components/dashboard/RecordActionPanel";
+import EstimatePrimaryAction from "../../../../components/dashboard/EstimatePrimaryAction";
 import {
   RecordWorkspace,
   RecordWorkspacePanel,
   WorkspaceMetaPill,
 } from "../../../../components/dashboard/RecordWorkspace";
-import {
-  getEstimateAction,
-  type DashboardRecordAction,
-} from "../../../../lib/dashboard/next-action";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -325,10 +320,10 @@ function ReviewChecklist({
 
   const statusItem =
     status === "READY_TO_SEND"
-      ? "Status ist READY_TO_SEND: jetzt Offerte vorbereiten."
+      ? "Die Kalkulation ist freigegeben. Die Hauptaktion oben erstellt und öffnet die Offerte."
       : status === "SENT"
-        ? "Status ist SENT: jetzt nicht weiter kalkulieren, sondern Kommunikation und Kundenantwort verfolgen."
-        : "Wenn alles stimmt: Status auf READY_TO_SEND setzen.";
+        ? "Der Kundenprozess läuft. Weitere Statusänderungen erfolgen automatisch."
+        : "Nach der fachlichen Kontrolle nur die eine Hauptaktion oben ausführen.";
 
   return (
     <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
@@ -475,30 +470,6 @@ function CommunicationStatusPanel({
   );
 }
 
-function estimateActionForPanel({
-  id,
-  status,
-  customerId,
-}: {
-  id: string;
-  status?: string | null;
-  customerId: string;
-}): DashboardRecordAction {
-  const baseAction = getEstimateAction({
-    id,
-    status,
-  });
-
-  if (baseAction.secondaryLabel === "Kunde oeffnen") {
-    return {
-      ...baseAction,
-      secondaryHref: `/dashboard/customers/${customerId}`,
-    };
-  }
-
-  return baseAction;
-}
-
 export default async function DashboardEstimateDetailsPage({
   params,
 }: {
@@ -605,12 +576,6 @@ export default async function DashboardEstimateDetailsPage({
       ? "chatbot"
       : "manual";
 
-  const nextAction = estimateActionForPanel({
-    id: estimate.id,
-    status: estimate.status,
-    customerId: estimate.customerId,
-  });
-
   const notifications = estimate.notifications.map((notification) => ({
     id: notification.id,
     channel: notification.channel,
@@ -687,11 +652,9 @@ export default async function DashboardEstimateDetailsPage({
           </div>
         </div>
 
-        <RecordActionPanel action={nextAction} />
-
-        <EstimateStatusActions
+        <EstimatePrimaryAction
           estimateId={estimate.id}
-          currentStatus={estimate.status}
+          currentStatus={String(estimate.status)}
         />
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
