@@ -20,11 +20,8 @@ import {
   logPublicSecurityEvent,
 } from "@/lib/public-security";
 import {
-  sendInvoiceEmailWorkflow,
-} from "@/lib/invoice-email-service";
-import {
-  dashboardRepository,
-} from "@/repositories/dashboardRepository";
+  sendOrderConfirmationWorkflow,
+} from "@/lib/order-confirmation-email-service";
 
 
 export const dynamic = "force-dynamic";
@@ -128,91 +125,12 @@ function serializeCustomerName(customer: {
 }
 
 
-type AcceptedQuoteAutomationResult = {
-  status:
-    | "COMPLETED"
-    | "ALREADY_COMPLETED"
-    | "ACTION_REQUIRED";
-  invoiceId: string | null;
-  invoiceNumber: string | null;
-  invoiceCreated: boolean;
-  emailSent: boolean;
-  emailAlreadySent: boolean;
-  actionRequired: boolean;
-  message: string;
-  error: string | null;
-};
-
 async function runAcceptedQuoteAutomation(
   quoteId: string,
-): Promise<AcceptedQuoteAutomationResult> {
-  try {
-    const invoiceResult =
-      await dashboardRepository
-        .createInvoiceFromQuote(quoteId);
-
-    if (!invoiceResult) {
-      return {
-        status: "ACTION_REQUIRED",
-        invoiceId: null,
-        invoiceNumber: null,
-        invoiceCreated: false,
-        emailSent: false,
-        emailAlreadySent: false,
-        actionRequired: true,
-        message:
-          "Die Offerte wurde akzeptiert, aber die Rechnung konnte nicht automatisch erstellt werden.",
-        error: "INVOICE_CREATION_RETURNED_NULL",
-      };
-    }
-
-    const emailResult =
-      await sendInvoiceEmailWorkflow(
-        invoiceResult.invoice.id,
-      );
-
-    return {
-      status: emailResult.alreadySent
-        ? "ALREADY_COMPLETED"
-        : emailResult.ok
-          ? "COMPLETED"
-          : "ACTION_REQUIRED",
-      invoiceId:
-        invoiceResult.invoice.id,
-      invoiceNumber:
-        invoiceResult.invoice.invoiceNumber,
-      invoiceCreated:
-        invoiceResult.created,
-      emailSent: emailResult.sent,
-      emailAlreadySent:
-        emailResult.alreadySent,
-      actionRequired:
-        emailResult.actionRequired,
-      message: emailResult.message,
-      error: emailResult.error ?? null,
-    };
-  } catch (error) {
-    console.error(
-      "Accepted quote automation error:",
-      error,
-    );
-
-    return {
-      status: "ACTION_REQUIRED",
-      invoiceId: null,
-      invoiceNumber: null,
-      invoiceCreated: false,
-      emailSent: false,
-      emailAlreadySent: false,
-      actionRequired: true,
-      message:
-        "Die Offerte wurde akzeptiert, aber die automatische Rechnungsverarbeitung ist fehlgeschlagen.",
-      error:
-        error instanceof Error
-          ? error.message
-          : "UNKNOWN_ACCEPTED_QUOTE_AUTOMATION_ERROR",
-    };
-  }
+) {
+  return sendOrderConfirmationWorkflow(
+    quoteId,
+  );
 }
 
 export async function POST(

@@ -75,9 +75,37 @@ describe("public offer status workflow", () => {
     expect(isPublicOfferExpiredStatus("REJECTED")).toBe(false);
   });
 
-  it("allows invoice creation only from ACCEPTED", () => {
+  it("allows invoice creation only after accepted quote and completed order", () => {
     for (const status of STATUSES) {
-      expect(canCreateInvoiceFromQuote(status)).toBe(status === "ACCEPTED");
+      expect(
+        canCreateInvoiceFromQuote(
+          status,
+          "COMPLETED",
+        ),
+      ).toBe(
+        status === "ACCEPTED",
+      );
+
+      expect(
+        canCreateInvoiceFromQuote(
+          status,
+          "CONFIRMED",
+        ),
+      ).toBe(false);
+
+      expect(
+        canCreateInvoiceFromQuote(
+          status,
+          "SCHEDULED",
+        ),
+      ).toBe(false);
+
+      expect(
+        canCreateInvoiceFromQuote(
+          status,
+          "IN_PROGRESS",
+        ),
+      ).toBe(false);
     }
   });
 });

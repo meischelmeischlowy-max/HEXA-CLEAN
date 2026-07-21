@@ -54,6 +54,14 @@ export function isPublicOfferExpiredStatus(status: PublicQuoteStatus) {
   return status === "EXPIRED";
 }
 
-export function canCreateInvoiceFromQuote(status: PublicQuoteStatus) {
-  return status === "ACCEPTED";
+export function canCreateInvoiceFromQuote(
+  status: PublicQuoteStatus,
+  orderStatus?: string | null,
+) {
+  return (
+    status === "ACCEPTED" &&
+    String(orderStatus ?? "")
+      .trim()
+      .toUpperCase() === "COMPLETED"
+  );
 }

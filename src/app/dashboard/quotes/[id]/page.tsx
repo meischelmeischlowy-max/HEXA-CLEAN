@@ -225,32 +225,19 @@ function getNextStep({
 
   if (status === "ACCEPTED" && !firstInvoice) {
     return {
-      title: "Automatisierung fehlgeschlagen",
+      title: "Auftrag angenommen",
       description:
-        "Die Offerte wurde akzeptiert, aber es wurde keine Rechnung erstellt. Das System hat eine Aktion-erforderlich-Meldung protokolliert.",
-      tone: "red",
+        "Die Offerte wurde akzeptiert. Der zugehörige Auftrag wurde zur Ausführung bestätigt. Als Nächstes wird der Ausführungstermin geplant. Eine Rechnung entsteht erst nach Abschluss der Arbeit.",
+      tone: "emerald",
     };
   }
 
   if (status === "ACCEPTED" && firstInvoice) {
-    const invoiceStatus = String(
-      firstInvoice.status ?? "",
-    ).toUpperCase();
-
-    if (invoiceStatus === "SENT") {
-      return {
-        title: "Automatisch abgeschlossen",
-        description:
-          "Die Rechnung wurde automatisch erstellt und der E-Mail-Versand wurde erfolgreich bestätigt.",
-        tone: "emerald",
-      };
-    }
-
     return {
-      title: "Automatischer Versand prüfen",
+      title: "Auftrag angenommen – Rechnung vorhanden",
       description:
-        "Die Rechnung wurde erstellt, aber der erfolgreiche E-Mail-Versand wurde noch nicht bestätigt. Prüfen Sie die Fehlermeldung in Benachrichtigungen oder Audit-Logs.",
-      tone: "red",
+        "Für diese Offerte existiert bereits eine Rechnung. Prüfen Sie, ob sie aus dem früheren Testablauf stammt oder ob der zugehörige Auftrag tatsächlich abgeschlossen wurde. Neue Rechnungen dürfen erst nach Auftrag COMPLETED entstehen.",
+      tone: "amber",
     };
   }
 
@@ -691,8 +678,8 @@ export default async function QuoteDetailsPage({
                 ) : null}
 
                 {isAccepted && !firstInvoice ? (
-                  <div className="rounded-2xl border border-red-300/30 bg-red-400/10 px-4 py-4 text-sm leading-6 text-red-100">
-                    Die automatische Rechnungserstellung ist fehlgeschlagen. Details stehen in Benachrichtigungen und Audit-Logs.
+                  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-4 text-sm leading-6 text-emerald-100">
+                    Der Auftrag wurde angenommen. Der nächste operative Schritt ist die Terminplanung. Die Rechnung wird erst nach Abschluss der Arbeit erstellt.
                   </div>
                 ) : null}
 
