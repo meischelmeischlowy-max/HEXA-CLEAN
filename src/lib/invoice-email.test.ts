@@ -84,6 +84,37 @@ describe("invoice customer email", () => {
       "internal technical note",
     );
   });
+  it("creates a mobile-safe responsive invoice layout", () => {
+    const html = buildInvoiceEmailHtml(payload);
+
+    expect(html).toContain(
+      'name="viewport"',
+    );
+
+    expect(html).toContain(
+      "overflow-wrap:anywhere",
+    );
+
+    expect(html).toContain(
+      "table-layout:fixed",
+    );
+
+    expect(html).toContain(
+      "Einzelpreis",
+    );
+
+    expect(html).toContain(
+      "Betrag",
+    );
+
+    expect(html).not.toContain(
+      "white-space:nowrap",
+    );
+
+    expect(html).not.toContain(
+      "<thead>",
+    );
+  });
 });
 
 describe("invoice notification matching", () => {

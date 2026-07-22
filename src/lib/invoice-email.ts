@@ -154,48 +154,67 @@ export function buildInvoiceEmailText(
 export function buildInvoiceEmailHtml(
   payload: InvoiceEmailPayload,
 ) {
-  const itemRows = payload.items
+  const itemCards = payload.items
     .map((item) => {
       const description = sanitizeInvoiceCustomerText(
         item.description,
       );
 
       return `
-        <tr>
-          <td style="padding:12px;border-bottom:1px solid #e5e7eb;">
-            <strong>${escapeHtml(item.name)}</strong>
+        <div style="margin-top:16px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <div style="padding:14px 16px;background:#f9fafb;">
+            <div style="font-size:16px;font-weight:700;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;">
+              ${escapeHtml(item.name)}
+            </div>
             ${
               description
-                ? `<div style="margin-top:4px;color:#6b7280;font-size:13px;">${escapeHtml(
+                ? `<div style="margin-top:5px;color:#6b7280;font-size:13px;line-height:1.45;overflow-wrap:anywhere;word-break:break-word;">${escapeHtml(
                     description,
                   )}</div>`
                 : ""
             }
-          </td>
+          </div>
 
-          <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;">
-            ${escapeHtml(String(item.quantity))}
-            ${escapeHtml(item.unit)}
-          </td>
+          <table role="presentation" style="width:100%;border-collapse:collapse;table-layout:fixed;">
+            <tr>
+              <td style="width:44%;padding:10px 16px;border-top:1px solid #e5e7eb;color:#6b7280;">
+                Menge
+              </td>
+              <td style="padding:10px 16px;border-top:1px solid #e5e7eb;text-align:right;font-weight:700;overflow-wrap:anywhere;">
+                ${escapeHtml(String(item.quantity))}
+                ${escapeHtml(item.unit)}
+              </td>
+            </tr>
 
-          <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;">
-            ${escapeHtml(
-              formatMoney(
-                item.unitPrice,
-                payload.currency,
-              ),
-            )}
-          </td>
+            <tr>
+              <td style="width:44%;padding:10px 16px;border-top:1px solid #e5e7eb;color:#6b7280;">
+                Einzelpreis
+              </td>
+              <td style="padding:10px 16px;border-top:1px solid #e5e7eb;text-align:right;font-weight:700;overflow-wrap:anywhere;">
+                ${escapeHtml(
+                  formatMoney(
+                    item.unitPrice,
+                    payload.currency,
+                  ),
+                )}
+              </td>
+            </tr>
 
-          <td style="padding:12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;font-weight:700;">
-            ${escapeHtml(
-              formatMoney(
-                item.total,
-                payload.currency,
-              ),
-            )}
-          </td>
-        </tr>
+            <tr>
+              <td style="width:44%;padding:10px 16px;border-top:1px solid #e5e7eb;color:#6b7280;">
+                Betrag
+              </td>
+              <td style="padding:10px 16px;border-top:1px solid #e5e7eb;text-align:right;font-weight:800;color:#111827;overflow-wrap:anywhere;">
+                ${escapeHtml(
+                  formatMoney(
+                    item.total,
+                    payload.currency,
+                  ),
+                )}
+              </td>
+            </tr>
+          </table>
+        </div>
       `;
     })
     .join("");
@@ -203,83 +222,69 @@ export function buildInvoiceEmailHtml(
   return `
     <!doctype html>
     <html lang="de">
+      <head>
+        <meta charset="utf-8" />
+        <meta
+          name="viewport"
+          content="width=device-width,initial-scale=1"
+        />
+      </head>
+
       <body style="margin:0;background:#f4f4f5;font-family:Arial,sans-serif;color:#18181b;">
-        <div style="max-width:720px;margin:0 auto;padding:32px 16px;">
-          <div style="background:#111827;padding:24px;border-radius:16px 16px 0 0;color:white;">
+        <div style="width:100%;max-width:720px;margin:0 auto;padding:16px 8px;box-sizing:border-box;">
+          <div style="background:#111827;padding:20px;border-radius:16px 16px 0 0;color:white;box-sizing:border-box;">
             <div style="font-size:12px;letter-spacing:3px;color:#67e8f9;">
               HEXA CLEAN
             </div>
 
-            <h1 style="margin:10px 0 0;font-size:26px;">
+            <h1 style="margin:10px 0 0;font-size:24px;line-height:1.2;overflow-wrap:anywhere;word-break:break-word;">
               Rechnung ${escapeHtml(payload.invoiceNumber)}
             </h1>
           </div>
 
-          <div style="background:white;padding:28px;border-radius:0 0 16px 16px;">
+          <div style="background:white;padding:20px;border-radius:0 0 16px 16px;box-sizing:border-box;">
             <p>
               Guten Tag ${escapeHtml(payload.customerName)}
             </p>
 
             <p>
-              Vielen Dank für Ihren Auftrag. Sie erhalten hiermit
-              Ihre Rechnung von HEXA CLEAN.
+              Vielen Dank f&uuml;r Ihren Auftrag. Sie erhalten
+              hiermit Ihre Rechnung von HEXA CLEAN.
             </p>
 
-            <table style="width:100%;margin:24px 0;border-collapse:collapse;">
+            <table role="presentation" style="width:100%;margin:24px 0;border-collapse:collapse;table-layout:fixed;">
               <tr>
-                <td style="padding:6px 0;color:#6b7280;">
+                <td style="width:48%;padding:6px 0;color:#6b7280;">
                   Rechnungsdatum
                 </td>
 
-                <td style="padding:6px 0;text-align:right;font-weight:700;">
+                <td style="padding:6px 0;text-align:right;font-weight:700;overflow-wrap:anywhere;">
                   ${escapeHtml(formatDate(payload.issueDate))}
                 </td>
               </tr>
 
               <tr>
-                <td style="padding:6px 0;color:#6b7280;">
+                <td style="width:48%;padding:6px 0;color:#6b7280;">
                   Zahlbar bis
                 </td>
 
-                <td style="padding:6px 0;text-align:right;font-weight:700;">
+                <td style="padding:6px 0;text-align:right;font-weight:700;overflow-wrap:anywhere;">
                   ${escapeHtml(formatDate(payload.dueDate))}
                 </td>
               </tr>
             </table>
 
-            <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;">
-              <thead>
-                <tr style="background:#f9fafb;">
-                  <th style="padding:12px;text-align:left;">
-                    Leistung
-                  </th>
+            <div>
+              ${itemCards}
+            </div>
 
-                  <th style="padding:12px;text-align:right;">
-                    Menge
-                  </th>
-
-                  <th style="padding:12px;text-align:right;">
-                    Preis
-                  </th>
-
-                  <th style="padding:12px;text-align:right;">
-                    Betrag
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                ${itemRows}
-              </tbody>
-            </table>
-
-            <table style="width:100%;margin-top:22px;border-collapse:collapse;">
+            <table role="presentation" style="width:100%;margin-top:22px;border-collapse:collapse;table-layout:fixed;">
               <tr>
-                <td style="padding:5px 0;color:#6b7280;">
+                <td style="width:48%;padding:5px 0;color:#6b7280;">
                   Zwischensumme
                 </td>
 
-                <td style="padding:5px 0;text-align:right;">
+                <td style="padding:5px 0;text-align:right;overflow-wrap:anywhere;">
                   ${escapeHtml(
                     formatMoney(
                       payload.subtotal,
@@ -290,11 +295,11 @@ export function buildInvoiceEmailHtml(
               </tr>
 
               <tr>
-                <td style="padding:5px 0;color:#6b7280;">
+                <td style="width:48%;padding:5px 0;color:#6b7280;">
                   Steuerbetrag
                 </td>
 
-                <td style="padding:5px 0;text-align:right;">
+                <td style="padding:5px 0;text-align:right;overflow-wrap:anywhere;">
                   ${escapeHtml(
                     formatMoney(
                       payload.taxAmount,
@@ -305,11 +310,11 @@ export function buildInvoiceEmailHtml(
               </tr>
 
               <tr>
-                <td style="padding:14px 0 5px;font-size:18px;font-weight:700;">
+                <td style="width:48%;padding:14px 0 5px;font-size:18px;font-weight:700;">
                   Gesamtbetrag
                 </td>
 
-                <td style="padding:14px 0 5px;text-align:right;font-size:22px;font-weight:800;color:#0891b2;">
+                <td style="padding:14px 0 5px;text-align:right;font-size:20px;font-weight:800;color:#0891b2;overflow-wrap:anywhere;">
                   ${escapeHtml(
                     formatMoney(
                       payload.total,
@@ -321,11 +326,12 @@ export function buildInvoiceEmailHtml(
             </table>
 
             <p style="margin-top:28px;color:#52525b;">
-              Bei Fragen antworten Sie bitte direkt auf diese E-Mail.
+              Bei Fragen antworten Sie bitte direkt auf diese
+              E-Mail.
             </p>
 
             <p style="margin-top:28px;">
-              Freundliche Grüsse<br />
+              Freundliche Gr&uuml;sse<br />
               <strong>HEXA CLEAN</strong>
             </p>
           </div>
