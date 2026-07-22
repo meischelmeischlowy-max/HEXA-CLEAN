@@ -26,7 +26,7 @@ type OrderFormProps = {
   mode: "create" | "edit";
   order?: OrderFormData | null;
   customers: CustomerOption[];
-  statuses: string[];
+
   serviceTypes: string[];
 };
 
@@ -61,7 +61,7 @@ function humanLabel(value: string) {
     PENDING: "Wartend",
     IN_PROGRESS: "In Bearbeitung",
     WAITING_FOR_CUSTOMER: "Wartet auf Kunde",
-    CONFIRMED: "Bestätigt",
+    CONFIRMED: "BestĂ¤tigt",
     SCHEDULED: "Geplant",
     COMPLETED: "Abgeschlossen",
     CANCELLED: "Storniert",
@@ -69,7 +69,7 @@ function humanLabel(value: string) {
     BASIC_CLEANING: "Grundreinigung",
     DEEP_CLEANING: "Intensivreinigung",
     END_OF_TENANCY: "Wohnungsabgabe",
-    OFFICE_CLEANING: "Büroreinigung",
+    OFFICE_CLEANING: "BĂĽroreinigung",
     WINDOW_CLEANING: "Fensterreinigung",
     MOVE_IN_OUT: "Umzug / Abgabe",
     OTHER: "Andere",
@@ -87,7 +87,7 @@ function choiceButtonClass(active: boolean) {
 export default function OrderForm({
   mode,
   order,
-  statuses,
+
   serviceTypes,
 }: OrderFormProps) {
   const router = useRouter();
@@ -103,7 +103,7 @@ export default function OrderForm({
     customerPhone: "",
 
     orderNumber: normalize(order?.orderNumber),
-    status: normalize(order?.status) || statuses[0] || "NEW",
+
     title: normalize(order?.title),
     description: normalize(order?.description),
     serviceType: normalize(order?.serviceType) || serviceTypes[0] || "",
@@ -181,8 +181,8 @@ export default function OrderForm({
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
-          Erfassen Sie Kunde, Kontaktdaten und Leistungsumfang. Daraus können
-          später Angebot, Rechnung und Zahlung entstehen.
+          Erfassen Sie Kunde, Kontaktdaten und Leistungsumfang. Daraus kĂ¶nnen
+          spĂ¤ter Angebot, Rechnung und Zahlung entstehen.
         </p>
       </div>
 
@@ -292,21 +292,20 @@ export default function OrderForm({
                   className={inputClass()}
                 />
               </div>
-
               <div>
-                <label className={labelClass()}>Status</label>
-                <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/20 p-3">
-                  {statuses.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => updateField("status", status)}
-                      className={choiceButtonClass(form.status === status)}
-                    >
-                      {humanLabel(status)}
-                    </button>
-                  ))}
+                <label className={labelClass()}>
+                  Workflow-Status
+                </label>
+
+                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/5 px-4 py-3">
+                  <p className="text-sm font-bold text-cyan-100">
+                    Automatisch verwaltet
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">
+                    Der Status wird durch Freigabe, Terminplanung und Abschluss
+                    automatisch geändert. Eine manuelle Auswahl ist nicht nötig.
+                  </p>
                 </div>
               </div>
             </div>
@@ -345,7 +344,7 @@ export default function OrderForm({
                 onChange={(event) =>
                   updateField("description", event.target.value)
                 }
-                placeholder="Arbeitsumfang, Kundenhinweise, Fläche, Zugang, Material..."
+                placeholder="Arbeitsumfang, Kundenhinweise, FlĂ¤che, Zugang, Material..."
                 rows={5}
                 className={inputClass()}
               />
@@ -365,7 +364,7 @@ export default function OrderForm({
               </div>
 
               <div>
-                <label className={labelClass()}>Währung</label>
+                <label className={labelClass()}>WĂ¤hrung</label>
                 <input
                   value={form.currency}
                   onChange={(event) =>
@@ -377,7 +376,7 @@ export default function OrderForm({
               </div>
 
               <div>
-                <label className={labelClass()}>Geschätzter Preis</label>
+                <label className={labelClass()}>GeschĂ¤tzter Preis</label>
                 <input
                   type="number"
                   min="0"
@@ -427,7 +426,7 @@ export default function OrderForm({
             ? "Speichern..."
             : mode === "create"
               ? "Auftrag erstellen"
-              : "Änderungen speichern"}
+              : "Ă„nderungen speichern"}
         </button>
 
         <button

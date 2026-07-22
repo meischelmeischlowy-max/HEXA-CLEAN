@@ -1,4 +1,4 @@
-import { OrderStatus, PrismaClient, ServiceType } from "@prisma/client";
+import { PrismaClient, ServiceType } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -130,7 +130,7 @@ export default async function EditOrderPage({ params }: PageProps) {
             href={`/dashboard/orders/${order.id}`}
             className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
           >
-            ← Zurück zum Auftrag
+            â† ZurĂĽck zum Auftrag
           </Link>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -142,7 +142,7 @@ export default async function EditOrderPage({ params }: PageProps) {
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            Kunden-, Status-, Service-, Termin-, Beschreibungs- und Auftragsbetragsdaten anpassen.
+            Kunden-, Service-, Termin-, Beschreibungs- und Auftragsbetragsdaten anpassen. Der Workflow-Status wird automatisch verwaltet.
           </p>
         </div>
 
@@ -150,8 +150,7 @@ export default async function EditOrderPage({ params }: PageProps) {
           mode="edit"
           order={serializeOrder(order)}
           customers={customerOptions}
-          statuses={Object.values(OrderStatus)}
-          serviceTypes={Object.values(ServiceType)}
+serviceTypes={Object.values(ServiceType)}
         />
       </section>
     </main>

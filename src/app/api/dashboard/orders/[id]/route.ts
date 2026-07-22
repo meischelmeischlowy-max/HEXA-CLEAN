@@ -192,7 +192,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         {
           status: "ERROR",
           message: "Service type is required",
-          error: "Wybierz poprawny typ usługi dla zlecenia.",
+          error: "Wybierz poprawny typ usĹ‚ugi dla zlecenia.",
         },
         { status: 400 },
       );
@@ -200,8 +200,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const updateData: Prisma.OrderUpdateInput = {
       orderNumber: cleanText(body.orderNumber) ?? existingOrder.orderNumber,
-      status: cleanStatus(body.status),
-      title: cleanText(body.title),
+title: cleanText(body.title),
       description: cleanText(body.description),
       serviceType,
       scheduledStart: parseDate(body.scheduledStart ?? body.scheduledAt),

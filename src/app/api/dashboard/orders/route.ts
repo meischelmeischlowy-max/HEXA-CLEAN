@@ -165,7 +165,7 @@ export async function POST(request: Request) {
         {
           status: "ERROR",
           message: "Service type is required",
-          error: "Wybierz poprawny typ usługi dla zlecenia.",
+          error: "Wybierz poprawny typ usĹ‚ugi dla zlecenia.",
         },
         { status: 400 },
       );
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
           {
             status: "ERROR",
             message: "Customer data is required",
-            error: "Wpisz przynajmniej nazwę firmy, imię, nazwisko, email albo telefon klienta.",
+            error: "Wpisz przynajmniej nazwÄ™ firmy, imiÄ™, nazwisko, email albo telefon klienta.",
           },
           { status: 400 },
         );
@@ -221,7 +221,7 @@ export async function POST(request: Request) {
       data: {
         customerId,
         orderNumber: cleanText(body.orderNumber) ?? generateOrderNumber(),
-        status: cleanStatus(body.status),
+        status: OrderStatus.NEW,
         title,
         description: cleanText(body.description),
         serviceType,
