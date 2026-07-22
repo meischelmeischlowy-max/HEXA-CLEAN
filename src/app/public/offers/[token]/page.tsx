@@ -95,13 +95,13 @@ function formatMoney(value: unknown, currency = "CHF") {
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) {
-    return "â€”";
+    return "—";
   }
 
   const date = typeof value === "string" ? new Date(value) : value;
 
   if (Number.isNaN(date.getTime())) {
-    return "â€”";
+    return "—";
   }
 
   return new Intl.DateTimeFormat("de-CH", {
@@ -111,13 +111,13 @@ function formatDate(value: Date | string | null | undefined) {
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) {
-    return "â€”";
+    return "—";
   }
 
   const date = typeof value === "string" ? new Date(value) : value;
 
   if (Number.isNaN(date.getTime())) {
-    return "â€”";
+    return "—";
   }
 
   return new Intl.DateTimeFormat("de-CH", {
@@ -149,13 +149,13 @@ function statusLabel(status: QuoteStatus) {
     case QuoteStatus.ACCEPTED:
       return "Akzeptiert";
     case QuoteStatus.SENT:
-      return "Zur PrĂĽfung";
+      return "Zur Prüfung";
     case QuoteStatus.REJECTED:
       return "Abgelehnt";
     case QuoteStatus.EXPIRED:
       return "Abgelaufen";
     default:
-      return "Nicht verfĂĽgbar";
+      return "Nicht verfügbar";
   }
 }
 
@@ -176,7 +176,7 @@ function ErrorView({
           <h1 className="mt-4 text-3xl font-black tracking-tight">{title}</h1>
           <p className="mt-4 text-sm leading-7 text-slate-300">{message}</p>
           <p className="mt-8 text-xs leading-6 text-slate-500">
-            Aus SicherheitsgrĂĽnden werden keine weiteren Kundendaten angezeigt.
+            Aus Sicherheitsgründen werden keine weiteren Kundendaten angezeigt.
           </p>
         </section>
       </div>
@@ -212,7 +212,7 @@ function DecisionStatusBox({
           Offerte abgelehnt
         </p>
         <p className="mt-3 text-sm leading-7 text-red-50">
-          Diese Offerte wurde bereits abgelehnt. FĂĽr eine neue Offerte kontaktieren
+          Diese Offerte wurde bereits abgelehnt. Für eine neue Offerte kontaktieren
           Sie bitte HEXA CLEAN.
         </p>
       </section>
@@ -255,7 +255,7 @@ export default async function PublicOfferPage({
     return (
       <ErrorView
         title="Zu viele Versuche"
-        message="Dieser Link wurde zu oft in kurzer Zeit geĂ¶ffnet. Bitte versuchen Sie es spĂ¤ter erneut."
+        message="Dieser Link wurde zu oft in kurzer Zeit geöffnet. Bitte versuchen Sie es später erneut."
       />
     );
   }
@@ -270,8 +270,8 @@ export default async function PublicOfferPage({
 
     return (
       <ErrorView
-        title="Offerte nicht verfĂĽgbar"
-        message="Dieser Angebotslink ist ungĂĽltig oder wurde falsch kopiert."
+        title="Offerte nicht verfügbar"
+        message="Dieser Angebotslink ist ungültig oder wurde falsch kopiert."
       />
     );
   }
@@ -327,7 +327,7 @@ export default async function PublicOfferPage({
 
     return (
       <ErrorView
-        title="Offerte nicht verfĂĽgbar"
+        title="Offerte nicht verfügbar"
         message="Dieser Angebotslink wurde nicht gefunden oder ist nicht mehr aktiv."
       />
     );
@@ -374,7 +374,7 @@ export default async function PublicOfferPage({
   if (link.quote.status === QuoteStatus.EXPIRED) {
     return (
       <ErrorView
-        title="Offerte nicht mehr verfĂĽgbar"
+        title="Offerte nicht mehr verfügbar"
         message="Diese Offerte ist abgelaufen."
       />
     );
@@ -399,7 +399,7 @@ export default async function PublicOfferPage({
     return (
       <ErrorView
         title="Offerte nicht freigegeben"
-        message="Diese Offerte ist noch nicht fĂĽr die Ă¶ffentliche Ansicht freigegeben."
+        message="Diese Offerte ist noch nicht für die öffentliche Ansicht freigegeben."
       />
     );
   }
@@ -456,8 +456,8 @@ export default async function PublicOfferPage({
               Offerte {link.quote.quoteNumber}
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
-              Guten Tag {customerName}. Bitte prĂĽfen Sie die Offerte sorgfĂ¤ltig. Ăśber
-              diesen geschĂĽtzten Link kĂ¶nnen Sie die Offerte verbindlich akzeptieren
+              Guten Tag {customerName}. Bitte prüfen Sie die Offerte sorgfältig. Über
+              diesen geschützten Link können Sie die Offerte verbindlich akzeptieren
               oder ablehnen.
             </p>
           </div>
@@ -470,7 +470,7 @@ export default async function PublicOfferPage({
               {statusLabel(link.quote.status)}
             </p>
             <p className="mt-4 text-xs text-slate-400">
-              Link gĂĽltig bis:{" "}
+              Link gültig bis:{" "}
               <span className="font-bold text-slate-200">
                 {formatDate(link.expiresAt)}
               </span>
@@ -502,7 +502,7 @@ export default async function PublicOfferPage({
 
                 <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
-                    Offerte gĂĽltig bis
+                    Offerte gültig bis
                   </p>
                   <p className="mt-2 text-base font-bold text-slate-100">
                     {formatDate(link.quote.validUntil)}
@@ -534,7 +534,7 @@ export default async function PublicOfferPage({
                             </p>
                           ) : null}
                           <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">
-                            Menge: {item.quantity} Â· Einzelpreis:{" "}
+                            Menge: {item.quantity} · Einzelpreis:{" "}
                             {formatMoney(item.unitPrice, link.quote.currency)}
                           </p>
                         </div>
@@ -548,7 +548,7 @@ export default async function PublicOfferPage({
                 </div>
               ) : (
                 <div className="p-6 text-sm leading-7 text-slate-400">
-                  Die Detailpositionen sind in dieser Offerte nicht separat aufgefĂĽhrt.
+                  Die Detailpositionen sind in dieser Offerte nicht separat aufgeführt.
                 </div>
               )}
             </section>
@@ -619,9 +619,9 @@ export default async function PublicOfferPage({
             <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 text-xs leading-6 text-slate-400">
               <p className="font-bold text-slate-200">Datenschutz-Hinweis</p>
               <p className="mt-2">
-                Dieser Link ist geschĂĽtzt und nur fĂĽr den EmpfĂ¤nger bestimmt. Bitte leiten
-                Sie ihn nicht weiter. Aus DatenschutzgrĂĽnden werden hier nur die fĂĽr die
-                OffertenprĂĽfung notwendigen Kundendaten angezeigt.
+                Dieser Link ist geschützt und nur für den Empfänger bestimmt. Bitte leiten
+                Sie ihn nicht weiter. Aus Datenschutzgründen werden hier nur die für die
+                Offertenprüfung notwendigen Kundendaten angezeigt.
               </p>
               {quoteAcceptedAt ? (
                 <p className="mt-3 text-emerald-200">
