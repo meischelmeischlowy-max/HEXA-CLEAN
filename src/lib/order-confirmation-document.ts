@@ -429,7 +429,7 @@ export async function createOrderConfirmationPdf(
     await PDFDocument.create();
 
   pdf.setTitle(
-    `Auftragsbestaetigung ${payload.orderNumber}`,
+    `Auftragsbestätigung ${payload.orderNumber}`,
   );
 
   pdf.setAuthor(
@@ -438,7 +438,7 @@ export async function createOrderConfirmationPdf(
   );
 
   pdf.setSubject(
-    `Auftragsbestaetigung zur Offerte ${payload.quoteNumber}`,
+    `Auftragsbestätigung zur Offerte ${payload.quoteNumber}`,
   );
 
   pdf.setCreator(
@@ -500,7 +500,7 @@ export async function createOrderConfirmationPdf(
   );
 
   page.drawText(
-    "AUFTRAGSBESTAETIGUNG",
+    "AUFTRAGSBESTÄTIGUNG",
     {
       x: margin,
       y: 758,
@@ -679,7 +679,7 @@ export async function createOrderConfirmationPdf(
         ? formatDateTime(
             payload.scheduledStart,
           )
-        : "Wird separat bestaetigt",
+        : "Wird separat bestätigt",
     ],
     [
       "Leistungsort",

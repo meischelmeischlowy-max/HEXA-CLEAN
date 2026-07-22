@@ -1,4 +1,4 @@
-﻿import fs from "node:fs";
+import fs from "node:fs";
 import {
   describe,
   expect,
@@ -105,7 +105,7 @@ describe(
           title: "Zahlungseingang abwarten",
           tone: "amber",
           owner: "invoice",
-          primaryLabel: "Rechnung pruefen",
+          primaryLabel: "Rechnung prüfen",
         });
       },
     );
@@ -178,9 +178,9 @@ describe(
 
         expect(action).toMatchObject({
           label: "Teilzahlung",
-          title: "Zahlung pruefen",
+          title: "Zahlung prüfen",
           tone: "amber",
-          primaryLabel: "Zahlung pruefen",
+          primaryLabel: "Zahlung prüfen",
         });
       },
     );

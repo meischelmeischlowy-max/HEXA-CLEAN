@@ -6,7 +6,7 @@ const workItems = [
   {
     label: "Cockpit",
     href: "/dashboard",
-    description: "Uebersicht und naechste Schritte",
+    description: "Uebersicht und nächste Schritte",
   },
   {
     label: "Kunden",
@@ -14,7 +14,7 @@ const workItems = [
     description: "Kontakte, Verlauf und Kundendaten",
   },
   {
-    label: "Auftraege",
+    label: "Aufträge",
     href: "/dashboard/orders",
     description: "Arbeiten planen und verfolgen",
   },
@@ -26,7 +26,7 @@ const workItems = [
   {
     label: "Kalkulationen",
     href: "/dashboard/estimates",
-    description: "Berechnen, pruefen und freigeben",
+    description: "Berechnen, prüfen und freigeben",
   },
   {
     label: "Offerten",

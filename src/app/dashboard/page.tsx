@@ -291,7 +291,7 @@ function EmptyInbox() {
       </h2>
       <p className="mt-3 max-w-4xl text-sm leading-6 opacity-80">
         Im Moment gibt es keine kritischen E-Mail-Fehler, keine neuen
-        Kalkulationen mit Pruefung, keine fehlenden Fotos und keine sofortigen
+        Kalkulationen mit Prüfung, keine fehlenden Fotos und keine sofortigen
         Rechnungs- oder Zahlungsaktionen.
       </p>
     </section>
@@ -567,9 +567,9 @@ export default async function DashboardCockpitPage() {
       title: "E-Mail Versand fehlgeschlagen",
       description:
         notification.errorMessage ||
-        "Eine E-Mail wurde im CRM gespeichert, aber nicht erfolgreich versendet. Versandfehler sofort pruefen.",
+        "Eine E-Mail wurde im CRM gespeichert, aber nicht erfolgreich versendet. Versandfehler sofort prüfen.",
       href: `/dashboard/notifications/${notification.id}`,
-      primaryLabel: "Fehler pruefen",
+      primaryLabel: "Fehler prüfen",
       customer: customerName(notification.customer),
       meta: [
         notification.recipient,
@@ -584,11 +584,11 @@ export default async function DashboardCockpitPage() {
       type: sourceLabel(estimate.source),
       priority: "P1" as const,
       tone: "amber" as const,
-      title: "Kalkulation intern pruefen",
+      title: "Kalkulation intern prüfen",
       description:
-        "Neue Anfrage oder AI-Kalkulation wartet auf Kontrolle. Erst nach Pruefung darf daraus eine Offerte entstehen.",
+        "Neue Anfrage oder KI-Kalkulation wartet auf Kontrolle. Erst nach Prüfung darf daraus eine Offerte entstehen.",
       href: `/dashboard/estimates/${estimate.id}`,
-      primaryLabel: "Pruefung starten",
+      primaryLabel: "Prüfung starten",
       customer: customerName(estimate.customer),
       amount: formatMoney(estimate.total, estimate.currency),
       meta: [
@@ -606,9 +606,9 @@ export default async function DashboardCockpitPage() {
       tone: "amber" as const,
       title: "Fotos oder Details fehlen",
       description:
-        "Diese Kalkulation kann ohne weitere Informationen nicht sauber freigegeben werden. Kunde braucht Rueckfrage oder Upload-Anforderung.",
+        "Diese Kalkulation kann ohne weitere Informationen nicht sauber freigegeben werden. Kunde braucht Rückfrage oder Upload-Anforderung.",
       href: `/dashboard/estimates/${estimate.id}`,
-      primaryLabel: "Fotos pruefen",
+      primaryLabel: "Fotos prüfen",
       customer: customerName(estimate.customer),
       amount: formatMoney(estimate.total, estimate.currency),
       meta: [estimate.estimateNumber, estimate.status],
@@ -622,7 +622,7 @@ export default async function DashboardCockpitPage() {
       tone: "cyan" as const,
       title: "Kalkulation ist freigegeben",
       description:
-        "Die interne Pruefung ist erledigt. Naechster Schritt: Offerte erstellen, pruefen und dann sauber senden.",
+        "Die interne Prüfung ist erledigt. Nächster Schritt: Offerte erstellen, prüfen und dann sauber senden.",
       href: `/dashboard/estimates/${estimate.id}`,
       primaryLabel: "Offerte vorbereiten",
       customer: customerName(estimate.customer),
@@ -638,7 +638,7 @@ export default async function DashboardCockpitPage() {
       tone: "cyan" as const,
       title: "Offerte wartet auf Kunde",
       description:
-        "Die Offerte oder Nachricht wurde als versendet markiert. Kundenantwort, Link, E-Mail oder Rueckfrage verfolgen.",
+        "Die Offerte oder Nachricht wurde als versendet markiert. Kundenantwort, Link, E-Mail oder Rückfrage verfolgen.",
       href: `/dashboard/estimates/${estimate.id}`,
       primaryLabel: "Antwort verfolgen",
       customer: customerName(estimate.customer),
@@ -654,7 +654,7 @@ export default async function DashboardCockpitPage() {
       tone: "green" as const,
       title: "Kalkulation akzeptiert",
       description:
-        "Der Kunde hat zugesagt. Naechster Schritt: Auftrag und Terminplanung pruefen.",
+        "Der Kunde hat zugesagt. Nächster Schritt: Auftrag und Terminplanung prüfen.",
       href: estimate.order?.id
         ? `/dashboard/orders/${estimate.order.id}`
         : `/dashboard/estimates/${estimate.id}`,
@@ -663,7 +663,7 @@ export default async function DashboardCockpitPage() {
       amount: formatMoney(estimate.total, estimate.currency),
       meta: [
         estimate.estimateNumber,
-        estimate.order?.orderNumber || "Auftrag pruefen",
+        estimate.order?.orderNumber || "Auftrag prüfen",
       ],
       createdAt: estimate.updatedAt,
     })),
@@ -675,9 +675,9 @@ export default async function DashboardCockpitPage() {
       tone: "green" as const,
       title: "Akzeptierte Offerte ohne Rechnung",
       description:
-        "Eine Offerte wurde akzeptiert. Auftrag, Termin oder Rechnung muessen als naechster Schritt geprueft werden.",
+        "Eine Offerte wurde akzeptiert. Auftrag, Termin oder Rechnung müssen als nächster Schritt geprüft werden.",
       href: "/dashboard/quotes",
-      primaryLabel: "Offerten pruefen",
+      primaryLabel: "Offerten prüfen",
       customer: customerName(quote.customer),
       amount: formatMoney(quote.total, quote.currency),
       meta: [quote.quoteNumber, quote.status],
@@ -691,9 +691,9 @@ export default async function DashboardCockpitPage() {
       tone: "amber" as const,
       title: "Auftrag abgeschlossen, Rechnung fehlt",
       description:
-        "Ein Auftrag ist abgeschlossen, aber noch nicht abgerechnet. Rechnung erstellen oder Status pruefen.",
+        "Ein Auftrag ist abgeschlossen, aber noch nicht abgerechnet. Rechnung erstellen oder Status prüfen.",
       href: `/dashboard/orders/${order.id}`,
-      primaryLabel: "Auftrag pruefen",
+      primaryLabel: "Auftrag prüfen",
       customer: customerName(order.customer),
       amount: order.finalPrice
         ? formatMoney(order.finalPrice, order.currency)
@@ -706,20 +706,20 @@ export default async function DashboardCockpitPage() {
 
     ...overdueInvoices.map((invoice) => ({
       id: `invoice-overdue-${invoice.id}`,
-      type: "Zahlung ueberfaellig",
+      type: "Zahlung überfällig",
       priority: "P1" as const,
       tone: "red" as const,
-      title: "Rechnung ueberfaellig",
+      title: "Rechnung überfällig",
       description:
-        "Eine Rechnung ist ueberfaellig oder als OVERDUE markiert. Zahlung, Mahnung oder Status sofort pruefen.",
+        "Eine Rechnung ist überfällig oder als OVERDUE markiert. Zahlung, Mahnung oder Status sofort prüfen.",
       href: `/dashboard/invoices/${invoice.id}`,
-      primaryLabel: "Rechnung pruefen",
+      primaryLabel: "Rechnung prüfen",
       customer: customerName(invoice.customer),
       amount: formatMoney(invoice.total, invoice.currency),
       meta: [
         invoice.invoiceNumber,
         invoice.status,
-        invoice.dueDate ? `Faellig: ${formatDate(invoice.dueDate)}` : "Kein Datum",
+        invoice.dueDate ? `Fällig: ${formatDate(invoice.dueDate)}` : "Kein Datum",
       ],
       createdAt: invoice.dueDate ?? invoice.updatedAt,
     })),
@@ -731,9 +731,9 @@ export default async function DashboardCockpitPage() {
       tone: "amber" as const,
       title: "Benachrichtigung wartet",
       description:
-        "Eine Notification ist noch PENDING. Versand, Retry oder manuelle Rueckfrage pruefen.",
+        "Eine Notification ist noch PENDING. Versand, Retry oder manuelle Rückfrage prüfen.",
       href: `/dashboard/notifications/${notification.id}`,
-      primaryLabel: "Notification pruefen",
+      primaryLabel: "Notification prüfen",
       customer: customerName(notification.customer),
       meta: [
         notification.recipient,
@@ -782,7 +782,7 @@ export default async function DashboardCockpitPage() {
 
               <p className="mt-3 max-w-5xl text-sm leading-6 text-zinc-300">
                 Zentrale Arbeitsansicht. Hier erscheinen nur Aufgaben, Warnungen
-                und naechste Schritte: neue Anfragen, interne Pruefung,
+                und nächste Schritte: neue Anfragen, interne Prüfung,
                 fehlende Fotos, Kundenantworten, Rechnungen, Zahlungen und
                 E-Mail Fehler.
               </p>
@@ -818,7 +818,7 @@ export default async function DashboardCockpitPage() {
 
               <p className="mt-2 text-sm leading-6 text-red-50/80">
                 Zuerst P1-Aktionen bearbeiten: E-Mail Fehler, neue
-                Kalkulationen in AI-Pruefung, fehlende Fotos und ueberfaellige
+                Kalkulationen in KI-Prüfung, fehlende Fotos und ueberfaellige
                 Rechnungen.
               </p>
             </div>
@@ -841,7 +841,7 @@ export default async function DashboardCockpitPage() {
           />
 
           <StatCard
-            label="Neue Pruefung"
+            label="Neue Prüfung"
             value={reviewCount}
             tone={reviewCount > 0 ? "amber" : "neutral"}
             description="AI / interne Kalkulation."
@@ -851,7 +851,7 @@ export default async function DashboardCockpitPage() {
             label="E-Mail Fehler"
             value={failedNotificationCount}
             tone={failedNotificationCount > 0 ? "red" : "green"}
-            description="Resend / SMTP pruefen."
+            description="Resend / SMTP prüfen."
           />
         </section>
 
@@ -860,11 +860,11 @@ export default async function DashboardCockpitPage() {
             label="Fotos fehlen"
             value={photoCount}
             tone={photoCount > 0 ? "amber" : "neutral"}
-            description="Rueckfrage / Upload noetig."
+            description="Rückfrage / Upload noetig."
           />
 
           <StatCard
-            label="Bereit fuer Offerte"
+            label="Bereit für Offerte"
             value={readyCount}
             tone={readyCount > 0 ? "cyan" : "neutral"}
             description="Offerte vorbereiten."
@@ -887,7 +887,7 @@ export default async function DashboardCockpitPage() {
                   ? "amber"
                   : "neutral"
             }
-            description="Rechnung oder Zahlung pruefen."
+            description="Rechnung oder Zahlung prüfen."
           />
         </section>
 
@@ -907,7 +907,7 @@ export default async function DashboardCockpitPage() {
 
                 <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
                   Reihenfolge nach Dringlichkeit. P1 zuerst, danach P2 und P3.
-                  Keine technischen Listen, sondern konkrete naechste Aktionen.
+                  Keine technischen Listen, sondern konkrete nächste Aktionen.
                 </p>
               </div>
 
@@ -933,7 +933,7 @@ export default async function DashboardCockpitPage() {
               {reviewCount + photoCount + readyCount + sentCount}
             </p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Offene kalkulationsbezogene Arbeit: Pruefung, Fotos, Offerte oder
+              Offene kalkulationsbezogene Arbeit: Prüfung, Fotos, Offerte oder
               Kundenantwort.
             </p>
           </div>
@@ -961,7 +961,7 @@ export default async function DashboardCockpitPage() {
                 overdueInvoiceCount}
             </p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Akzeptierte Offerten, abgeschlossene Auftraege ohne Rechnung und
+              Akzeptierte Offerten, abgeschlossene Aufträge ohne Rechnung und
               ueberfaellige Rechnungen.
             </p>
           </div>

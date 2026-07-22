@@ -675,7 +675,7 @@ export async function sendOrderConfirmationWorkflow(
           actionRequired: false,
           pdfAttached: true,
           attachmentFilename:
-            `Auftragsbestaetigung_${safeFilename(
+            `Auftragsbestätigung_${safeFilename(
               updatedOrder.orderNumber,
             )}.pdf`,
         },
@@ -710,7 +710,7 @@ export async function sendOrderConfirmationWorkflow(
         attachments: [
           {
             filename:
-              `Auftragsbestaetigung_${safeFilename(
+              `Auftragsbestätigung_${safeFilename(
                 updatedOrder.orderNumber,
               )}.pdf`,
             content:
@@ -882,7 +882,7 @@ export async function sendOrderConfirmationWorkflow(
           pdfAttached: true,
           providerMessageId,
           attachmentFilename:
-            `Auftragsbestaetigung_${safeFilename(
+            `Auftragsbestätigung_${safeFilename(
               updatedOrder.orderNumber,
             )}.pdf`,
         },

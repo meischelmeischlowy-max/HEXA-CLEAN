@@ -197,9 +197,9 @@ export default function DashboardNotificationsPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
-                Versandlog fuer Systemnachrichten, Kundenmails und interne
+                Versandlog für Systemnachrichten, Kundenmails und interne
                 Owner-Benachrichtigungen. Fehler werden direkt sichtbar, damit
-                Resend / SMTP / Konfiguration sofort geprueft werden kann.
+                Resend / SMTP / Konfiguration sofort geprüft werden kann.
               </p>
             </div>
 
@@ -246,7 +246,7 @@ export default function DashboardNotificationsPage() {
         {!loading && !errorMessage && failedNotifications.length > 0 ? (
           <section className="rounded-3xl border border-red-300/25 bg-red-300/10 p-5">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-red-100/80">
-              Sofort pruefen
+              Sofort prüfen
             </p>
 
             <h2 className="mt-2 text-2xl font-black text-red-50">

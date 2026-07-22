@@ -234,7 +234,7 @@ export default function AvailabilityPage() {
       !endAt
     ) {
       setError(
-        "Bitte Start und Ende auswaehlen.",
+        "Bitte Start und Ende auswählen.",
       );
       return;
     }
@@ -349,13 +349,13 @@ export default function AvailabilityPage() {
       ) {
         throw new Error(
           result.message ||
-            "Der Termin konnte nicht geaendert werden.",
+            "Der Termin konnte nicht geändert werden.",
         );
       }
 
       setMessage(
         result.message ||
-          "Der Termin wurde geaendert.",
+          "Der Termin wurde geändert.",
       );
 
       await loadSlots();
@@ -381,7 +381,7 @@ export default function AvailabilityPage() {
       window.confirm(
         `Termin ${formatDateTime(
           slot.startAt,
-        )} wirklich loeschen?`,
+        )} wirklich löschen?`,
       );
 
     if (!confirmed) {
@@ -412,13 +412,13 @@ export default function AvailabilityPage() {
       ) {
         throw new Error(
           result.message ||
-            "Der Termin konnte nicht geloescht werden.",
+            "Der Termin konnte nicht gelöscht werden.",
         );
       }
 
       setMessage(
         result.message ||
-          "Der Termin wurde geloescht.",
+          "Der Termin wurde gelöscht.",
       );
 
       await loadSlots();
@@ -446,7 +446,7 @@ export default function AvailabilityPage() {
         </h1>
 
         <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
-          Hier werden nur Zeitfenster veroeffentlicht, die Kunden spaeter bei der Annahme einer Offerte auswaehlen duerfen.
+          Hier werden nur Zeitfenster veröffentlicht, die Kunden später bei der Annahme einer Offerte auswählen dürfen.
           Das Erstellen oder Blockieren eines Termins versendet keine E-Mail.
         </p>
 
@@ -487,7 +487,7 @@ export default function AvailabilityPage() {
 
         <section className="mt-8 rounded-3xl border border-cyan-400/20 bg-cyan-400/[0.05] p-6">
           <h2 className="text-xl font-black">
-            Freien Termin hinzufuegen
+            Freien Termin hinzufügen
           </h2>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -557,7 +557,7 @@ export default function AvailabilityPage() {
           >
             {saving
               ? "Wird gespeichert..."
-              : "Termin veroeffentlichen"}
+              : "Termin veröffentlichen"}
           </button>
         </section>
 
@@ -581,7 +581,7 @@ export default function AvailabilityPage() {
               </h2>
 
               <p className="mt-2 text-sm text-neutral-500">
-                Gebuchte Termine sind gegen manuelle Aenderung und Loeschung geschuetzt.
+                Gebuchte Termine sind gegen manuelle Änderung und Löschung geschützt.
               </p>
             </div>
 
@@ -719,7 +719,7 @@ export default function AvailabilityPage() {
                                 }
                                 className="rounded-lg border border-red-400/40 px-3 py-2 text-xs font-bold text-red-100"
                               >
-                                Loeschen
+                                Löschen
                               </button>
                             </div>
                           )}

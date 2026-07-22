@@ -116,7 +116,7 @@ function statusLabel(status?: string | null) {
     NEW: "Neu",
     IN_PROGRESS: "In Arbeit",
     WAITING_FOR_CUSTOMER: "Wartet auf Kunde",
-    CONFIRMED: "Bestaetigt",
+    CONFIRMED: "Bestätigt",
     SCHEDULED: "Geplant",
     CANCELLED: "Storniert",
     DRAFT: "Entwurf",
@@ -124,12 +124,12 @@ function statusLabel(status?: string | null) {
     ACCEPTED: "Akzeptiert",
     REJECTED: "Abgelehnt",
     READY_TO_SEND: "Bereit zum Senden",
-    AI_REVIEW: "AI-Pruefung",
+    AI_REVIEW: "KI-Prüfung",
     NEEDS_PHOTOS: "Fotos erforderlich",
-    NEEDS_HUMAN_REVIEW: "Pruefung erforderlich",
+    NEEDS_HUMAN_REVIEW: "Prüfung erforderlich",
     PAID: "Bezahlt",
     PARTIALLY_PAID: "Teilweise bezahlt",
-    OVERDUE: "Ueberfaellig",
+    OVERDUE: "Überfällig",
     PENDING: "Ausstehend",
     FAILED: "Fehlgeschlagen",
     REFUNDED: "Erstattet",
@@ -211,18 +211,18 @@ function buildMissingDataMailto({
     .map((item) => `- ${item.title}`)
     .join("\n");
 
-  const subject = "Fehlende Angaben fuer Ihre Anfrage";
+  const subject = "Fehlende Angaben für Ihre Anfrage";
   const body = `Guten Tag ${name}
 
-vielen Dank fuer Ihre Anfrage.
+vielen Dank für Ihre Anfrage.
 
-Damit wir sauber weiterarbeiten koennen, fehlen uns noch folgende Angaben:
+Damit wir sauber weiterarbeiten können, fehlen uns noch folgende Angaben:
 
 ${missingText}
 
 Bitte senden Sie uns die fehlenden Informationen kurz per Antwort auf diese E-Mail.
 
-Freundliche Gruesse
+Freundliche Grüße
 HEXA CLEAN`;
 
   return `mailto:${email}?subject=${encodeURIComponent(
@@ -318,10 +318,10 @@ function MissingChecklist({
             Aktions-Checkliste
           </p>
           <h2 className="mt-2 text-xl font-black text-white">
-            Fehlende Daten und naechste Schritte
+            Fehlende Daten und nächste Schritte
           </h2>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-500">
-            Diese Checkliste gehoert nur zu diesem Kunden. Hier wird geklaert,
+            Diese Checkliste gehört nur zu diesem Kunden. Hier wird geklaert,
             was fehlt und welche Aktion wirklich sinnvoll ist.
           </p>
         </div>
@@ -377,7 +377,7 @@ function MissingChecklist({
 
       {missingItems.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.06] p-4 text-sm font-bold text-emerald-100">
-          Kundenprofil ist ausreichend vollstaendig. Weitere Arbeit laeuft ueber
+          Kundenprofil ist ausreichend vollständig. Weitere Arbeit läuft über
           Auftrag, Kalkulation, Offerte oder Rechnung.
         </div>
       ) : null}
@@ -450,7 +450,7 @@ function CustomerListSection({
                     href={item.href}
                     className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
                   >
-                    Oeffnen
+                    Öffnen
                   </Link>
                 ) : (
                   <span className="text-xs text-zinc-600">-</span>
@@ -758,7 +758,7 @@ export default async function CustomerDetailsPage({
               href="/dashboard/customers"
               className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
             >
-              Zurueck zu den Kunden
+              Zurück zu den Kunden
             </Link>
 
             <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -799,7 +799,7 @@ export default async function CustomerDetailsPage({
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <InfoCard label="Kundentyp" value={statusLabel(customer.type)} tone="cyan" />
-          <InfoCard label="Aktive Auftraege" value={activeOrders} />
+          <InfoCard label="Aktive Aufträge" value={activeOrders} />
           <InfoCard label="Offene Rechnungen" value={openInvoices} tone={openInvoices > 0 ? "amber" : "green"} />
           <InfoCard label="Offen" value={formatMoney(Math.max(invoicesTotal - invoicesPaid, 0), "CHF")} tone={invoicesTotal - invoicesPaid > 0 ? "red" : "green"} />
         </section>
@@ -849,7 +849,7 @@ export default async function CustomerDetailsPage({
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard label="Auftraege" value={customer.orders.length} />
+          <InfoCard label="Aufträge" value={customer.orders.length} />
           <InfoCard label="Kalkulationen" value={customer.estimates.length} />
           <InfoCard label="Offerten" value={customer.quotes.length} />
           <InfoCard label="Rechnungen total" value={formatMoney(invoicesTotal, "CHF")} tone="cyan" />
@@ -857,8 +857,8 @@ export default async function CustomerDetailsPage({
 
         <CustomerListSection
           id="auftraege"
-          title="Auftraege dieses Kunden"
-          description="Nur Auftraege, die direkt mit diesem Kunden verbunden sind."
+          title="Aufträge dieses Kunden"
+          description="Nur Aufträge, die direkt mit diesem Kunden verbunden sind."
           items={orderItems}
         />
 
@@ -879,7 +879,7 @@ export default async function CustomerDetailsPage({
         <CustomerListSection
           id="rechnungen"
           title="Rechnungen dieses Kunden"
-          description="Nur Rechnungen, die fuer diesen Kunden erstellt wurden. Zahlung und Mahnung passieren im Rechnungsmodul."
+          description="Nur Rechnungen, die für diesen Kunden erstellt wurden. Zahlung und Mahnung passieren im Rechnungsmodul."
           items={invoiceItems}
         />
 
@@ -905,13 +905,13 @@ export default async function CustomerDetailsPage({
 
         <details className="rounded-3xl border border-amber-400/15 bg-amber-400/[0.03] p-5">
           <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.22em] text-amber-100">
-            System / Technik fuer diesen Kunden
+            System / Technik für diesen Kunden
           </summary>
 
           <div className="mt-5">
             <CustomerListSection
               title="Audit Logs dieses Kunden"
-              description="Technische Historie nur fuer diesen Kundendatensatz."
+              description="Technische Historie nur für diesen Kundendatensatz."
               items={auditItems}
             />
           </div>

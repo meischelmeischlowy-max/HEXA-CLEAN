@@ -132,34 +132,34 @@ export function getCustomerListAction(
       label: "Kontakt fehlt",
       title: "Kontaktdaten fehlen",
       description:
-        "E-Mail oder Telefon fehlt. Kundenprofil oeffnen und Kontakt ergaenzen.",
+        "E-Mail oder Telefon fehlt. Kundenprofil öffnen und Kontakt ergänzen.",
       tone: "red",
       status: "REJECTED",
       owner: "customer",
       href: `/dashboard/customers/${customer.id}?action=missing-data#fehlende-daten`,
-      primaryLabel: "Kontakt klaeren",
+      primaryLabel: "Kontakt klären",
     };
   }
 
   if (!hasCustomerCompleteAddress(customer)) {
     return {
       label: "Adresse fehlt",
-      title: "Adresse unvollstaendig",
+      title: "Adresse unvollständig",
       description:
-        "Adresse ist nicht vollstaendig. Kundenprofil oeffnen und Adresse klaeren.",
+        "Adresse ist nicht vollständig. Kundenprofil öffnen und Adresse klären.",
       tone: "amber",
       status: "PENDING",
       owner: "customer",
       href: `/dashboard/customers/${customer.id}?action=missing-data#fehlende-daten`,
-      primaryLabel: "Adresse klaeren",
+      primaryLabel: "Adresse klären",
     };
   }
 
   return {
-    label: "Profil vollstaendig",
+    label: "Profil vollständig",
     title: "Kundenprofil ausreichend",
     description:
-      "Kontakt und Adresse sind vorhanden. Weitere Arbeit laeuft ueber Kalkulation, Offerte, Auftrag oder Rechnung.",
+      "Kontakt und Adresse sind vorhanden. Weitere Arbeit läuft über Kalkulation, Offerte, Auftrag oder Rechnung.",
     tone: "green",
     status: "ACCEPTED",
     owner: "customer",
@@ -174,9 +174,9 @@ export function getCustomerDetailAction(
   if (!hasCustomerContact(customer)) {
     return {
       label: "Kontakt fehlt",
-      title: "Kontaktdaten ergaenzen",
+      title: "Kontaktdaten ergänzen",
       description:
-        "Fuer diesen Kunden fehlen E-Mail oder Telefon. Ohne Kontakt koennen Rueckfragen und Offerten nicht sauber verarbeitet werden.",
+        "Für diesen Kunden fehlen E-Mail oder Telefon. Ohne Kontakt können Rückfragen und Offerten nicht sauber verarbeitet werden.",
       tone: "red",
       status: "REJECTED",
       owner: "customer",
@@ -190,14 +190,14 @@ export function getCustomerDetailAction(
   if (!hasCustomerCompleteAddress(customer)) {
     return {
       label: "Adresse fehlt",
-      title: "Adresse ergaenzen",
+      title: "Adresse ergänzen",
       description:
-        "Fuer Auftrag, Offerte und Rechnung braucht der Kunde eine vollstaendige Adresse. Daten manuell ergaenzen oder E-Mail vorbereiten.",
+        "Für Auftrag, Offerte und Rechnung braucht der Kunde eine vollständige Adresse. Daten manuell ergänzen oder E-Mail vorbereiten.",
       tone: "amber",
       status: "PENDING",
       owner: "customer",
       href: "#fehlende-daten",
-      primaryLabel: "Fehlende Daten klaeren",
+      primaryLabel: "Fehlende Daten klären",
       secondaryLabel: "Kunde bearbeiten",
       secondaryHref: `/dashboard/customers/${customer.id}/edit`,
     };
@@ -208,12 +208,12 @@ export function getCustomerDetailAction(
       label: "Fotos erforderlich",
       title: "Fotos / Uploads anfordern",
       description:
-        "Mindestens eine Kalkulation wartet auf Fotos. Uploads pruefen oder Kunden um Bilder bitten.",
+        "Mindestens eine Kalkulation wartet auf Fotos. Uploads prüfen oder Kunden um Bilder bitten.",
       tone: "cyan",
       status: "PENDING",
       owner: "estimate",
       href: "#fehlende-daten",
-      primaryLabel: "Fotos klaeren",
+      primaryLabel: "Fotos klären",
       secondaryLabel: "Dateien anzeigen",
       secondaryHref: "#dateien",
     };
@@ -221,29 +221,29 @@ export function getCustomerDetailAction(
 
   if (customer.estimatesNeedReview) {
     return {
-      label: "Kalkulation pruefen",
-      title: "Kalkulation braucht Pruefung",
+      label: "Kalkulation prüfen",
+      title: "Kalkulation braucht Prüfung",
       description:
-        "Eine Kalkulation braucht AI-Pruefung, Fotos oder manuelle Freigabe. Im Bereich Kalkulationen weiterarbeiten.",
+        "Eine Kalkulation braucht KI-Prüfung, Fotos oder manuelle Freigabe. Im Bereich Kalkulationen weiterarbeiten.",
       tone: "amber",
       status: "PENDING",
       owner: "estimate",
       href: "#kalkulationen",
-      primaryLabel: "Kalkulationen pruefen",
+      primaryLabel: "Kalkulationen prüfen",
     };
   }
 
   if (customer.estimatesReady) {
     return {
-      label: "Bereit fuer Offerte",
-      title: "Kalkulation bereit fuer Offerte",
+      label: "Bereit für Offerte",
+      title: "Kalkulation bereit für Offerte",
       description:
-        "Eine Kalkulation ist bereit. Naechster sauberer Schritt ist eine Offerte fuer den Kunden.",
+        "Eine Kalkulation ist bereit. Nächster sauberer Schritt ist eine Offerte für den Kunden.",
       tone: "cyan",
       status: "PENDING",
       owner: "estimate",
       href: "#kalkulationen",
-      primaryLabel: "Kalkulation oeffnen",
+      primaryLabel: "Kalkulation öffnen",
     };
   }
 
@@ -257,7 +257,7 @@ export function getCustomerDetailAction(
       status: "PENDING",
       owner: "quote",
       href: "#offerten",
-      primaryLabel: "Offerten pruefen",
+      primaryLabel: "Offerten prüfen",
     };
   }
 
@@ -266,12 +266,12 @@ export function getCustomerDetailAction(
       label: "Wartet auf Kunde",
       title: "Offerte wartet auf Kundenantwort",
       description:
-        "Eine Offerte wurde gesendet. Jetzt nicht neu duplizieren, sondern bestehende Offerte oeffnen und Antwortstatus pruefen.",
+        "Eine Offerte wurde gesendet. Jetzt nicht neu duplizieren, sondern bestehende Offerte öffnen und Antwortstatus prüfen.",
       tone: "cyan",
       status: "PENDING",
       owner: "quote",
       href: "#offerten",
-      primaryLabel: "Offerte oeffnen",
+      primaryLabel: "Offerte öffnen",
     };
   }
 
@@ -280,12 +280,12 @@ export function getCustomerDetailAction(
       label: "Offerte akzeptiert",
       title: "Auftrag oder Rechnung erstellen",
       description:
-        "Eine Offerte wurde akzeptiert. Naechster Prozessschritt ist Auftrag oder Rechnung im passenden Modul.",
+        "Eine Offerte wurde akzeptiert. Nächster Prozessschritt ist Auftrag oder Rechnung im passenden Modul.",
       tone: "green",
       status: "ACCEPTED",
       owner: "quote",
       href: "#offerten",
-      primaryLabel: "Akzeptierte Offerte oeffnen",
+      primaryLabel: "Akzeptierte Offerte öffnen",
     };
   }
 
@@ -299,49 +299,49 @@ export function getCustomerDetailAction(
       status: "PENDING",
       owner: "invoice",
       href: "#auftraege",
-      primaryLabel: "Auftrag pruefen",
+      primaryLabel: "Auftrag prüfen",
     };
   }
 
   if ((customer.overdueInvoices ?? 0) > 0) {
     return {
-      label: "Ueberfaellig",
-      title: "Rechnung ueberfaellig",
+      label: "Überfällig",
+      title: "Rechnung überfällig",
       description:
-        "Mindestens eine Rechnung ist ueberfaellig. Rechnung oeffnen und Zahlung oder Mahnung pruefen.",
+        "Mindestens eine Rechnung ist überfällig. Rechnung öffnen und Zahlung oder Mahnung prüfen.",
       tone: "red",
       status: "REJECTED",
       owner: "invoice",
       href: "#rechnungen",
-      primaryLabel: "Rechnungen pruefen",
+      primaryLabel: "Rechnungen prüfen",
     };
   }
 
   if ((customer.openInvoices ?? 0) > 0) {
     return {
       label: "Rechnung offen",
-      title: "Offene Rechnung pruefen",
+      title: "Offene Rechnung prüfen",
       description:
-        "Fuer diesen Kunden gibt es offene Rechnungen. Zahlung oder Status im Rechnungsmodul pruefen.",
+        "Für diesen Kunden gibt es offene Rechnungen. Zahlung oder Status im Rechnungsmodul prüfen.",
       tone: "amber",
       status: "PENDING",
       owner: "invoice",
       href: "#rechnungen",
-      primaryLabel: "Rechnungen pruefen",
+      primaryLabel: "Rechnungen prüfen",
     };
   }
 
   if ((customer.activeOrders ?? 0) > 0) {
     return {
       label: "Auftrag aktiv",
-      title: "Aktiven Auftrag pruefen",
+      title: "Aktiven Auftrag prüfen",
       description:
-        "Dieser Kunde hat aktive Auftraege. Konkreten Auftrag oeffnen und dort weiterarbeiten.",
+        "Dieser Kunde hat aktive Aufträge. Konkreten Auftrag öffnen und dort weiterarbeiten.",
       tone: "cyan",
       status: "PENDING",
       owner: "order",
       href: "#auftraege",
-      primaryLabel: "Auftraege pruefen",
+      primaryLabel: "Aufträge prüfen",
     };
   }
 
@@ -349,7 +349,7 @@ export function getCustomerDetailAction(
     label: "Bereit",
     title: "Keine sofortige Aktion",
     description:
-      "Kundenprofil ist ausreichend. Neue Arbeit beginnt ueber Kalkulation, Offerte, Auftrag oder Kundenkontakt.",
+      "Kundenprofil ist ausreichend. Neue Arbeit beginnt über Kalkulation, Offerte, Auftrag oder Kundenkontakt.",
     tone: "green",
     status: "ACCEPTED",
     owner: "customer",
@@ -369,7 +369,7 @@ export function buildCustomerMissingItems(
       title: "E-Mail fehlt",
       description: customer.email
         ? "E-Mail ist vorhanden."
-        : "Ohne E-Mail koennen Offerten und Rueckfragen nicht sauber vorbereitet werden.",
+        : "Ohne E-Mail können Offerten und Rückfragen nicht sauber vorbereitet werden.",
       isMissing: !customer.email,
       tone: "red",
       actionLabel: "E-Mail eintragen",
@@ -380,7 +380,7 @@ export function buildCustomerMissingItems(
       title: "Telefon fehlt",
       description: customer.phone
         ? "Telefonnummer ist vorhanden."
-        : "Ohne Telefon ist schnelle Rueckfrage beim Kunden nicht moeglich.",
+        : "Ohne Telefon ist schnelle Rückfrage beim Kunden nicht möglich.",
       isMissing: !customer.phone,
       tone: "amber",
       actionLabel: "Telefon eintragen",
@@ -388,13 +388,13 @@ export function buildCustomerMissingItems(
     },
     {
       key: "address",
-      title: "Adresse unvollstaendig",
+      title: "Adresse unvollständig",
       description: hasAddress
         ? "Strasse, PLZ und Ort sind vorhanden."
-        : "Fuer Auftrag, Offerte und Rechnung braucht der Kunde eine vollstaendige Adresse.",
+        : "Für Auftrag, Offerte und Rechnung braucht der Kunde eine vollständige Adresse.",
       isMissing: !hasAddress,
       tone: "amber",
-      actionLabel: "Adresse ergaenzen",
+      actionLabel: "Adresse ergänzen",
       actionHref: `/dashboard/customers/${customer.id}/edit`,
     },
     {
@@ -405,7 +405,7 @@ export function buildCustomerMissingItems(
         : "Keine offene Foto-Anforderung erkannt.",
       isMissing: Boolean(customer.estimatesNeedPhotos),
       tone: "cyan",
-      actionLabel: "Dateien pruefen",
+      actionLabel: "Dateien prüfen",
       actionHref: "#dateien",
     },
     {
@@ -413,10 +413,10 @@ export function buildCustomerMissingItems(
       title: "Kundenwunsch / Notiz",
       description: customer.notes
         ? "Interne Notiz ist vorhanden."
-        : "Optional: Kundenwunsch oder interne Notiz ergaenzen, wenn der Fall telefonisch geklaert wurde.",
+        : "Optional: Kundenwunsch oder interne Notiz ergänzen, wenn der Fall telefonisch geklaert wurde.",
       isMissing: !customer.notes && (customer.messagesCount ?? 0) === 0,
       tone: "cyan",
-      actionLabel: "Notiz ergaenzen",
+      actionLabel: "Notiz ergänzen",
       actionHref: `/dashboard/customers/${customer.id}/edit`,
     },
   ];
@@ -432,12 +432,12 @@ export function getEstimateAction(
       label: "Entwurf",
       title: "Kalkulation fertigstellen",
       description:
-        "Diese Kalkulation ist noch ein interner Entwurf. Positionen, Risiko, Anfahrt, Material und Notizen pruefen.",
+        "Diese Kalkulation ist noch ein interner Entwurf. Positionen, Risiko, Anfahrt, Material und Notizen prüfen.",
       tone: "amber",
       status,
       owner: "estimate",
       href: `/dashboard/estimates/${estimate.id}#status-aktionen`,
-      primaryLabel: "Status / Pruefung bearbeiten",
+      primaryLabel: "Status / Prüfung bearbeiten",
       secondaryLabel: "Kalkulation ansehen",
       secondaryHref: `/dashboard/estimates/${estimate.id}`,
     };
@@ -453,23 +453,23 @@ export function getEstimateAction(
       status,
       owner: "estimate",
       href: `/dashboard/estimates/${estimate.id}#status-aktionen`,
-      primaryLabel: "Foto-Anforderung klaeren",
-      secondaryLabel: "Kunde oeffnen",
+      primaryLabel: "Foto-Anforderung klären",
+      secondaryLabel: "Kunde öffnen",
       secondaryHref: "",
     };
   }
 
   if (status === "AI_REVIEW" || status === "NEEDS_HUMAN_REVIEW") {
     return {
-      label: "Pruefung erforderlich",
-      title: "Kalkulation intern pruefen",
+      label: "Prüfung erforderlich",
+      title: "Kalkulation intern prüfen",
       description:
-        "Diese Kalkulation braucht interne Pruefung. Erst nach Kontrolle darf daraus eine Offerte entstehen.",
+        "Diese Kalkulation braucht interne Prüfung. Erst nach Kontrolle darf daraus eine Offerte entstehen.",
       tone: "amber",
       status,
       owner: "estimate",
       href: `/dashboard/estimates/${estimate.id}#status-aktionen`,
-      primaryLabel: "Pruefung bearbeiten",
+      primaryLabel: "Prüfung bearbeiten",
       secondaryLabel: "Kalkulation ansehen",
       secondaryHref: `/dashboard/estimates/${estimate.id}`,
     };
@@ -477,16 +477,16 @@ export function getEstimateAction(
 
   if (status === "READY_TO_SEND") {
     return {
-      label: "Bereit fuer Offerte",
+      label: "Bereit für Offerte",
       title: "Offerte vorbereiten",
       description:
-        "Die Kalkulation ist freigegeben. Naechster Schritt ist eine Offerte fuer den Kunden, nicht eine Rechnung.",
+        "Die Kalkulation ist freigegeben. Nächster Schritt ist eine Offerte für den Kunden, nicht eine Rechnung.",
       tone: "cyan",
       status,
       owner: "quote",
       href: `/dashboard/estimates/${estimate.id}#status-aktionen`,
       primaryLabel: "Offerte erstellen",
-      secondaryLabel: "Freigabe pruefen",
+      secondaryLabel: "Freigabe prüfen",
       secondaryHref: `/dashboard/estimates/${estimate.id}#status-aktionen`,
     };
   }
@@ -496,13 +496,13 @@ export function getEstimateAction(
       label: "Versendet",
       title: "Offerte wartet auf Kundenantwort",
       description:
-        "Der Vorgang ist als versendet markiert. Jetzt zaehlt die Kundenreaktion ueber E-Mail, Kundenlink, Chat oder Rueckfrage. Die weitere Arbeit gehoert in Offerte und Kommunikation.",
+        "Der Vorgang ist als versendet markiert. Jetzt zählt die Kundenreaktion über E-Mail, Kundenlink, Chat oder Rückfrage. Die weitere Arbeit gehört in Offerte und Kommunikation.",
       tone: "cyan",
       status,
       owner: "quote",
       href: `/dashboard/estimates/${estimate.id}/offer`,
-      primaryLabel: "Offerte / Versand pruefen",
-      secondaryLabel: "Offerten oeffnen",
+      primaryLabel: "Offerte / Versand prüfen",
+      secondaryLabel: "Offerten öffnen",
       secondaryHref: "/dashboard/quotes",
     };
   }
@@ -512,13 +512,13 @@ export function getEstimateAction(
       label: "Akzeptiert",
       title: "Kundenantwort akzeptiert",
       description:
-        "Der Kunde hat akzeptiert. Naechster Prozessschritt ist Auftrag oder Rechnung im passenden Modul.",
+        "Der Kunde hat akzeptiert. Nächster Prozessschritt ist Auftrag oder Rechnung im passenden Modul.",
       tone: "green",
       status,
       owner: "quote",
       href: `/dashboard/estimates/${estimate.id}/offer`,
-      primaryLabel: "Naechsten Schritt pruefen",
-      secondaryLabel: "Offerten oeffnen",
+      primaryLabel: "Nächsten Schritt prüfen",
+      secondaryLabel: "Offerten öffnen",
       secondaryHref: "/dashboard/quotes",
     };
   }
@@ -528,12 +528,12 @@ export function getEstimateAction(
       label: "Abgelehnt",
       title: "Kundenantwort abgelehnt",
       description:
-        "Der Kunde hat abgelehnt. Fall pruefen: abschliessen, Notiz speichern oder neue Version vorbereiten.",
+        "Der Kunde hat abgelehnt. Fall prüfen: abschließen, Notiz speichern oder neue Version vorbereiten.",
       tone: "red",
       status,
       owner: "quote",
       href: `/dashboard/estimates/${estimate.id}/offer`,
-      primaryLabel: "Antwort pruefen",
+      primaryLabel: "Antwort prüfen",
       secondaryLabel: "Status ansehen",
       secondaryHref: `/dashboard/estimates/${estimate.id}#status-aktionen`,
     };
@@ -544,12 +544,12 @@ export function getEstimateAction(
       label: "Abgelaufen",
       title: "Offerte abgelaufen",
       description:
-        "Die Offerte ist nicht mehr gueltig. Entscheiden: erneuern, neue Version vorbereiten oder abschliessen.",
+        "Die Offerte ist nicht mehr gültig. Entscheiden: erneuern, neue Version vorbereiten oder abschließen.",
       tone: "amber",
       status,
       owner: "quote",
       href: `/dashboard/estimates/${estimate.id}/offer`,
-      primaryLabel: "Offerte pruefen",
+      primaryLabel: "Offerte prüfen",
       secondaryLabel: "Status ansehen",
       secondaryHref: `/dashboard/estimates/${estimate.id}#status-aktionen`,
     };
@@ -557,13 +557,13 @@ export function getEstimateAction(
 
   return {
     label: "Kalkulation",
-    title: "Kalkulation oeffnen",
-    description: "Kalkulation pruefen oder bearbeiten.",
+    title: "Kalkulation öffnen",
+    description: "Kalkulation prüfen oder bearbeiten.",
     tone: "neutral",
     status,
     owner: "estimate",
     href: `/dashboard/estimates/${estimate.id}`,
-    primaryLabel: "Oeffnen",
+    primaryLabel: "Öffnen",
   };
 }
 
@@ -589,12 +589,12 @@ export function getQuoteAction(quote: QuoteActionInput): DashboardRecordAction {
       label: quote.hasActivePublicLink ? "Kundenlink aktiv" : "Gesendet",
       title: "Wartet auf Kundenantwort",
       description:
-        "Offerte wurde gesendet. Keine neue Offerte erstellen, sondern Antwortstatus pruefen.",
+        "Offerte wurde gesendet. Keine neue Offerte erstellen, sondern Antwortstatus prüfen.",
       tone: "cyan",
       status,
       owner: "quote",
       href: `/dashboard/quotes/${quote.id}`,
-      primaryLabel: "Antwort pruefen",
+      primaryLabel: "Antwort prüfen",
     };
   }
 
@@ -603,24 +603,24 @@ export function getQuoteAction(quote: QuoteActionInput): DashboardRecordAction {
       label: "Akzeptiert",
       title: "Auftrag oder Rechnung erstellen",
       description:
-        "Offerte wurde akzeptiert. Naechster Schritt ist Auftrag oder Rechnung.",
+        "Offerte wurde akzeptiert. Nächster Schritt ist Auftrag oder Rechnung.",
       tone: "green",
       status,
       owner: "quote",
       href: `/dashboard/quotes/${quote.id}`,
-      primaryLabel: "Naechsten Schritt oeffnen",
+      primaryLabel: "Nächsten Schritt öffnen",
     };
   }
 
   return {
     label: status === "REJECTED" ? "Abgelehnt" : status,
-    title: "Offerte oeffnen",
-    description: "Offerte und Kundenstatus im Offertenmodul pruefen.",
+    title: "Offerte öffnen",
+    description: "Offerte und Kundenstatus im Offertenmodul prüfen.",
     tone: status === "REJECTED" ? "red" : "neutral",
     status,
     owner: "quote",
     href: `/dashboard/quotes/${quote.id}`,
-    primaryLabel: "Oeffnen",
+    primaryLabel: "Öffnen",
   };
 }
 
@@ -631,7 +631,7 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
     return {
       label: "Neu",
       title: "Auftrag planen",
-      description: "Neuer Auftrag braucht Planung oder Rueckfrage.",
+      description: "Neuer Auftrag braucht Planung oder Rückfrage.",
       tone: "amber",
       status,
       owner: "order",
@@ -643,13 +643,13 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
   if (status === "WAITING_FOR_CUSTOMER") {
     return {
       label: "Wartet auf Kunde",
-      title: "Kundenreaktion klaeren",
+      title: "Kundenreaktion klären",
       description: "Auftrag wartet auf Rueckmeldung oder fehlende Daten.",
       tone: "amber",
       status,
       owner: "order",
       href: `/dashboard/orders/${order.id}`,
-      primaryLabel: "Rueckfrage pruefen",
+      primaryLabel: "Rückfrage prüfen",
     };
   }
 
@@ -661,7 +661,7 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
       label: "Abgeschlossen",
       title: "Vorgang abgeschlossen",
       description:
-        "Der Auftrag ist abgeschlossen und die Rechnung vollstaendig bezahlt. Es ist keine weitere Aktion erforderlich.",
+        "Der Auftrag ist abgeschlossen und die Rechnung vollständig bezahlt. Es ist keine weitere Aktion erforderlich.",
       tone: "green",
       status,
       owner: "order",
@@ -678,12 +678,12 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
       label: "Zahlung offen",
       title: "Zahlungseingang abwarten",
       description:
-        "Der Auftrag ist abgeschlossen und die Rechnung versendet. Der Vorgang bleibt bis zur vollstaendigen Zahlung offen.",
+        "Der Auftrag ist abgeschlossen und die Rechnung versendet. Der Vorgang bleibt bis zur vollständigen Zahlung offen.",
       tone: "amber",
       status,
       owner: "invoice",
       href: `/dashboard/orders/${order.id}`,
-      primaryLabel: "Rechnung pruefen",
+      primaryLabel: "Rechnung prüfen",
     };
   }
 
@@ -695,18 +695,18 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
       label: "Rechnung fehlt",
       title: "Rechnung erstellen",
       description:
-        "Auftrag ist abgeschlossen. Naechster Schritt ist saubere Abrechnung.",
+        "Auftrag ist abgeschlossen. Nächster Schritt ist saubere Abrechnung.",
       tone: "amber",
       status,
       owner: "invoice",
       href: `/dashboard/orders/${order.id}`,
-      primaryLabel: "Auftrag oeffnen",
+      primaryLabel: "Auftrag öffnen",
     };
   }
 
   return {
     label: status,
-    title: "Auftrag oeffnen",
+    title: "Auftrag öffnen",
     description:
       "Auftrag im Auftragsmodul weiterbearbeiten.",
     tone:
@@ -716,7 +716,7 @@ export function getOrderAction(order: OrderActionInput): DashboardRecordAction {
     status,
     owner: "order",
     href: `/dashboard/orders/${order.id}`,
-    primaryLabel: "Oeffnen",
+    primaryLabel: "Öffnen",
   };
 }
 
@@ -727,29 +727,29 @@ export function getInvoiceAction(
 
   if (invoice.isOverdue || status === "OVERDUE") {
     return {
-      label: "Ueberfaellig",
+      label: "Überfällig",
       title: "Mahnung vorbereiten",
       description:
-        "Rechnung ist ueberfaellig. Zahlungseingang pruefen oder Mahnung vorbereiten.",
+        "Rechnung ist überfällig. Zahlungseingang prüfen oder Mahnung vorbereiten.",
       tone: "red",
       status,
       owner: "invoice",
       href: `/dashboard/invoices/${invoice.id}`,
-      primaryLabel: "Rechnung pruefen",
+      primaryLabel: "Rechnung prüfen",
     };
   }
 
   if (status === "SENT" || status === "PARTIALLY_PAID") {
     return {
       label: status === "PARTIALLY_PAID" ? "Teilzahlung" : "Offen",
-      title: "Zahlung pruefen",
+      title: "Zahlung prüfen",
       description:
-        "Rechnung ist offen. Zahlungseingang im Rechnungsmodul pruefen.",
+        "Rechnung ist offen. Zahlungseingang im Rechnungsmodul prüfen.",
       tone: "amber",
       status,
       owner: "invoice",
       href: `/dashboard/invoices/${invoice.id}`,
-      primaryLabel: "Zahlung pruefen",
+      primaryLabel: "Zahlung prüfen",
     };
   }
 
@@ -758,7 +758,7 @@ export function getInvoiceAction(
       label: "Bezahlt",
       title: "Zahlungsworkflow abgeschlossen",
       description:
-        "Die Rechnung ist vollstaendig bezahlt. Der Vorgang ist abgeschlossen und erfordert keine weitere Aktion.",
+        "Die Rechnung ist vollständig bezahlt. Der Vorgang ist abgeschlossen und erfordert keine weitere Aktion.",
       tone: "green",
       status,
       owner: "invoice",
@@ -783,13 +783,13 @@ export function getInvoiceAction(
 
   return {
     label: status,
-    title: "Rechnung oeffnen",
+    title: "Rechnung öffnen",
     description:
-      "Rechnung im Rechnungsmodul pruefen.",
+      "Rechnung im Rechnungsmodul prüfen.",
     tone: "neutral",
     status,
     owner: "invoice",
     href: `/dashboard/invoices/${invoice.id}`,
-    primaryLabel: "Oeffnen",
+    primaryLabel: "Öffnen",
   };
 }

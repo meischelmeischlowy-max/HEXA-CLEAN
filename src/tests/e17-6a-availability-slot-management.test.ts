@@ -132,7 +132,7 @@ describe(
         );
 
         expect(pageSource).toContain(
-          "Termin veroeffentlichen",
+          "Termin veröffentlichen",
         );
 
         expect(pageSource).toContain(
