@@ -1,8 +1,9 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import AddInvoicePaymentForm from "../../../../components/dashboard/AddInvoicePaymentForm";
+import InvoiceEmailAction from "../../../../components/dashboard/InvoiceEmailAction";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -322,44 +323,13 @@ export default async function DashboardInvoiceDetailsPage({
             </div>
           </div>
         </section>
-
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <Link
-            href={`/documents/invoices/${invoice.id}/print`}
-            className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/20"
-          >
-            Rechnung öffnen
-          </Link>
-
-          <Link
-            href={`/documents/invoices/${invoice.id}/print`}
-            className="rounded-2xl border border-emerald-300/30 bg-emerald-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200 hover:bg-emerald-300/20"
-          >
-            PDF / Druckansicht
-          </Link>
-
-          <Link
-            href={`/dashboard/invoices/${invoice.id}/edit`}
-            className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-amber-100 transition hover:border-amber-200 hover:bg-amber-300/20"
-          >
-            Rechnung bearbeiten
-          </Link>
-
-
-          <Link
-            href={`/dashboard/customers/${invoice.customerId}`}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-neutral-200 transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
-          >
-            Kunde öffnen
-          </Link>
-
-          <Link
-            href="/dashboard/invoices"
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-center text-sm font-black uppercase tracking-[0.16em] text-neutral-200 transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
-          >
-            Rechnungsliste
-          </Link>
-        </section>
+        <InvoiceEmailAction
+          invoiceId={invoice.id}
+          status={invoice.status}
+          recipient={
+            invoice.customer?.email ?? null
+          }
+        />
 
         <section className="grid gap-4 lg:grid-cols-5">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
