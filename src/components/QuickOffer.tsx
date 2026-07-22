@@ -127,7 +127,7 @@ export default function QuickOffer() {
   function buildMessage() {
     return `Hallo HEXA CLEAN.
 
-Ich interessiere mich fuer eine Offerte.
+Ich interessiere mich für eine Offerte.
 
 Leistung: ${service}
 Groesse: ${size} m2
@@ -197,7 +197,7 @@ Kontakt: ${contact || "-"}`;
       if (data.ownerEmailSent && data.customerEmailSent) {
         setSentStatus("success");
         setStatusMessage(
-          "Anfrage wurde gespeichert. Sie erhalten eine E-Mail-Bestaetigung. HEXA CLEAN wurde automatisch informiert.",
+          "Anfrage wurde gespeichert. Sie erhalten eine E-Mail-Bestätigung. HEXA CLEAN wurde automatisch informiert.",
         );
         return;
       }
@@ -205,7 +205,7 @@ Kontakt: ${contact || "-"}`;
       if (data.ownerEmailSent && data.customerEmailSkipped) {
         setSentStatus("partial");
         setStatusMessage(
-          "Anfrage wurde gespeichert. HEXA CLEAN wurde informiert. Fuer eine automatische Bestaetigung geben Sie bitte eine E-Mail-Adresse an.",
+          "Anfrage wurde gespeichert. HEXA CLEAN wurde informiert. Für eine automatische Bestätigung geben Sie bitte eine E-Mail-Adresse an.",
         );
         return;
       }
@@ -422,7 +422,7 @@ Kontakt: ${contact || "-"}`;
               </div>
 
               <p className="mt-4 text-xs leading-5 text-slate-400">
-                Die finale Offerte erfolgt nach Pruefung der Angaben. Keine
+                Die finale Offerte erfolgt nach Prüfung der Angaben. Keine
                 automatische verbindliche Preiszusage.
               </p>
 
@@ -529,7 +529,7 @@ Kontakt: ${contact || "-"}`;
                 <div className="mt-2 grid gap-1.5 text-xs text-slate-400">
                   <div className="flex items-center gap-2">
                     <Phone size={13} className="text-cyan-300" />
-                    Rueckruf oder Kontakt nach Pruefung
+                    Rückruf oder Kontakt nach Prüfung
                   </div>
 
                   <div className="flex items-center gap-2">

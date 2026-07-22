@@ -293,7 +293,7 @@ function validateManualEstimateBody(body: CreateEstimateBody) {
     return {
       valid: false,
       message:
-        "Bitte mindestens Name, Firma, E-Mail oder Telefon fuer den Kunden angeben.",
+        "Bitte mindestens Name, Firma, E-Mail oder Telefon für den Kunden angeben.",
     };
   }
 
@@ -563,10 +563,10 @@ async function createManualEstimate(
       aiMinTotal: money(total * 0.9),
       aiMaxTotal: money(total * 1.15),
       aiNotes:
-        "Automatische interne Plausibilitaetsspanne. Vor Versand an den Kunden ist die Pruefung durch den Inhaber erforderlich.",
+        "Automatische interne Plausibilitätsspanne. Vor Versand an den Kunden ist die Prüfung durch den Inhaber erforderlich.",
       notesCustomer:
         cleanText(body.notesCustomer, 2000) ??
-        "Die verbindliche Offerte erfolgt nach Pruefung des Umfangs.",
+        "Die verbindliche Offerte erfolgt nach Prüfung des Umfangs.",
       notesInternal:
         cleanText(body.notesInternal, 3000) ??
         "Manuelle Kalkulation aus dem Dashboard. Kein Demo-Datensatz.",

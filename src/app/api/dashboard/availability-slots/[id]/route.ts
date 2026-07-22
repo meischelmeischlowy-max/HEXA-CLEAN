@@ -204,7 +204,7 @@ export async function DELETE(
         {
           status: "CONFLICT",
           message:
-            "Ein gebuchter Termin kann nicht geloescht werden.",
+            "Ein gebuchter Termin kann nicht gelöscht werden.",
         },
         {
           status: 409,
@@ -237,7 +237,7 @@ export async function DELETE(
               current.status,
           },
           message:
-            "Ein freier Kundentermin wurde geloescht.",
+            "Ein freier Kundentermin wurde gelöscht.",
           metadata: {
             source:
               "dashboard_availability_slot",
@@ -250,7 +250,7 @@ export async function DELETE(
     return NextResponse.json({
       status: "OK",
       message:
-        "Der freie Termin wurde geloescht.",
+        "Der freie Termin wurde gelöscht.",
     });
   } catch (error) {
     console.error(
@@ -262,7 +262,7 @@ export async function DELETE(
       {
         status: "ERROR",
         message:
-          "Der Termin konnte nicht geloescht werden.",
+          "Der Termin konnte nicht gelöscht werden.",
         error:
           error instanceof Error
             ? error.message

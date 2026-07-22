@@ -130,7 +130,7 @@ export async function POST(
       body.confirmAcceptance !== true
     ) {
       return jsonError(
-        "Die verbindliche Bestaetigung ist erforderlich.",
+        "Die verbindliche Bestätigung ist erforderlich.",
         400,
         rateLimit.headers,
       );

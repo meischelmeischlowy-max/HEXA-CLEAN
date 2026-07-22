@@ -426,7 +426,7 @@ function buildPlainMessage(offer: NormalizedQuickOffer) {
     `Preisspanne Website: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     `Client price payload: ${offer.clientPrice ?? "-"}`,
     "",
-    "Status: Aktion erforderlich. Interne Pruefung vor finaler Offerte.",
+    "Status: Aktion erforderlich. Interne Prüfung vor finaler Offerte.",
   ].join("\n");
 }
 
@@ -449,7 +449,7 @@ function buildOwnerEmailHtml(
     <h2>Neue QuickOffer Anfrage - Aktion erforderlich</h2>
 
     <p><strong>Quelle:</strong> Schnell Offerte / QuickOffer</p>
-    <p><strong>Status:</strong> Interne Pruefung erforderlich</p>
+    <p><strong>Status:</strong> Interne Prüfung erforderlich</p>
 
     <hr />
 
@@ -475,13 +475,13 @@ function buildOwnerEmailHtml(
     <hr />
 
     <h3>Naechste Aktion</h3>
-    <p>Bitte Kalkulation pruefen: Umfang, Fotos, Adresse, Anfahrt, Material, Risiko, MwSt. und Preis. Erst danach finale Offerte senden.</p>
+    <p>Bitte Kalkulation prüfen: Umfang, Fotos, Adresse, Anfahrt, Material, Risiko, MwSt. und Preis. Erst danach finale Offerte senden.</p>
 
     <p>
-      <a href="${escapeHtml(estimateUrl)}">Kalkulation im CRM oeffnen</a>
+      <a href="${escapeHtml(estimateUrl)}">Kalkulation im CRM öffnen</a>
     </p>
     <p>
-      <a href="${escapeHtml(customerUrl)}">Kundenprofil oeffnen</a>
+      <a href="${escapeHtml(customerUrl)}">Kundenprofil öffnen</a>
     </p>
 
     <hr />
@@ -504,7 +504,7 @@ function buildCustomerEmailHtml(offer: NormalizedQuickOffer) {
 
     <p>Guten Tag${offer.name ? ` ${escapeHtml(offer.name)}` : ""}</p>
 
-    <p>Vielen Dank fuer Ihre Anfrage. Wir haben Ihre Angaben erhalten und im System gespeichert.</p>
+    <p>Vielen Dank für Ihre Anfrage. Wir haben Ihre Angaben erhalten und im System gespeichert.</p>
 
     <h3>Ihre Angaben</h3>
     <p><strong>Leistung:</strong> ${escapeHtml(offer.service)}</p>
@@ -523,7 +523,7 @@ function buildCustomerEmailHtml(offer: NormalizedQuickOffer) {
 
     <p><strong>Wichtig:</strong> Das ist noch keine verbindliche finale Offerte.</p>
 
-    <p>Die genaue Offerte erfolgt nach Pruefung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details. Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.</p>
+    <p>Die genaue Offerte erfolgt nach Prüfung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details. Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.</p>
 
     <p>Freundliche Gruesse<br />HEXA CLEAN</p>
   `;
@@ -542,7 +542,7 @@ function buildCustomerEmailPlainText(offer: NormalizedQuickOffer) {
     `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     "",
     "Wichtig: Das ist noch keine verbindliche finale Offerte.",
-    "Die genaue Offerte erfolgt nach Pruefung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details.",
+    "Die genaue Offerte erfolgt nach Prüfung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details.",
     "Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.",
     "",
     "Freundliche Gruesse",
@@ -885,9 +885,9 @@ export async function POST(request: NextRequest) {
           estimatedPrice: money(offer.calculatedMinPrice),
           currency: "CHF",
           notesCustomer:
-            "Danke fuer Ihre Anfrage. Die finale Offerte erfolgt nach Pruefung der Angaben.",
+            "Danke für Ihre Anfrage. Die finale Offerte erfolgt nach Prüfung der Angaben.",
           notesInternal:
-            "Automatisch aus dem oeffentlichen QuickOffer Formular erstellt. Aktion erforderlich: Angaben pruefen, ggf. Fotos anfordern, finale Offerte erst nach Kontrolle senden.",
+            "Automatisch aus dem oeffentlichen QuickOffer Formular erstellt. Aktion erforderlich: Angaben prüfen, ggf. Fotos anfordern, finale Offerte erst nach Kontrolle senden.",
         },
       });
 
@@ -913,11 +913,11 @@ export async function POST(request: NextRequest) {
           aiMinTotal: money(offer.calculatedMinPrice),
           aiMaxTotal: money(offer.calculatedMaxPrice),
           aiNotes:
-            "Automatisch aus QuickOffer berechnete Orientierungsspanne. Vor Versand an den Kunden manuell pruefen.",
+            "Automatisch aus QuickOffer berechnete Orientierungsspanne. Vor Versand an den Kunden manuell prüfen.",
           notesCustomer:
-            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Pruefung durch HEXA CLEAN.",
+            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Prüfung durch HEXA CLEAN.",
           notesInternal:
-            "Public QuickOffer lead. Aktion erforderlich: Daten, Fotos, Adresse, Anfahrt, Material, Risiko und Preis pruefen.",
+            "Public QuickOffer lead. Aktion erforderlich: Daten, Fotos, Adresse, Anfahrt, Material, Risiko und Preis prüfen.",
           items: {
             create: [
               {
@@ -1127,8 +1127,8 @@ export async function POST(request: NextRequest) {
 
     const photoSummary =
       crmResult.attachments.length > 0
-        ? `\nFotos fuer die Preispruefung: ${crmResult.attachments.length}`
-        : "\nFotos fuer die Preispruefung: Keine";
+        ? `\nFotos für die Preispruefung: ${crmResult.attachments.length}`
+        : "\nFotos für die Preispruefung: Keine";
 
     const ownerEmailHtml = buildOwnerEmailHtml(
       offer,

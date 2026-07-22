@@ -818,7 +818,7 @@ export default async function DashboardCockpitPage() {
 
               <p className="mt-2 text-sm leading-6 text-red-50/80">
                 Zuerst P1-Aktionen bearbeiten: E-Mail Fehler, neue
-                Kalkulationen in KI-Prüfung, fehlende Fotos und ueberfaellige
+                Kalkulationen in KI-Prüfung, fehlende Fotos und überfällige
                 Rechnungen.
               </p>
             </div>
@@ -962,7 +962,7 @@ export default async function DashboardCockpitPage() {
             </p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               Akzeptierte Offerten, abgeschlossene Aufträge ohne Rechnung und
-              ueberfaellige Rechnungen.
+              überfällige Rechnungen.
             </p>
           </div>
         </section>

@@ -119,7 +119,7 @@ describe(
         );
 
         expect(itemRoute).toContain(
-          "Ein gebuchter Termin kann nicht geloescht werden.",
+          "Ein gebuchter Termin kann nicht gelöscht werden.",
         );
       },
     );
