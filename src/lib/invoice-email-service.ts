@@ -243,6 +243,9 @@ function notificationHasProviderMessageId(
 
 export async function sendInvoiceEmailWorkflow(
   invoiceId: string,
+  options: {
+    force?: boolean;
+  } = {},
 ): Promise<InvoiceEmailWorkflowResult> {
   const invoice =
     await prisma.invoice.findUnique({
@@ -293,9 +296,11 @@ export async function sendInvoiceEmailWorkflow(
   }
 
   const existingSentNotification =
-    await findSentInvoiceNotification(
-      invoice,
-    );
+    options.force
+      ? null
+      : await findSentInvoiceNotification(
+          invoice,
+        );
 
   if (
     existingSentNotification &&

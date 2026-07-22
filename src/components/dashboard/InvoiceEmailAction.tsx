@@ -58,7 +58,9 @@ export default function InvoiceEmailAction({
             "Content-Type":
               "application/json",
           },
-          body: "{}",
+          body: JSON.stringify({
+            force: status === "SENT",
+          }),
         },
       );
 
@@ -82,7 +84,7 @@ export default function InvoiceEmailAction({
 
       if (data.data?.alreadySent) {
         setMessage(
-          "Der E-Mail-Versand war bereits beim Anbieter registriert.",
+          "Die Rechnung war bereits beim Anbieter registriert.",
         );
       } else {
         setMessage(

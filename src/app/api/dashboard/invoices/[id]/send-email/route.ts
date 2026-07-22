@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: {
     params: Promise<{ id: string }>;
   },
@@ -16,8 +16,25 @@ export async function POST(
   try {
     const { id } = await context.params;
 
+    let force = false;
+
+    try {
+      const body = (await request.json()) as {
+        force?: unknown;
+      };
+
+      force = body.force === true;
+    } catch {
+      force = false;
+    }
+
     const result =
-      await sendInvoiceEmailWorkflow(id);
+      await sendInvoiceEmailWorkflow(
+        id,
+        {
+          force,
+        },
+      );
 
     return NextResponse.json(
       {
