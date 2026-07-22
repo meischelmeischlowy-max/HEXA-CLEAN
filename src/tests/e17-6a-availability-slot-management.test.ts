@@ -115,11 +115,11 @@ describe(
         );
 
         expect(itemRoute).toContain(
-          "Ein gebuchter Termin kann nicht manuell ge?ndert werden.",
+          "Ein gebuchter Termin kann nicht manuell geaendert werden.",
         );
 
         expect(itemRoute).toContain(
-          "Ein gebuchter Termin kann nicht gel?scht werden.",
+          "Ein gebuchter Termin kann nicht geloescht werden.",
         );
       },
     );
@@ -132,7 +132,7 @@ describe(
         );
 
         expect(pageSource).toContain(
-          "Termin ver?ffentlichen",
+          "Termin veroeffentlichen",
         );
 
         expect(pageSource).toContain(

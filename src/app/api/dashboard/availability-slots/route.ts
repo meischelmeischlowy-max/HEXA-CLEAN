@@ -119,7 +119,7 @@ export async function POST(
         {
           status: "ERROR",
           message:
-            "Ein g?ltiger Start- und Endtermin ist erforderlich.",
+            "Ein gueltiger Start- und Endtermin ist erforderlich.",
         },
         {
           status: 400,
@@ -183,7 +183,7 @@ export async function POST(
         {
           status: "CONFLICT",
           message:
-            "Dieser Termin ?berschneidet sich mit einem bestehenden Zeitfenster.",
+            "Dieser Termin ueberschneidet sich mit einem bestehenden Zeitfenster.",
           data: {
             conflictingSlot:
               overlappingSlot,

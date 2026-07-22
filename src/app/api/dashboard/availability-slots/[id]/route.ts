@@ -88,7 +88,7 @@ export async function PATCH(
         {
           status: "CONFLICT",
           message:
-            "Ein gebuchter Termin kann nicht manuell ge?ndert werden.",
+            "Ein gebuchter Termin kann nicht manuell geaendert werden.",
         },
         {
           status: 409,
@@ -126,7 +126,7 @@ export async function PATCH(
             updated.status,
         },
         message:
-          `Terminstatus wurde von ${current.status} auf ${updated.status} ge?ndert.`,
+          `Terminstatus wurde von ${current.status} auf ${updated.status} geaendert.`,
         metadata: {
           source:
             "dashboard_availability_slot",
@@ -138,7 +138,7 @@ export async function PATCH(
     return NextResponse.json({
       status: "OK",
       message:
-        "Der Terminstatus wurde ge?ndert.",
+        "Der Terminstatus wurde geaendert.",
       data: {
         slot: updated,
       },
@@ -153,7 +153,7 @@ export async function PATCH(
       {
         status: "ERROR",
         message:
-          "Der Termin konnte nicht ge?ndert werden.",
+          "Der Termin konnte nicht geaendert werden.",
         error:
           error instanceof Error
             ? error.message
@@ -204,7 +204,7 @@ export async function DELETE(
         {
           status: "CONFLICT",
           message:
-            "Ein gebuchter Termin kann nicht gel?scht werden.",
+            "Ein gebuchter Termin kann nicht geloescht werden.",
         },
         {
           status: 409,
@@ -237,7 +237,7 @@ export async function DELETE(
               current.status,
           },
           message:
-            "Ein freier Kundentermin wurde gel?scht.",
+            "Ein freier Kundentermin wurde geloescht.",
           metadata: {
             source:
               "dashboard_availability_slot",
@@ -250,7 +250,7 @@ export async function DELETE(
     return NextResponse.json({
       status: "OK",
       message:
-        "Der freie Termin wurde gel?scht.",
+        "Der freie Termin wurde geloescht.",
     });
   } catch (error) {
     console.error(
@@ -262,7 +262,7 @@ export async function DELETE(
       {
         status: "ERROR",
         message:
-          "Der Termin konnte nicht gel?scht werden.",
+          "Der Termin konnte nicht geloescht werden.",
         error:
           error instanceof Error
             ? error.message
