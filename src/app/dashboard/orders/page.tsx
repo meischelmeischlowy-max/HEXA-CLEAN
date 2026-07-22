@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -388,13 +387,19 @@ export default function DashboardOrdersPage() {
 
         return (
           <div>
-            <Link
-              href={`/dashboard/orders/${order.id}`}
-              className="font-black tracking-tight text-white transition hover:text-cyan-300 hover:underline"
-              aria-label={`Auftrag ${getOrderTitle(order)} öffnen`}
-            >
-              {getOrderTitle(order)}
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <PremiumButton
+                href={`/dashboard/orders/${order.id}`}
+                variant="primary"
+                size="sm"
+              >
+                Auftrag öffnen
+              </PremiumButton>
+
+              <span className="font-black tracking-tight text-white">
+                {getOrderTitle(order)}
+              </span>
+            </div>
 
             <div className="mt-2 flex flex-wrap gap-2">
               {quickOffer ? (
