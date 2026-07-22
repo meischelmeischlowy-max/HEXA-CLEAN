@@ -21,9 +21,7 @@ type RouteContext = {
 
 function isOwnerStatus(
   value: unknown,
-): value is
-  | AvailabilitySlotStatus.AVAILABLE
-  | AvailabilitySlotStatus.BLOCKED {
+): value is AvailabilitySlotStatus {
   return (
     value ===
       AvailabilitySlotStatus.AVAILABLE ||

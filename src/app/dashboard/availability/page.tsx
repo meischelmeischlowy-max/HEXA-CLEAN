@@ -188,7 +188,15 @@ export default function AvailabilityPage() {
     );
 
   useEffect(() => {
-    void loadSlots();
+    const timeoutId =
+      window.setTimeout(() => {
+        void loadSlots();
+      }, 0);
+
+    return () =>
+      window.clearTimeout(
+        timeoutId,
+      );
   }, [loadSlots]);
 
   const stats =
