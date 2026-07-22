@@ -805,67 +805,75 @@ export default async function OrderDetailsPage({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3 xl:justify-end">
-          <ActionButton href={`/dashboard/orders/${order.id}/edit`} variant="primary">
-            Auftrag bearbeiten
-          </ActionButton>
+        <div
+          data-testid="order-primary-action"
+          className="w-full max-w-xl xl:w-auto"
+        >
+          <div className="rounded-2xl border border-cyan-400/20 bg-neutral-950/70 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-400">
+              Nächster Schritt
+            </p>
 
-          <ActionButton href="/dashboard/orders">Auftragsliste</ActionButton>
-
-          {customer?.id ? (
-            <ActionButton href={`/dashboard/customers/${customer.id}`}>
-              Kunde
-            </ActionButton>
-          ) : null}
-
-          {latestEstimate?.id ? (
-            <ActionButton
-              href={`/dashboard/estimates/${latestEstimate.id}`}
-              variant={quickOffer ? "quick" : chatbot ? "chat" : "default"}
-            >
-              {publicLead ? "Lead prüfen" : "Kalkulation öffnen"}
-            </ActionButton>
-          ) : (
-            <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
-              Angebote
-            </ActionButton>
-          )}
-
-          <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
-            Rechnungen
-          </ActionButton>
-
-          <ActionButton href={`/dashboard/payments?orderId=${order.id}`}>
-            Zahlungen
-          </ActionButton>
-
-          {completed ? (
-            <div className="rounded-xl border border-green-600 bg-green-950/50 px-4 py-3 text-sm font-semibold text-green-100">
-              Auftrag abgeschlossen
+            <div className="mt-3">
+              {reviewRequired && latestEstimate?.id ? (
+                <ActionButton
+                  href={`/dashboard/estimates/${latestEstimate.id}`}
+                  variant={
+                    quickOffer
+                      ? "quick"
+                      : chatbot
+                        ? "chat"
+                        : "primary"
+                  }
+                >
+                  {publicLead
+                    ? "Lead prüfen"
+                    : "Kalkulation prüfen"}
+                </ActionButton>
+              ) : confirmed ? (
+                <ScheduleOrderButton
+                  orderId={String(order.id)}
+                  initialStart={
+                    order.scheduledStart
+                      ? String(order.scheduledStart)
+                      : null
+                  }
+                  initialEnd={
+                    order.scheduledEnd
+                      ? String(order.scheduledEnd)
+                      : null
+                  }
+                />
+              ) : scheduled ? (
+                <MarkOrderAsCompletedButton
+                  orderId={String(order.id)}
+                />
+              ) : completed ? (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100">
+                  Auftrag abgeschlossen
+                </div>
+              ) : latestEstimate?.id ? (
+                <ActionButton
+                  href={`/dashboard/estimates/${latestEstimate.id}`}
+                  variant="primary"
+                >
+                  Kalkulation öffnen
+                </ActionButton>
+              ) : (
+                <ActionButton
+                  href={`/dashboard/orders/${order.id}/edit`}
+                  variant="primary"
+                >
+                  Auftragsdaten vervollständigen
+                </ActionButton>
+              )}
             </div>
-          ) : confirmed ? (
-            <ScheduleOrderButton
-              orderId={String(order.id)}
-              initialStart={
-                order.scheduledStart
-                  ? String(order.scheduledStart)
-                  : null
-              }
-              initialEnd={
-                order.scheduledEnd
-                  ? String(order.scheduledEnd)
-                  : null
-              }
-            />
-          ) : scheduled ? (
-            <MarkOrderAsCompletedButton
-              orderId={String(order.id)}
-            />
-          ) : (
-            <div className="rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm font-semibold text-neutral-400">
-              Nächster Schritt wird automatisch angezeigt
-            </div>
-          )}
+
+            <p className="mt-3 text-xs leading-5 text-neutral-500">
+              HEXA zeigt nur die aktuell erforderliche operative Aktion.
+              Weitere Bereiche stehen unten als Navigation zur Verfügung.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1144,33 +1152,50 @@ export default async function OrderDetailsPage({
           )}
         </Section>
 
-        <Section title="Schnellaktionen">
-          <div className="grid gap-3 md:grid-cols-2">
-            <ActionButton href={`/dashboard/orders/${order.id}/edit`} variant="primary">
-              Daten korrigieren
-            </ActionButton>
+        <Section title="Weitere Bereiche">
+          <nav
+            data-testid="order-secondary-navigation"
+            className="flex flex-wrap gap-x-5 gap-y-3 text-sm"
+          >
+            <Link
+              href={`/dashboard/orders/${order.id}/edit`}
+              className="text-neutral-400 transition hover:text-cyan-300"
+            >
+              Auftrag bearbeiten
+            </Link>
+
+            {customer?.id ? (
+              <Link
+                href={`/dashboard/customers/${customer.id}`}
+                className="text-neutral-400 transition hover:text-cyan-300"
+              >
+                Kunde
+              </Link>
+            ) : null}
 
             {latestEstimate?.id ? (
-              <ActionButton
+              <Link
                 href={`/dashboard/estimates/${latestEstimate.id}`}
-                variant={quickOffer ? "quick" : chatbot ? "chat" : "default"}
+                className="text-neutral-400 transition hover:text-cyan-300"
               >
-                {publicLead ? "Lead prüfen" : "Kalkulation prüfen"}
-              </ActionButton>
-            ) : (
-              <ActionButton href={`/dashboard/estimates?orderId=${order.id}`}>
-                Zu Angeboten
-              </ActionButton>
-            )}
+                Kalkulation
+              </Link>
+            ) : null}
 
-            <ActionButton href={`/dashboard/invoices?orderId=${order.id}`}>
-              Zu Rechnungen
-            </ActionButton>
+            <Link
+              href={`/dashboard/invoices?orderId=${order.id}`}
+              className="text-neutral-400 transition hover:text-cyan-300"
+            >
+              Rechnungen
+            </Link>
 
-            <ActionButton href={`/dashboard/payments?orderId=${order.id}`}>
-              Zu Zahlungen
-            </ActionButton>
-          </div>
+            <Link
+              href={`/dashboard/payments?orderId=${order.id}`}
+              className="text-neutral-400 transition hover:text-cyan-300"
+            >
+              Zahlungen
+            </Link>
+          </nav>
         </Section>
       </section>
 
