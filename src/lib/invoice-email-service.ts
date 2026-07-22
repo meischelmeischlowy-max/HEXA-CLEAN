@@ -220,6 +220,27 @@ async function recordInvoiceEmailFailure({
   };
 }
 
+function notificationHasProviderMessageId(
+  metadata: unknown,
+) {
+  if (
+    !metadata ||
+    typeof metadata !== "object" ||
+    Array.isArray(metadata)
+  ) {
+    return false;
+  }
+
+  const providerMessageId = (
+    metadata as Record<string, unknown>
+  ).providerMessageId;
+
+  return (
+    typeof providerMessageId === "string" &&
+    providerMessageId.trim().length > 0
+  );
+}
+
 export async function sendInvoiceEmailWorkflow(
   invoiceId: string,
 ): Promise<InvoiceEmailWorkflowResult> {
@@ -276,7 +297,12 @@ export async function sendInvoiceEmailWorkflow(
       invoice,
     );
 
-  if (existingSentNotification) {
+  if (
+    existingSentNotification &&
+    notificationHasProviderMessageId(
+      existingSentNotification.metadata,
+    )
+  ) {
     if (
       invoice.status !== InvoiceStatus.SENT ||
       !invoice.sentAt
@@ -520,6 +546,15 @@ export async function sendInvoiceEmailWorkflow(
       };
     }
 
+    const providerMessageId =
+      emailResult.data?.id?.trim() ?? "";
+
+    if (!providerMessageId) {
+      throw new Error(
+        "RESEND_MESSAGE_ID_MISSING",
+      );
+    }
+
     const sentAt = new Date();
 
     await prisma.$transaction([
@@ -555,9 +590,8 @@ export async function sendInvoiceEmailWorkflow(
               invoice.total,
             ),
             currency: invoice.currency,
-            providerMessageId:
-              emailResult.data?.id ??
-              null,
+            providerMessageId,
+
           },
         },
       }),
@@ -593,9 +627,8 @@ export async function sendInvoiceEmailWorkflow(
               notification.id,
             recipient,
             automatic: true,
-            providerMessageId:
-              emailResult.data?.id ??
-              null,
+            providerMessageId,
+
           },
         },
       }),
