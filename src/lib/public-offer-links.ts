@@ -95,16 +95,25 @@ export function isPublicOfferLinkExpired(
 
 export function buildPublicOfferUrl(rawToken: string): string {
   const configuredBaseUrl =
+    process.env.HEXA_APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.APP_URL ||
     process.env.VERCEL_URL;
 
-  const baseUrl = configuredBaseUrl
-    ? configuredBaseUrl.startsWith("http")
-      ? configuredBaseUrl
-      : `https://${configuredBaseUrl}`
-    : "http://localhost:3000";
+  if (!configuredBaseUrl) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Public offer base URL is not configured.",
+      );
+    }
+
+    return `http://localhost:3000/public/offers/${rawToken}`;
+  }
+
+  const baseUrl = configuredBaseUrl.startsWith("http")
+    ? configuredBaseUrl
+    : `https://${configuredBaseUrl}`;
 
   return `${baseUrl.replace(/\/+$/, "")}/public/offers/${rawToken}`;
 }
