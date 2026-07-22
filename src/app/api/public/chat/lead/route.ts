@@ -441,7 +441,7 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
   if (!email && !phone) {
     return {
       lead: null,
-      error: "Bitte geben Sie eine gĂĽltige Telefonnummer oder E-Mail-Adresse ein.",
+      error: "Bitte geben Sie eine gültige Telefonnummer oder E-Mail-Adresse ein.",
     };
   }
 
@@ -458,7 +458,7 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
   const date = cleanText(answers.date, 200);
 
   const estimatedPrice = clampMoney(cleanNumber(body.session?.estimatedPrice, 0));
-  const priceRange = cleanText(body.session?.priceRange, 120) ?? "Wird geprĂĽft";
+  const priceRange = cleanText(body.session?.priceRange, 120) ?? "Wird geprüft";
   const range = parsePriceRange(priceRange, estimatedPrice);
 
   const quantity =
@@ -515,14 +515,14 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
 
 function buildPlainMessage(lead: NormalizedChatLead) {
   return [
-    "Neue AI Chatbox Anfrage von der Website.",
+    "Neue KI-Chatbox Anfrage von der Website.",
     "",
     `Name: ${lead.name ?? "-"}`,
     `Kontakt: ${lead.contact}`,
     `E-Mail: ${lead.email ?? "-"}`,
     `Telefon: ${lead.phone ?? "-"}`,
     `Leistung: ${lead.serviceLabel}`,
-    `FlĂ¤che: ${lead.answers.area ? `${lead.answers.area} mÂ˛` : "-"}`,
+    `Fläche: ${lead.answers.area ? `${lead.answers.area} m²` : "-"}`,
     `Fenster: ${lead.answers.windows ?? "-"}`,
     `Etage: ${lead.answers.floor ?? "-"}`,
     `Lift: ${
@@ -545,7 +545,7 @@ function buildPlainMessage(lead: NormalizedChatLead) {
     `Rhythmus: ${lead.answers.frequency ?? "-"}`,
     `Beschreibung: ${lead.answers.description ?? "-"}`,
     `Wunschtermin: ${lead.answers.date ?? "-"}`,
-    `GeschĂ¤tzter Preis: ${lead.priceRange}`,
+    `Geschätzter Preis: ${lead.priceRange}`,
     `Seite: ${lead.pageUrl ?? "-"}`,
     "",
     "Chatverlauf:",
@@ -581,20 +581,20 @@ function buildOwnerEmailHtml(
     .join("");
 
   return `
-    <h2>Neue AI Chatbox Anfrage von HEXA CLEAN</h2>
+    <h2>Neue KI-Chatbox Anfrage von HEXA CLEAN</h2>
 
     <p><strong>Name:</strong> ${escapeHtml(lead.name || "-")}</p>
     <p><strong>Kontakt:</strong> ${escapeHtml(lead.contact)}</p>
     <p><strong>E-Mail:</strong> ${escapeHtml(lead.email || "-")}</p>
     <p><strong>Telefon:</strong> ${escapeHtml(lead.phone || "-")}</p>
     <p><strong>Leistung:</strong> ${escapeHtml(lead.serviceLabel)}</p>
-    <p><strong>GeschĂ¤tzter Preis:</strong> ${escapeHtml(lead.priceRange)}</p>
+    <p><strong>Geschätzter Preis:</strong> ${escapeHtml(lead.priceRange)}</p>
 
     <hr />
 
     <h3>Angaben</h3>
-    <p><strong>FlĂ¤che:</strong> ${
-      lead.answers.area ? `${escapeHtml(lead.answers.area)} mÂ˛` : "-"
+    <p><strong>Fläche:</strong> ${
+      lead.answers.area ? `${escapeHtml(lead.answers.area)} m²` : "-"
     }</p>
     <p><strong>Fenster:</strong> ${escapeHtml(lead.answers.windows ?? "-")}</p>
     <p><strong>Etage:</strong> ${escapeHtml(lead.answers.floor ?? "-")}</p>
@@ -653,7 +653,7 @@ const nameParts = splitName(lead.name);
       phone: lead.phone,
       country: "CH",
       notes: [
-        "Created from public AI Chatbox.",
+        "Created from public KI-Chatbox.",
         `Original contact field: ${lead.contact}`,
       ].join("\n"),
     },
@@ -826,15 +826,15 @@ export async function POST(request: NextRequest) {
           customerId: customer.id,
           sessionId: session.id,
           serviceType: lead.serviceType,
-          title: `AI Chatbox: ${lead.serviceLabel}`,
+          title: `KI-Chatbox: ${lead.serviceLabel}`,
           description: plainMessage,
           status: OrderStatus.NEW,
           estimatedPrice: money(lead.estimatedPrice),
           currency: "CHF",
           notesCustomer:
-            "Danke fĂĽr Ihre Anfrage. Die finale Offerte erfolgt nach PrĂĽfung der Angaben.",
+            "Danke für Ihre Anfrage. Die finale Offerte erfolgt nach Prüfung der Angaben.",
           notesInternal:
-            "Automatisch aus der Ă¶ffentlichen AI Chatbox erstellt. Vor Kontaktaufnahme prĂĽfen.",
+            "Automatisch aus der öffentlichen KI-Chatbox erstellt. Vor Kontaktaufnahme prüfen.",
         },
       });
 
@@ -847,7 +847,7 @@ export async function POST(request: NextRequest) {
           sessionId: session.id,
           status: EstimateStatus.AI_REVIEW,
           source: "CHATBOT",
-          title: `AI Chatbox Anfrage: ${lead.serviceLabel}`,
+          title: `KI-Chatbox Anfrage: ${lead.serviceLabel}`,
           description: plainMessage,
           subtotal: money(lead.estimatedPrice),
           riskMultiplier: "1.00",
@@ -860,18 +860,18 @@ export async function POST(request: NextRequest) {
           aiMinTotal: money(lead.aiMinTotal),
           aiMaxTotal: money(lead.aiMaxTotal),
           aiNotes:
-            "Automatisch aus AI Chatbox berechnete Orientierungsspanne. Vor Versand an den Kunden manuell prĂĽfen.",
+            "Automatisch aus KI-Chatbox berechnete Orientierungsspanne. Vor Versand an den Kunden manuell prüfen.",
           notesCustomer:
-            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach PrĂĽfung durch HEXA CLEAN.",
+            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Prüfung durch HEXA CLEAN.",
           notesInternal:
-            "Public AI Chatbox lead. PrĂĽfen, ggf. Fotos/Details anfordern, dann Angebot freigeben.",
+            "Public KI-Chatbox lead. Prüfen, ggf. Fotos/Details anfordern, dann Angebot freigeben.",
           items: {
             create: [
               {
-                name: `AI Chatbox: ${lead.serviceLabel}`,
+                name: `KI-Chatbox: ${lead.serviceLabel}`,
                 description:
                   lead.answers.description ??
-                  "Automatisch aus der AI Chatbox erstellt.",
+                  "Automatisch aus der KI-Chatbox erstellt.",
                 category: lead.category,
                 unit: lead.unit,
                 quantity: money(lead.quantity),
@@ -902,7 +902,7 @@ export async function POST(request: NextRequest) {
           channel: NotificationChannel.EMAIL,
           status: NotificationStatus.PENDING,
           recipient: OWNER_NOTIFICATION_EMAIL,
-          subject: "Neue AI Chatbox Anfrage von HEXA CLEAN",
+          subject: "Neue KI-Chatbox Anfrage von HEXA CLEAN",
           message: plainMessage,
           metadata: {
             source: "ai_chat",
@@ -926,7 +926,7 @@ export async function POST(request: NextRequest) {
             entityType: "Session",
             entityId: session.id,
             actorType: "public_ai_chat",
-            message: "AI Chatbox session created from public website.",
+            message: "KI-Chatbox session created from public website.",
             metadata: {
               source: "ai_chat",
             },
@@ -940,7 +940,7 @@ export async function POST(request: NextRequest) {
             entityType: "Order",
             entityId: order.id,
             actorType: "public_ai_chat",
-            message: `Order ${order.orderNumber} created from AI Chatbox.`,
+            message: `Order ${order.orderNumber} created from KI-Chatbox.`,
             metadata: {
               source: "ai_chat",
             },
@@ -954,7 +954,7 @@ export async function POST(request: NextRequest) {
             entityType: "Estimate",
             entityId: estimate.id,
             actorType: "public_ai_chat",
-            message: `Estimate ${estimate.estimateNumber} created from AI Chatbox.`,
+            message: `Estimate ${estimate.estimateNumber} created from KI-Chatbox.`,
             metadata: {
               source: "ai_chat",
               status: EstimateStatus.AI_REVIEW,
@@ -989,7 +989,7 @@ export async function POST(request: NextRequest) {
         from: EMAIL_FROM,
         replyTo: EMAIL_REPLY_TO,
         to: [OWNER_NOTIFICATION_EMAIL],
-        subject: "Neue AI Chatbox Anfrage von HEXA CLEAN",
+        subject: "Neue KI-Chatbox Anfrage von HEXA CLEAN",
         html: emailHtml,
       });
 
@@ -1035,7 +1035,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: "AI Chatbox Anfrage wurde im CRM gespeichert.",
+        message: "KI-Chatbox Anfrage wurde im CRM gespeichert.",
         emailSent,
         crm: {
           customerId: crmResult.customer.id,
@@ -1084,7 +1084,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error:
-          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es spĂ¤ter erneut.",
+          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
       },
       {
         status: 500,

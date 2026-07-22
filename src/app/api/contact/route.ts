@@ -230,7 +230,7 @@ function normalizeService(value: unknown) {
 
     case "Buero":
     case "Buro":
-    case "BĂĽro":
+    case "Büro":
       return {
         service: "Buero",
         serviceType: ServiceType.REINIGUNG,

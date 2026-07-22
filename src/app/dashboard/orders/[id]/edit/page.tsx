@@ -130,7 +130,7 @@ export default async function EditOrderPage({ params }: PageProps) {
             href={`/dashboard/orders/${order.id}`}
             className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
           >
-            â† Zurück zum Auftrag
+            ← Zurück zum Auftrag
           </Link>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">

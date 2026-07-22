@@ -263,14 +263,14 @@ export async function POST(
     const message =
       invoiceAutomation.status ===
       "NO_ACCEPTED_QUOTE"
-        ? "Der Auftrag wurde abgeschlossen, aber es wurde keine akzeptierte Offerte fĂĽr die automatische Rechnung gefunden."
+        ? "Der Auftrag wurde abgeschlossen, aber es wurde keine akzeptierte Offerte für die automatische Rechnung gefunden."
         : emailAutomation.status ===
             "SENT"
           ? "Der Auftrag wurde abgeschlossen, die Rechnung erstellt und automatisch per E-Mail versendet."
           : emailAutomation.status ===
               "ALREADY_SENT"
             ? "Der Auftrag ist abgeschlossen. Die Rechnung existiert und wurde bereits per E-Mail versendet."
-            : "Der Auftrag wurde abgeschlossen und die Rechnung erstellt. Der E-Mail-Versand benĂ¶tigt eine PrĂĽfung.";
+            : "Der Auftrag wurde abgeschlossen und die Rechnung erstellt. Der E-Mail-Versand benötigt eine Prüfung.";
 
     return NextResponse.json(
       {
@@ -305,7 +305,7 @@ export async function POST(
         status:
           "ERROR",
         message:
-          "Der Auftrag konnte nicht vollstĂ¤ndig abgeschlossen werden.",
+          "Der Auftrag konnte nicht vollständig abgeschlossen werden.",
         actionRequired: true,
         error:
           error instanceof Error

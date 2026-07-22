@@ -75,7 +75,7 @@ export default async function NewOrderPage() {
             href="/dashboard/orders"
             className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
           >
-            â† Zurück zu Aufträgen
+            ← Zurück zu Aufträgen
           </Link>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">

@@ -165,7 +165,7 @@ export async function POST(request: Request) {
         {
           status: "ERROR",
           message: "Service type is required",
-          error: "Wybierz poprawny typ usĹ‚ugi dla zlecenia.",
+          error: "Wählen Sie einen gültigen Servicetyp für den Auftrag aus.",
         },
         { status: 400 },
       );

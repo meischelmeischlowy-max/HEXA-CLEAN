@@ -152,7 +152,7 @@ function canChangeQuoteStatus(
       return {
         allowed: false,
         message:
-          "Das Angebot kann nicht vor dem GĂĽltigkeitsdatum als abgelaufen markiert werden.",
+          "Das Angebot kann nicht vor dem Gültigkeitsdatum als abgelaufen markiert werden.",
         updated: false,
       };
     }
@@ -166,7 +166,7 @@ function canChangeQuoteStatus(
 
   return {
     allowed: false,
-    message: "Diese StatusĂ¤nderung ist nicht erlaubt.",
+    message: "Diese Statusänderung ist nicht erlaubt.",
     updated: false,
   };
 }
@@ -221,7 +221,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           status: "BAD_REQUEST",
-          message: "Der Request enthĂ¤lt kein gĂĽltiges JSON.",
+          message: "Der Request enthält kein gültiges JSON.",
         },
         {
           status: 400,
@@ -241,7 +241,7 @@ export async function PATCH(
         {
           status: "BAD_REQUEST",
           message:
-            "Der angeforderte Angebotsstatus ist ungĂĽltig. Erlaubt sind SENT, ACCEPTED, REJECTED und EXPIRED.",
+            "Der angeforderte Angebotsstatus ist ungültig. Erlaubt sind SENT, ACCEPTED, REJECTED und EXPIRED.",
         },
         {
           status: 400,
@@ -362,7 +362,7 @@ export async function PATCH(
             sentAt: serializeDate(changedQuote.sentAt),
             acceptedAt: serializeDate(changedQuote.acceptedAt),
           },
-          message: `Angebot ${quote.quoteNumber}: Status von ${quote.status} auf ${changedQuote.status} geĂ¤ndert.`,
+          message: `Angebot ${quote.quoteNumber}: Status von ${quote.status} auf ${changedQuote.status} geändert.`,
           metadata: {
             source: "dashboard_quote_patch",
             quoteId: quote.id,
@@ -379,7 +379,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         status: "OK",
-        message: `Der Angebotsstatus wurde auf ${updatedQuote.status} geĂ¤ndert.`,
+        message: `Der Angebotsstatus wurde auf ${updatedQuote.status} geändert.`,
         quoteId: id,
         updated: true,
         quote: updatedQuote,
@@ -394,7 +394,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         status: "ERROR",
-        message: "Der Angebotsstatus konnte nicht geĂ¤ndert werden.",
+        message: "Der Angebotsstatus konnte nicht geändert werden.",
       },
       {
         status: 500,
