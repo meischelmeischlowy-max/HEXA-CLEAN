@@ -6,6 +6,7 @@ import {
   NextResponse,
 } from "next/server";
 
+import { ensureAutomaticAvailability } from "@/lib/automatic-availability";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,10 @@ function cleanNotes(
 
 export async function GET() {
   try {
+    await ensureAutomaticAvailability(
+      prisma,
+    );
+
     const slots =
       await prisma.availabilitySlot.findMany({
         where: {
@@ -273,3 +278,4 @@ export async function POST(
     );
   }
 }
+

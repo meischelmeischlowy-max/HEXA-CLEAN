@@ -442,11 +442,12 @@ export default function AvailabilityPage() {
         </p>
 
         <h1 className="mt-3 text-3xl font-black">
-          Freie Kundentermine
+          Freie Kundentermine – automatisch
         </h1>
 
         <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
-          Hier werden nur Zeitfenster veröffentlicht, die Kunden später bei der Annahme einer Offerte auswählen dürfen.
+          Das System erstellt freie Termine automatisch von Montag bis Samstag, jeweils von 08:00 bis 18:00 Uhr.
+          Gebuchte Aufträge und blockierte Zeiten werden automatisch abgezogen.
           Das Erstellen oder Blockieren eines Termins versendet keine E-Mail.
         </p>
 
@@ -487,7 +488,7 @@ export default function AvailabilityPage() {
 
         <section className="mt-8 rounded-3xl border border-cyan-400/20 bg-cyan-400/[0.05] p-6">
           <h2 className="text-xl font-black">
-            Freien Termin hinzufügen
+            Zusätzlichen Sondertermin hinzufügen
           </h2>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -736,3 +737,4 @@ export default function AvailabilityPage() {
     </main>
   );
 }
+

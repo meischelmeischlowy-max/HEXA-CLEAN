@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 
 import PublicOfferScheduleDecision from "@/components/public/PublicOfferScheduleDecision";
+import { ensureAutomaticAvailability } from "@/lib/automatic-availability";
 import {
   createPublicOfferTokenHash,
   isPublicOfferLinkExpired,
@@ -421,6 +422,12 @@ export default async function PublicOfferPage({
   const items = normalizePublicOfferItems(link.quote.items);
   const customerNote = sanitizePublicCustomerNote(link.quote.notes);
   const canDecide = link.quote.status === QuoteStatus.SENT && !quoteAcceptedAt;
+  if (canDecide) {
+    await ensureAutomaticAvailability(
+      prisma,
+      now,
+    );
+  }
 
   const availabilitySlots = canDecide
     ? await prisma.availabilitySlot.findMany({
