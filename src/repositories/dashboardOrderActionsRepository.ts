@@ -18,6 +18,18 @@ export const dashboardOrderActionsRepository = {
           order,
           updatedOrder: order,
           updated: false,
+          conflict: false,
+          requiredStatus: "SCHEDULED" as const,
+        };
+      }
+
+      if (order.status !== "SCHEDULED") {
+        return {
+          order,
+          updatedOrder: order,
+          updated: false,
+          conflict: true,
+          requiredStatus: "SCHEDULED" as const,
         };
       }
 
@@ -58,6 +70,8 @@ export const dashboardOrderActionsRepository = {
         order,
         updatedOrder,
         updated: true,
+        conflict: false,
+        requiredStatus: "SCHEDULED" as const,
       };
     }, {
       maxWait: 10_000,
