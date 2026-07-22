@@ -14,57 +14,81 @@ const source = fs.readFileSync(
   "utf8",
 );
 
+function countFragment(
+  value: string,
+  fragment: string,
+) {
+  return value.split(fragment).length - 1;
+}
+
 describe(
-  "E17.15 visible order details action",
+  "E17.15 visible order action",
   () => {
     it(
-      "shows a visible order-open action in the first column",
+      "keeps exactly one action inside every order card",
       () => {
-        const orderColumnStart =
-          source.indexOf(
-            'key: "order"',
-          );
+        const cardStart = source.indexOf(
+          "function OrderQueueCard",
+        );
 
-        const sourceColumnStart =
-          source.indexOf(
-            'key: "source"',
-          );
+        const cardEnd = source.indexOf(
+          "export default function DashboardOrdersPage",
+        );
+
+        expect(cardStart).toBeGreaterThanOrEqual(0);
+        expect(cardEnd).toBeGreaterThan(cardStart);
+
+        const cardSource = source.slice(
+          cardStart,
+          cardEnd,
+        );
 
         expect(
-          orderColumnStart,
-        ).toBeGreaterThanOrEqual(0);
+          countFragment(
+            cardSource,
+            "<PremiumButton",
+          ),
+        ).toBe(1);
 
-        expect(
-          sourceColumnStart,
-        ).toBeGreaterThan(
-          orderColumnStart,
+        expect(cardSource).toContain(
+          "getOrderAction(order)",
         );
 
-        const orderColumn =
-          source.slice(
-            orderColumnStart,
-            sourceColumnStart,
-          );
-
-        expect(orderColumn).toContain(
-          "Auftrag öffnen",
+        expect(cardSource).toContain(
+          "href={action.href}",
         );
 
-        expect(orderColumn).toContain(
-          "PremiumButton",
-        );
-
-        expect(orderColumn).toContain(
-          "href={`/dashboard/orders/${order.id}`}",
+        expect(cardSource).toContain(
+          "{action.label}",
         );
       },
     );
 
     it(
-      "does not depend on the plain Next Link styling",
+      "routes every workflow action to the correct work area",
       () => {
-        expect(source).not.toContain(
-          'import Link from "next/link"',
+        expect(source).toContain(
+          'label: "Anfrage prüfen"',
+        );
+
+        expect(source).toContain(
+          'label: "Offerte senden"',
+        );
+
+        expect(source).toContain(
+          'label: "Termin planen"',
+        );
+
+        expect(source).toContain(
+          'label: "Auftrag abschliessen"',
+        );
+
+        expect(source).toContain(
+          'href: orderHref',
+        );
+
+        expect(source).toContain(
+          'href: estimateHref',
         );
       },
     );

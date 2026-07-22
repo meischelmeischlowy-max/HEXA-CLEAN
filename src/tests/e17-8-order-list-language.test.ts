@@ -45,12 +45,12 @@ describe(
   "E17.8 order list navigation and German UI",
   () => {
     it(
-      "makes the visible order title navigable",
+      "keeps the visible order title beside the single workflow action",
       () => {
         expect(
           ordersPage,
         ).toContain(
-          'href={`/dashboard/orders/${order.id}`}',
+          "const orderHref =",
         );
 
         expect(

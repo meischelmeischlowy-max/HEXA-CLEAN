@@ -1,117 +1,172 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
-import DashboardTable, {
-  type DashboardTableColumn,
-} from "../../../components/dashboard/DashboardTable";
-import EmptyState from "../../../components/dashboard/EmptyState";
-import MetricCard from "../../../components/dashboard/MetricCard";
 import PageHeader from "../../../components/dashboard/PageHeader";
 import PremiumButton from "../../../components/dashboard/PremiumButton";
 import StatusBadge from "../../../components/dashboard/StatusBadge";
 
 type OrderCustomer = {
-  id?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   companyName?: string | null;
   email?: string | null;
-  phone?: string | null;
 };
 
 type OrderEstimate = {
   id: string;
-  estimateNumber?: string | null;
   status?: string | null;
-  source?: string | null;
   total?: string | number | null;
   currency?: string | null;
-  createdAt?: string | null;
 };
 
 type Order = {
   id: string;
-  customerId?: string | null;
-  sessionId?: string | null;
   customer?: OrderCustomer | null;
   estimates?: OrderEstimate[];
   orderNumber?: string | null;
   status?: string | null;
   title?: string | null;
-  description?: string | null;
   serviceType?: string | null;
   service?: string | null;
-  city?: string | null;
-  address?: string | null;
-  street?: string | null;
-  zipCode?: string | null;
   currency?: string | null;
   total?: string | number | null;
   estimatedTotal?: string | number | null;
   estimatedPrice?: string | number | null;
   finalPrice?: string | number | null;
   scheduledAt?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | null;
 };
 
 type DashboardOrdersResponse = {
-  layer: string;
-  message: string;
-  data: {
-    status: string;
-    message: string;
-    orders: Order[];
+  data?: {
+    orders?: Order[];
   };
 };
 
-function formatDate(value?: string | null) {
-  if (!value) return "kein Datum";
+type OrderAction = {
+  href: string;
+  label: string;
+  priority: number;
+};
+
+function normalizeStatus(value?: string | null) {
+  return String(value ?? "UNKNOWN")
+    .trim()
+    .toUpperCase();
+}
+
+function normalizeCurrency(value?: string | null) {
+  const currency = String(value ?? "CHF")
+    .trim()
+    .toUpperCase();
+
+  return /^[A-Z]{3}$/.test(currency)
+    ? currency
+    : "CHF";
+}
+
+function formatAmount(
+  value: string | number | null | undefined,
+  currency?: string | null,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return "Noch offen";
+  }
+
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(",", "."));
+
+  if (Number.isNaN(numericValue)) {
+    return String(value);
+  }
+
+  return new Intl.NumberFormat("de-CH", {
+    style: "currency",
+    currency: normalizeCurrency(currency),
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numericValue);
+}
+
+function formatAppointment(value?: string | null) {
+  if (!value) {
+    return "Noch nicht geplant";
+  }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return "Noch nicht geplant";
   }
 
-  return date.toLocaleString("de-CH", {
+  return new Intl.DateTimeFormat("de-CH", {
     dateStyle: "short",
     timeStyle: "short",
-  });
-}
-
-function normalizeCurrency(value?: string | null) {
-  const raw = String(value || "CHF").trim().toUpperCase();
-
-  if (/^[A-Z]{3}$/.test(raw)) return raw;
-  if (raw.startsWith("CHF")) return "CHF";
-  if (raw.startsWith("EUR")) return "EUR";
-  if (raw.startsWith("USD")) return "USD";
-  if (raw.startsWith("PLN")) return "PLN";
-
-  return "CHF";
+    timeZone: "Europe/Zurich",
+  }).format(date);
 }
 
 function getOrderTitle(order: Order) {
   return (
     order.orderNumber ??
     order.title ??
-    order.serviceType ??
-    order.service ??
     order.id
   );
 }
 
 function getOrderService(order: Order) {
-  return order.serviceType ?? order.service ?? order.title ?? "—";
+  const rawValue = String(
+    order.serviceType ??
+      order.service ??
+      "Reinigung",
+  ).trim();
+
+  const normalized = rawValue.toUpperCase();
+
+  if (
+    normalized === "REINIGUNG" ||
+    normalized === "CLEANING"
+  ) {
+    return "Reinigung";
+  }
+
+  return rawValue || "Reinigung";
 }
 
-function getOrderLocation(order: Order) {
-  const street = order.street || order.address;
-  const cityLine = [order.zipCode, order.city].filter(Boolean).join(" ");
+function getCustomerName(order: Order) {
+  const customer = order.customer;
 
-  return [street, cityLine].filter(Boolean).join(", ") || "—";
+  if (!customer) {
+    return "Kunde nicht angegeben";
+  }
+
+  const fullName = [
+    customer.firstName,
+    customer.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return (
+    customer.companyName ||
+    fullName ||
+    customer.email ||
+    "Kunde nicht angegeben"
+  );
 }
 
 function getOrderAmount(order: Order) {
@@ -124,191 +179,301 @@ function getOrderAmount(order: Order) {
   );
 }
 
-function formatAmount(
-  value: string | number | null | undefined,
-  currency?: string | null,
-) {
-  if (value === null || value === undefined || value === "") {
-    return "—";
-  }
-
-  const numberValue =
-    typeof value === "number"
-      ? value
-      : Number(String(value).replace(",", "."));
-
-  if (Number.isNaN(numberValue)) {
-    return `${String(value)} ${normalizeCurrency(currency)}`;
-  }
-
-  return new Intl.NumberFormat("de-CH", {
-    style: "currency",
-    currency: normalizeCurrency(currency),
-    maximumFractionDigits: 2,
-  }).format(numberValue);
-}
-
-function normalizeStatus(status?: string | null) {
-  return status?.toUpperCase() ?? "UNKNOWN";
-}
-
-function getCustomerName(order: Order) {
-  const customer = order.customer;
-
-  if (!customer) return "Kein Kunde";
-
-  const fullName = [customer.firstName, customer.lastName]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
-  return (
-    customer.companyName ||
-    fullName ||
-    customer.email ||
-    customer.phone ||
-    "Kein Name"
-  );
-}
-
-function getCustomerHref(order: Order) {
-  const id = order.customer?.id || order.customerId;
-
-  return id ? `/dashboard/customers/${id}` : null;
-}
-
 function getLatestEstimate(order: Order) {
-  const estimates = Array.isArray(order.estimates) ? order.estimates : [];
-
-  return estimates[0] ?? null;
+  return Array.isArray(order.estimates)
+    ? order.estimates[0] ?? null
+    : null;
 }
 
-function isQuickOfferOrder(order: Order) {
-  const title = String(order.title ?? "").toUpperCase();
-  const description = String(order.description ?? "").toUpperCase();
-  const estimateSource = getLatestEstimate(order)?.source?.toUpperCase();
+function isActiveOrder(order: Order) {
+  const status = normalizeStatus(order.status);
 
   return (
-    title.includes("QUICKOFFER") ||
-    description.includes("QUICKOFFER") ||
-    estimateSource === "QUICK_OFFER"
+    status !== "COMPLETED" &&
+    status !== "CANCELLED"
   );
 }
 
-function isChatbotOrder(order: Order) {
-  const title = String(order.title ?? "").toUpperCase();
-  const description = String(order.description ?? "").toUpperCase();
-  const estimateSource = getLatestEstimate(order)?.source?.toUpperCase();
-
-  return (
-    title.includes("AI CHATBOX") ||
-    title.includes("CHATBOT") ||
-    description.includes("AI CHATBOX") ||
-    description.includes("CHATBOT") ||
-    estimateSource === "CHATBOT"
-  );
-}
-
-function isPublicLeadOrder(order: Order) {
-  return isQuickOfferOrder(order) || isChatbotOrder(order);
-}
-
-function needsPublicLeadReview(order: Order) {
-  const latestEstimate = getLatestEstimate(order);
+function getWorkflowLabel(order: Order) {
   const orderStatus = normalizeStatus(order.status);
-  const estimateStatus = normalizeStatus(latestEstimate?.status);
+  const estimateStatus = normalizeStatus(
+    getLatestEstimate(order)?.status,
+  );
+
+  if (orderStatus === "SCHEDULED") {
+    return "Geplant";
+  }
+
+  if (
+    orderStatus === "ACCEPTED" ||
+    orderStatus === "CONFIRMED"
+  ) {
+    return "Termin planen";
+  }
+
+  if (
+    orderStatus === "WAITING_FOR_CUSTOMER" ||
+    orderStatus === "SENT" ||
+    estimateStatus === "SENT"
+  ) {
+    return "Wartet auf Kunden";
+  }
+
+  if (
+    estimateStatus === "AI_REVIEW" ||
+    estimateStatus === "NEEDS_HUMAN_REVIEW"
+  ) {
+    return "Zu prüfen";
+  }
+
+  if (
+    estimateStatus === "READY_TO_SEND" ||
+    estimateStatus === "APPROVED" ||
+    orderStatus === "QUOTE_CREATED"
+  ) {
+    return "Offerte bereit";
+  }
+
+  if (
+    orderStatus === "NEW" ||
+    orderStatus === "OPEN" ||
+    orderStatus === "PENDING"
+  ) {
+    return "Zu prüfen";
+  }
+
+  if (orderStatus === "IN_PROGRESS") {
+    return "In Bearbeitung";
+  }
+
+  return "In Bearbeitung";
+}
+
+function getOrderAction(order: Order): OrderAction {
+  const orderStatus = normalizeStatus(order.status);
+  const latestEstimate = getLatestEstimate(order);
+  const estimateStatus = normalizeStatus(
+    latestEstimate?.status,
+  );
+
+  const orderHref =
+    `/dashboard/orders/${order.id}`;
+
+  const estimateHref = latestEstimate
+    ? `/dashboard/estimates/${latestEstimate.id}`
+    : orderHref;
+
+  if (orderStatus === "SCHEDULED") {
+    return {
+      href: orderHref,
+      label: "Auftrag abschliessen",
+      priority: 3,
+    };
+  }
+
+  if (
+    orderStatus === "ACCEPTED" ||
+    orderStatus === "CONFIRMED"
+  ) {
+    return {
+      href: orderHref,
+      label: "Termin planen",
+      priority: 2,
+    };
+  }
+
+  if (
+    orderStatus === "WAITING_FOR_CUSTOMER" ||
+    orderStatus === "SENT" ||
+    estimateStatus === "SENT"
+  ) {
+    return {
+      href: orderHref,
+      label: "Auftrag öffnen",
+      priority: 4,
+    };
+  }
+
+  if (
+    estimateStatus === "AI_REVIEW" ||
+    estimateStatus === "NEEDS_HUMAN_REVIEW"
+  ) {
+    return {
+      href: estimateHref,
+      label: "Anfrage prüfen",
+      priority: 0,
+    };
+  }
+
+  if (
+    estimateStatus === "READY_TO_SEND" ||
+    estimateStatus === "APPROVED" ||
+    orderStatus === "QUOTE_CREATED"
+  ) {
+    return {
+      href: estimateHref,
+      label: "Offerte senden",
+      priority: 1,
+    };
+  }
+
+  if (
+    orderStatus === "NEW" ||
+    orderStatus === "OPEN" ||
+    orderStatus === "PENDING"
+  ) {
+    return {
+      href: estimateHref,
+      label: latestEstimate
+        ? "Anfrage prüfen"
+        : "Auftrag öffnen",
+      priority: 0,
+    };
+  }
+
+  return {
+    href: orderHref,
+    label: "Auftrag öffnen",
+    priority: 5,
+  };
+}
+
+function getOrderSortTimestamp(order: Order) {
+  const value =
+    order.scheduledAt ??
+    order.createdAt;
+
+  if (!value) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp)
+    ? Number.MAX_SAFE_INTEGER
+    : timestamp;
+}
+
+function OrderQueueCard({
+  order,
+  highlighted = false,
+}: {
+  order: Order;
+  highlighted?: boolean;
+}) {
+  const action = getOrderAction(order);
 
   return (
-    isPublicLeadOrder(order) &&
-    (orderStatus === "NEW" ||
-      orderStatus === "OPEN" ||
-      orderStatus === "PENDING" ||
-      estimateStatus === "AI_REVIEW" ||
-      estimateStatus === "NEEDS_HUMAN_REVIEW")
+    <article
+      className={
+        highlighted
+          ? "rounded-3xl border border-cyan-300/35 bg-cyan-300/[0.08] p-5"
+          : "rounded-2xl border border-white/10 bg-white/[0.025] p-4"
+      }
+    >
+      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr_0.8fr_auto] lg:items-center">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+            Kunde
+          </p>
+
+          <h2 className="mt-1 text-lg font-black text-white">
+            {getCustomerName(order)}
+          </h2>
+
+          <p className="mt-1 text-sm text-zinc-500">
+            {getOrderTitle(order)}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Leistung
+          </p>
+
+          <p className="mt-1 font-bold text-zinc-100">
+            {getOrderService(order)}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Termin
+          </p>
+
+          <p className="mt-1 font-bold text-zinc-100">
+            {formatAppointment(order.scheduledAt)}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
+            Betrag
+          </p>
+
+          <p className="mt-1 font-black text-emerald-100">
+            {formatAmount(
+              getOrderAmount(order),
+              order.currency,
+            )}
+          </p>
+
+          <div className="mt-2">
+            <StatusBadge
+              status={order.status}
+              label={getWorkflowLabel(order)}
+            />
+          </div>
+        </div>
+
+        <div className="lg:text-right">
+          <PremiumButton
+            href={action.href}
+            variant="primary"
+            size="sm"
+          >
+            {action.label}
+          </PremiumButton>
+        </div>
+      </div>
+    </article>
   );
-}
-
-function sourceLabel(order: Order) {
-  if (isQuickOfferOrder(order)) {
-    return "QuickOffer";
-  }
-
-  if (isChatbotOrder(order)) {
-    return "Chatbot";
-  }
-
-  if (order.sessionId) {
-    return "Session";
-  }
-
-  return "Dashboard";
-}
-
-function sourceBadgeClass(order: Order) {
-  if (isQuickOfferOrder(order)) {
-    return "border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-100";
-  }
-
-  if (isChatbotOrder(order)) {
-    return "border-violet-300/25 bg-violet-300/10 text-violet-100";
-  }
-
-  if (order.sessionId) {
-    return "border-sky-300/25 bg-sky-300/10 text-sky-100";
-  }
-
-  return "border-white/10 bg-white/[0.04] text-zinc-200";
-}
-
-function leadPanelClass(order: Order) {
-  if (isQuickOfferOrder(order)) {
-    return "rounded-3xl border border-fuchsia-300/20 bg-fuchsia-300/10 p-5";
-  }
-
-  if (isChatbotOrder(order)) {
-    return "rounded-3xl border border-violet-300/20 bg-violet-300/10 p-5";
-  }
-
-  return "rounded-3xl border border-white/10 bg-white/[0.04] p-5";
-}
-
-function leadLabel(order: Order) {
-  if (isQuickOfferOrder(order)) {
-    return "QuickOffer Lead";
-  }
-
-  if (isChatbotOrder(order)) {
-    return "Chatbot Lead";
-  }
-
-  return "Website Lead";
 }
 
 export default function DashboardOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/dashboard/orders", {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/dashboard/orders",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
       if (!response.ok) {
-        throw new Error("Die Auftrags-API hat einen Fehler zurückgegeben.");
+        throw new Error(
+          "Die Aufträge konnten nicht geladen werden.",
+        );
       }
 
-      const json: DashboardOrdersResponse = await response.json();
+      const json =
+        (await response.json()) as DashboardOrdersResponse;
 
-      setOrders(json.data.orders ?? []);
+      setOrders(json.data?.orders ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unbekannter Auftragsfehler.",
+        error instanceof Error
+          ? error.message
+          : "Die Aufträge konnten nicht geladen werden.",
       );
     } finally {
       setLoading(false);
@@ -320,470 +485,101 @@ export default function DashboardOrdersPage() {
       void loadOrders();
     }, 0);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadOrders]);
 
-  const stats = useMemo(() => {
-    const completed = orders.filter(
-      (order) => normalizeStatus(order.status) === "COMPLETED",
-    ).length;
+  const activeOrders = useMemo(() => {
+    return orders
+      .filter(isActiveOrder)
+      .sort((left, right) => {
+        const priorityDifference =
+          getOrderAction(left).priority -
+          getOrderAction(right).priority;
 
-    const open = orders.filter((order) =>
-      [
-        "NEW",
-        "OPEN",
-        "IN_PROGRESS",
-        "PENDING",
-        "WAITING_FOR_CUSTOMER",
-        "SCHEDULED",
-      ].includes(normalizeStatus(order.status)),
-    ).length;
-
-    const quoted = orders.filter((order) =>
-      ["QUOTE_CREATED", "SENT", "ACCEPTED", "CONFIRMED"].includes(
-        normalizeStatus(order.status),
-      ),
-    ).length;
-
-    const quickOffer = orders.filter(isQuickOfferOrder).length;
-    const chatbot = orders.filter(isChatbotOrder).length;
-    const publicLeadReview = orders.filter(needsPublicLeadReview).length;
-
-    const estimatedValue = orders.reduce((sum, order) => {
-      const amount = getOrderAmount(order);
-
-      if (amount === null || amount === undefined || amount === "") {
-        return sum;
-      }
-
-      const numberValue =
-        typeof amount === "number"
-          ? amount
-          : Number(String(amount).replace(",", "."));
-
-      return Number.isNaN(numberValue) ? sum : sum + numberValue;
-    }, 0);
-
-    return {
-      total: orders.length,
-      open,
-      completed,
-      quoted,
-      quickOffer,
-      chatbot,
-      publicLeadReview,
-      estimatedValue,
-    };
-  }, [orders]);
-
-  const columns: DashboardTableColumn<Order>[] = [
-    {
-      key: "order",
-      header: "Auftrag",
-      render: (order) => {
-        const quickOffer = isQuickOfferOrder(order);
-        const chatbot = isChatbotOrder(order);
-        const publicLead = isPublicLeadOrder(order);
-
-        return (
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <PremiumButton
-                href={`/dashboard/orders/${order.id}`}
-                variant="primary"
-                size="sm"
-              >
-                Auftrag öffnen
-              </PremiumButton>
-
-              <span className="font-black tracking-tight text-white">
-                {getOrderTitle(order)}
-              </span>
-            </div>
-
-            <div className="mt-2 flex flex-wrap gap-2">
-              {quickOffer ? (
-                <span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-300/10 px-2 py-1 text-[11px] font-bold text-fuchsia-100">
-                  QuickOffer Lead
-                </span>
-              ) : null}
-
-              {chatbot ? (
-                <span className="rounded-full border border-violet-300/25 bg-violet-300/10 px-2 py-1 text-[11px] font-bold text-violet-100">
-                  Chatbot Lead
-                </span>
-              ) : null}
-
-              {publicLead && needsPublicLeadReview(order) ? (
-                <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-1 text-[11px] font-bold text-amber-100">
-                  Prüfung erforderlich
-                </span>
-              ) : null}
-            </div>
-
-            <p className="mt-2 text-xs text-zinc-500">ID: {order.id}</p>
-
-            {order.description ? (
-              <p className="mt-1 max-w-sm truncate text-xs text-zinc-500">
-                {order.description}
-              </p>
-            ) : null}
-          </div>
-        );
-      },
-    },
-    {
-      key: "source",
-      header: "Quelle",
-      render: (order) => (
-        <div>
-          <span
-            className={`rounded-full border px-3 py-1 text-xs font-bold ${sourceBadgeClass(
-              order,
-            )}`}
-          >
-            {sourceLabel(order)}
-          </span>
-
-          {order.sessionId ? (
-            <p className="mt-2 max-w-[160px] truncate text-xs text-zinc-500">
-              Session: {order.sessionId}
-            </p>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      key: "customer",
-      header: "Kunde",
-      render: (order) => {
-        const href = getCustomerHref(order);
-
-        return href ? (
-          <PremiumButton href={href} variant="ghost" size="sm">
-            {getCustomerName(order)}
-          </PremiumButton>
-        ) : (
-          <p className="text-sm text-zinc-500">{getCustomerName(order)}</p>
-        );
-      },
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (order) => <StatusBadge status={order.status} />,
-    },
-    {
-      key: "service",
-      header: "Leistung",
-      render: (order) => (
-        <p className="font-semibold text-zinc-200">{getOrderService(order)}</p>
-      ),
-    },
-    {
-      key: "estimate",
-      header: "Kalkulation",
-      render: (order) => {
-        const latestEstimate = getLatestEstimate(order);
-
-        if (!latestEstimate) {
-          return <p className="text-sm text-zinc-500">Keine Kalkulation</p>;
+        if (priorityDifference !== 0) {
+          return priorityDifference;
         }
 
         return (
-          <div>
-            <PremiumButton
-              href={`/dashboard/estimates/${latestEstimate.id}`}
-              variant={isPublicLeadOrder(order) ? "secondary" : "ghost"}
-              size="sm"
-            >
-              {latestEstimate.estimateNumber ?? "Kalkulation öffnen"}
-            </PremiumButton>
-
-            <p className="mt-2 text-xs text-zinc-500">
-              {latestEstimate.status ?? "—"} ·{" "}
-              {formatAmount(
-                latestEstimate.total,
-                latestEstimate.currency ?? order.currency,
-              )}
-            </p>
-          </div>
+          getOrderSortTimestamp(left) -
+          getOrderSortTimestamp(right)
         );
-      },
-    },
-    {
-      key: "location",
-      header: "Ort",
-      render: (order) => (
-        <p className="max-w-xs text-zinc-400">{getOrderLocation(order)}</p>
-      ),
-    },
-    {
-      key: "amount",
-      header: "Betrag",
-      render: (order) => (
-        <p className="font-black text-emerald-100">
-          {formatAmount(getOrderAmount(order), order.currency)}
-        </p>
-      ),
-    },
-    {
-      key: "created",
-      header: "Erstellt",
-      render: (order) => (
-        <p className="text-sm font-medium text-zinc-400">
-          {formatDate(order.createdAt)}
-        </p>
-      ),
-    },
-    {
-      key: "action",
-      header: "Aktionen",
-      className: "text-right",
-      render: (order) => {
-        const latestEstimate = getLatestEstimate(order);
-        const publicLead = isPublicLeadOrder(order);
+      });
+  }, [orders]);
 
-        return (
-          <div className="flex flex-wrap justify-end gap-2">
-            <PremiumButton
-              href={`/dashboard/orders/${order.id}`}
-              variant="primary"
-              size="sm"
-            >
-              {publicLead ? "Lead öffnen" : "Details"}
-            </PremiumButton>
-
-            <PremiumButton
-              href={`/dashboard/orders/${order.id}/edit`}
-              variant="secondary"
-              size="sm"
-            >
-              Bearbeiten
-            </PremiumButton>
-
-            {latestEstimate ? (
-              <PremiumButton
-                href={`/dashboard/estimates/${latestEstimate.id}`}
-                variant="secondary"
-                size="sm"
-              >
-                {publicLead ? "Lead prüfen" : "Kalkulation"}
-              </PremiumButton>
-            ) : (
-              <PremiumButton
-                href={`/dashboard/estimates?orderId=${order.id}`}
-                variant="secondary"
-                size="sm"
-              >
-                Kalkulationen
-              </PremiumButton>
-            )}
-
-            <PremiumButton
-              href={`/dashboard/invoices?orderId=${order.id}`}
-              variant="ghost"
-              size="sm"
-            >
-              Rechnungen
-            </PremiumButton>
-          </div>
-        );
-      },
-    },
-  ];
-
-  const ordersForReview = orders.filter(needsPublicLeadReview);
+  const nextOrder = activeOrders[0] ?? null;
+  const remainingOrders = activeOrders.slice(1);
 
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-7xl flex-col gap-6">
+      <section className="mx-auto flex max-w-6xl flex-col gap-6">
         <PageHeader
           eyebrow="HEXA OS CRM / Aufträge"
-          title="Operative Aufträge"
-          description="Zentrales Arbeitscenter für Kundenaufträge: Status, Orte, Beträge, Workflow und der Übergang zu Kunden, Kalkulationen, Rechnungen und Zahlungen. QuickOffer- und Chatbot-Leads aus der Website werden hier direkt als neue Aufträge sichtbar."
-        >
-          <PremiumButton href="/dashboard/orders/new" variant="primary">
-            Auftrag erstellen
-          </PremiumButton>
-
-          <PremiumButton type="button" variant="secondary" onClick={loadOrders}>
-            Aktualisieren
-          </PremiumButton>
-
-          <PremiumButton href="/dashboard/customers" variant="ghost">
-            Kunden
-          </PremiumButton>
-
-          <PremiumButton href="/dashboard/invoices" variant="ghost">
-            Rechnungen
-          </PremiumButton>
-        </PageHeader>
-
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <MetricCard
-            title="Alle Aufträge"
-            value={String(stats.total)}
-            description="Gesamtzahl der Datensätze im Auftragsmodul."
-            trend="Quelle: Auftrags-API"
-            tone="cyan"
-            icon={<span className="text-lg font-black">JOB</span>}
-          />
-
-          <MetricCard
-            title="Aktiv"
-            value={String(stats.open)}
-            description="Neue, offene, laufende oder wartende Aufträge."
-            trend="Zur Bearbeitung"
-            tone="amber"
-            icon={<span className="text-lg font-black">↗</span>}
-          />
-
-          <MetricCard
-            title="QuickOffer"
-            value={String(stats.quickOffer)}
-            description="Website-Leads aus dem QuickOffer Formular."
-            trend="Public Website"
-            tone="violet"
-            icon={<span className="text-lg font-black">QO</span>}
-          />
-
-          <MetricCard
-            title="Chatbot"
-            value={String(stats.chatbot)}
-            description="Website-Leads aus dem AI Chatbox Workflow."
-            trend="Public Website"
-            tone="cyan"
-            icon={<span className="text-lg font-black">AI</span>}
-          />
-
-          <MetricCard
-            title="Zu prüfen"
-            value={String(stats.publicLeadReview)}
-            description="Public-Leads, die noch geprüft werden müssen."
-            trend="Vor Versand prüfen"
-            tone="amber"
-            icon={<span className="text-lg font-black">!</span>}
-          />
-
-          <MetricCard
-            title="Wert"
-            value={formatAmount(stats.estimatedValue)}
-            description="Summe der bekannten Auftragsbeträge."
-            trend={`${stats.quoted} nach Kalkulation / Bestätigung`}
-            tone="violet"
-            icon={<span className="text-lg font-black">CHF</span>}
-          />
-        </section>
-
-        {ordersForReview.length > 0 ? (
-          <DashboardPanel
-            title="Website-Leads warten auf Prüfung"
-            description="Diese Aufträge wurden automatisch aus QuickOffer oder AI Chatbox erstellt. Vor einem offiziellen Angebot müssen Umfang, Risiko, Preis, Fotos und Kundendaten geprüft werden."
-          >
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {ordersForReview.map((order) => {
-                const latestEstimate = getLatestEstimate(order);
-
-                return (
-                  <div key={order.id} className={leadPanelClass(order)}>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">
-                      {leadLabel(order)}
-                    </p>
-
-                    <p className="mt-2 text-lg font-black text-white">
-                      {order.orderNumber ?? order.title ?? order.id}
-                    </p>
-
-                    <p className="mt-2 text-sm text-zinc-300">
-                      {getCustomerName(order)}
-                    </p>
-
-                    <p className="mt-1 text-sm text-zinc-500">
-                      {formatAmount(getOrderAmount(order), order.currency)}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <PremiumButton
-                        href={`/dashboard/orders/${order.id}`}
-                        variant="primary"
-                        size="sm"
-                      >
-                        Auftrag öffnen
-                      </PremiumButton>
-
-                      {latestEstimate ? (
-                        <PremiumButton
-                          href={`/dashboard/estimates/${latestEstimate.id}`}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          Lead prüfen
-                        </PremiumButton>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </DashboardPanel>
-        ) : null}
+          title="Aufträge"
+          description="Nur aktive Arbeit: der nächste erforderliche Schritt und pro Auftrag genau eine Aktion."
+        />
 
         {loading ? (
           <DashboardPanel
             title="Aufträge werden geladen"
-            description="HEXA OS lädt die aktuellen Daten aus dem Auftragsmodul."
+            description="Die aktuelle Arbeitsliste wird vorbereitet."
           >
-            <div className="grid gap-3">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
-                />
-              ))}
-            </div>
+            <div className="h-28 animate-pulse rounded-3xl border border-white/10 bg-white/[0.04]" />
           </DashboardPanel>
         ) : null}
 
         {errorMessage ? (
           <DashboardPanel
-            title="Fehler im Auftragsmodul"
-            description="Die Auftragsliste konnte nicht aus der API geladen werden."
+            title="Aufträge nicht verfügbar"
+            description="Die Arbeitsliste konnte nicht geladen werden."
           >
-            <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Fehler: {errorMessage}</p>
-              <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Prüfen Sie den Endpoint /api/dashboard/orders und die
-                Datenbankverbindung.
-              </p>
-            </div>
+            <p className="rounded-2xl border border-red-400/25 bg-red-400/10 p-4 font-bold text-red-100">
+              {errorMessage}
+            </p>
+          </DashboardPanel>
+        ) : null}
+
+        {!loading && !errorMessage && nextOrder ? (
+          <DashboardPanel
+            title="Nächster Schritt"
+            description="Diese Aktion benötigt als Nächstes Ihre Entscheidung."
+          >
+            <OrderQueueCard
+              order={nextOrder}
+              highlighted
+            />
           </DashboardPanel>
         ) : null}
 
         {!loading && !errorMessage ? (
           <DashboardPanel
-            title="Auftragsliste"
-            description={`Anzahl Datensätze: ${orders.length}. QuickOffer- und Chatbot-Leads sind markiert und können direkt über Auftrag oder Kalkulation geprüft werden.`}
-            action={
-              <StatusBadge
-                status={orders.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={orders.length > 0 ? "Daten aktiv" : "Keine Daten"}
-              />
+            title="Aktive Aufträge"
+            description={
+              remainingOrders.length > 0
+                ? "Weitere laufende Arbeiten in der richtigen Reihenfolge."
+                : nextOrder
+                  ? "Keine weiteren aktiven Aufträge."
+                  : "Aktuell ist keine Arbeit offen."
             }
           >
-            <DashboardTable
-              columns={columns}
-              rows={orders}
-              getRowKey={(order) => order.id}
-              empty={
-                <EmptyState
-                  title="Keine Aufträge in der Datenbank"
-                  description="Erstellen Sie einen Auftrag manuell oder senden Sie testweise eine Anfrage über QuickOffer oder Chatbot auf der Website."
-                  actionLabel="Auftrag erstellen"
-                  actionHref="/dashboard/orders/new"
-                />
-              }
-            />
+            {remainingOrders.length > 0 ? (
+              <div className="grid gap-3">
+                {remainingOrders.map((order) => (
+                  <OrderQueueCard
+                    key={order.id}
+                    order={order}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-sm text-zinc-400">
+                {nextOrder
+                  ? "Nach dem nächsten Schritt ist die Arbeitsliste wieder leer."
+                  : "Neue Kundenanfragen erscheinen automatisch hier, sobald eine Aktion erforderlich ist."}
+              </div>
+            )}
           </DashboardPanel>
         ) : null}
       </section>
