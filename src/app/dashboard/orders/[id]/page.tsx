@@ -71,13 +71,74 @@ async function safeFindMany<T = Row>(
   }
 }
 
+
+function parseDisplayDate(value: unknown) {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+
+  const parsed = new Date(value);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateTimeZurich(value: unknown) {
+  const date = parseDisplayDate(value);
+
+  if (!date) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("de-CH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Europe/Zurich",
+  }).format(date);
+}
+
+function formatAppointmentWindow(
+  startValue: unknown,
+  endValue: unknown,
+) {
+  const start = parseDisplayDate(startValue);
+  const end = parseDisplayDate(endValue);
+
+  if (!start) {
+    return "Noch nicht geplant";
+  }
+
+  const dateFormatter = new Intl.DateTimeFormat("de-CH", {
+    dateStyle: "medium",
+    timeZone: "Europe/Zurich",
+  });
+
+  const timeFormatter = new Intl.DateTimeFormat("de-CH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/Zurich",
+  });
+
+  if (!end) {
+    return `${dateFormatter.format(start)}, ${timeFormatter.format(start)}`;
+  }
+
+  return `${dateFormatter.format(start)}, ${timeFormatter.format(
+    start,
+  )}–${timeFormatter.format(end)}`;
+}
+
 function formatValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "—";
   }
 
   if (value instanceof Date) {
-    return value.toLocaleString("de-CH");
+    return formatDateTimeZurich(value);
   }
 
   if (typeof value === "bigint") {
@@ -454,6 +515,115 @@ function Section({
   );
 }
 
+
+function isSafeImageUrl(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const url = value.trim();
+
+  if (!url) {
+    return null;
+  }
+
+  if (
+    /^data:image\/[a-z0-9.+-]+;base64,/i.test(url) ||
+    /^https?:\/\//i.test(url) ||
+    url.startsWith("/")
+  ) {
+    return url;
+  }
+
+  return null;
+}
+
+function CustomerPhotoGallery({
+  photos,
+}: {
+  photos: Row[];
+}) {
+  const visiblePhotos = photos
+    .map((photo) => ({
+      photo,
+      src: isSafeImageUrl(photo.url),
+    }))
+    .filter(
+      (
+        item,
+      ): item is {
+        photo: Row;
+        src: string;
+      } => Boolean(item.src),
+    );
+
+  return (
+    <section
+      data-testid="customer-photo-gallery"
+      className="mb-8 rounded-3xl border border-cyan-400/20 bg-neutral-900/70 p-6"
+    >
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-400">
+            Kundenfotos
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Fotos zum Auftrag
+          </h2>
+        </div>
+
+        <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-300">
+          {visiblePhotos.length} Fotos
+        </span>
+      </div>
+
+      {visiblePhotos.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-neutral-700 bg-neutral-950/50 p-6 text-sm text-neutral-400">
+          Für diesen Auftrag sind keine Kundenfotos gespeichert.
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {visiblePhotos.map(({ photo, src }, index) => (
+            <a
+              key={String(photo.id ?? `${src}-${index}`)}
+              href={src}
+              target="_blank"
+              rel="noreferrer"
+              className="group overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950 transition hover:border-cyan-400/60"
+            >
+              <div className="aspect-[4/3] overflow-hidden bg-black">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={String(
+                    photo.fileName ??
+                      `Kundenfoto ${index + 1}`,
+                  )}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <p className="truncate text-sm font-semibold text-neutral-200">
+                  {formatValue(
+                    photo.fileName ??
+                      `Kundenfoto ${index + 1}`,
+                  )}
+                </p>
+
+                <span className="shrink-0 text-xs text-cyan-400">
+                  Öffnen
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ReviewChecklist({
   leadType,
 }: {
@@ -755,6 +925,36 @@ export default async function OrderDetailsPage({
     return sum + Number(payment.amount ?? payment.paidAmount ?? 0);
   }, 0);
 
+  const customerPhotos = attachments.filter((attachment) => {
+    const attachmentType = normalizeStatus(attachment.type);
+    const mimeType = String(
+      attachment.mimeType ?? "",
+    ).toLowerCase();
+
+    return Boolean(
+      isSafeImageUrl(attachment.url) &&
+        (attachmentType === "PHOTO" ||
+          mimeType.startsWith("image/")),
+    );
+  });
+
+  const nonImageAttachments = attachments.filter(
+    (attachment) => !customerPhotos.includes(attachment),
+  );
+
+  const appointmentWindow = formatAppointmentWindow(
+    order.scheduledStart,
+    order.scheduledEnd,
+  );
+
+  const displayedPrice =
+    order.finalPrice ??
+    order.estimatedPrice ??
+    latestEstimate?.total ??
+    latestEstimate?.totalAmount ??
+    latestEstimate?.amount ??
+    latestEstimate?.aiMaxTotal;
+
   return (
     <main className="min-h-screen p-6 text-white lg:p-10">
       <div className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -877,7 +1077,66 @@ export default async function OrderDetailsPage({
         </div>
       </div>
 
-      {quickOffer ? (
+      <section
+        data-testid="order-core-workspace"
+        className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+      >
+        <StatCard label="Status" value={statusLabel(order.status)} />
+
+        <StatCard
+          label="Kunde"
+          value={customerName(customer)}
+          href={
+            customer?.id
+              ? `/dashboard/customers/${customer.id}`
+              : null
+          }
+        />
+
+        <StatCard
+          label="Termin"
+          value={appointmentWindow}
+        />
+
+        <StatCard
+          label="Preis / Offerte"
+          value={formatMoney(displayedPrice, currency)}
+          href={
+            latestEstimate?.id
+              ? `/dashboard/estimates/${latestEstimate.id}`
+              : null
+          }
+        />
+      </section>
+
+      {(confirmed || scheduled || completed) ? (
+        <section
+          data-testid="order-workflow-status"
+          className="mb-8 rounded-3xl border border-emerald-400/25 bg-emerald-400/10 p-6"
+        >
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+            Aktueller Workflow-Stand
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black text-emerald-50">
+            {completed
+              ? "Auftrag abgeschlossen"
+              : scheduled
+                ? "Offerte akzeptiert und Termin reserviert"
+                : "Offerte akzeptiert – Termin noch planen"}
+          </h2>
+
+          <p className="mt-3 text-sm leading-6 text-emerald-50/80">
+            {scheduled || completed
+              ? `Gebuchter Termin: ${appointmentWindow}. Eine erneute Angebotsprüfung ist nicht erforderlich.`
+              : "Die Offerte wurde akzeptiert. Als nächster Schritt muss der Termin geplant werden."}
+          </p>
+        </section>
+      ) : null}
+
+      <CustomerPhotoGallery photos={customerPhotos} />
+
+      {quickOffer && reviewRequired ? (
         <section className="mb-8 rounded-3xl border border-fuchsia-300/25 bg-fuchsia-300/10 p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
@@ -932,7 +1191,7 @@ export default async function OrderDetailsPage({
         </section>
       ) : null}
 
-      {chatbot ? (
+      {chatbot && reviewRequired ? (
         <section className="mb-8 rounded-3xl border border-violet-300/25 bg-violet-300/10 p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
@@ -983,34 +1242,15 @@ export default async function OrderDetailsPage({
         </section>
       ) : null}
 
-      <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Status" value={statusLabel(order.status)} />
-        <StatCard
-          label="Kunde"
-          value={customerName(customer)}
-          href={customer?.id ? `/dashboard/customers/${customer.id}` : null}
-        />
-        <StatCard
-          label="Angebote"
-          value={estimates.length}
-          href={
-            latestEstimate?.id
-              ? `/dashboard/estimates/${latestEstimate.id}`
-              : `/dashboard/estimates?orderId=${order.id}`
-          }
-        />
-        <StatCard
-          label="Rechnungen"
-          value={invoices.length}
-          href={`/dashboard/invoices?orderId=${order.id}`}
-        />
-        <StatCard
-          label="Zahlungen"
-          value={formatMoney(totalPaid, currency)}
-          href={`/dashboard/payments?orderId=${order.id}`}
-        />
-      </section>
+      <details
+        data-testid="order-technical-details"
+        className="mb-8 rounded-3xl border border-neutral-800 bg-neutral-900/40 p-5"
+      >
+        <summary className="cursor-pointer select-none text-sm font-bold text-neutral-200 transition hover:text-cyan-300">
+          Weitere Auftrags- und Systemdetails anzeigen
+        </summary>
 
+        <div className="mt-6">
       <section className="mb-8 grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
         <Section title="Auftragsdaten">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1113,7 +1353,9 @@ export default async function OrderDetailsPage({
           )}
         </Section>
 
-        <ReviewChecklist leadType={reviewLeadType} />
+        {reviewRequired ? (
+          <ReviewChecklist leadType={reviewLeadType} />
+        ) : null}
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-2">
@@ -1339,7 +1581,7 @@ export default async function OrderDetailsPage({
 
         <MiniTable
           title="Anhänge"
-          items={attachments}
+          items={nonImageAttachments}
           basePath="/dashboard/attachments"
           columns={[
             {
@@ -1385,6 +1627,8 @@ export default async function OrderDetailsPage({
           ]}
         />
       </div>
+        </div>
+      </details>
     </main>
   );
 }
