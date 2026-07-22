@@ -128,7 +128,7 @@ export default function RecordDrawerWorkspace({
         </div>
 
         <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-cyan-100">
-          Panel oeffnen statt Seite durchsuchen
+          Panel öffnen statt Seite durchsuchen
         </div>
       </div>
 
@@ -186,7 +186,7 @@ export default function RecordDrawerWorkspace({
             ) : null}
 
             <div className="mt-5 inline-flex rounded-2xl border border-white/15 bg-black/20 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
-              Oeffnen
+              Öffnen
             </div>
           </button>
         ))}
@@ -196,7 +196,7 @@ export default function RecordDrawerWorkspace({
         <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm">
           <button
             type="button"
-            aria-label="Panel schliessen"
+            aria-label="Panel schließen"
             className="absolute inset-0 cursor-default"
             onClick={() => setActivePanelId(null)}
           />
@@ -240,7 +240,7 @@ export default function RecordDrawerWorkspace({
                   onClick={() => setActivePanelId(null)}
                   className="rounded-2xl border border-white/15 bg-black/30 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10"
                 >
-                  Schliessen
+                  Schließen
                 </button>
               </div>
             </div>

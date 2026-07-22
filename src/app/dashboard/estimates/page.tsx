@@ -254,7 +254,7 @@ export default function DashboardEstimatesPage() {
         <PageHeader
           eyebrow="HEXA OS CRM / Kalkulationen"
           title="Kalkulationen"
-          description="Interne Arbeitsliste fuer Preisberechnung, Risiko, Fotos, AI-Pruefung und Freigabe. Aus einer fertigen Kalkulation entsteht erst danach eine Offerte."
+          description="Interne Arbeitsliste für Preisberechnung, Risiko, Fotos, KI-Prüfung und Freigabe. Aus einer fertigen Kalkulation entsteht erst danach eine Offerte."
         >
           <PremiumButton href="/dashboard/estimates/new" variant="primary">
             Neue Kalkulation
@@ -291,7 +291,7 @@ export default function DashboardEstimatesPage() {
 
           <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 p-4">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200/70">
-              Pruefung
+              Prüfung
             </p>
             <p className="mt-2 text-2xl font-black text-amber-100">
               {totals.reviewCount}
@@ -300,7 +300,7 @@ export default function DashboardEstimatesPage() {
 
           <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/70">
-              Bereit fuer Offerte
+              Bereit für Offerte
             </p>
             <p className="mt-2 text-2xl font-black text-emerald-100">
               {totals.readyCount}
@@ -332,7 +332,7 @@ export default function DashboardEstimatesPage() {
           </p>
           <p className="mt-2 text-sm leading-6 text-amber-100">
             Kalkulationen sind intern. QuickOffer- und Chatbot-Daten sind keine
-            verbindliche Offerte. Erst pruefen, dann auf READY_TO_SEND setzen,
+            verbindliche Offerte. Erst prüfen, dann auf READY_TO_SEND setzen,
             dann Offerte vorbereiten.
           </p>
         </section>
@@ -350,7 +350,7 @@ export default function DashboardEstimatesPage() {
                 Kalkulationsliste
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Status anklicken oder Kalkulation oeffnen. Angebot, Rechnung und
+                Status anklicken oder Kalkulation öffnen. Angebot, Rechnung und
                 Zahlung werden nicht auf dieser Liste bearbeitet.
               </p>
             </div>
@@ -467,7 +467,7 @@ export default function DashboardEstimatesPage() {
                         href={`/dashboard/estimates/${estimate.id}`}
                         className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-400/20"
                       >
-                        Oeffnen
+                        Öffnen
                       </Link>
                     </div>
                   </article>

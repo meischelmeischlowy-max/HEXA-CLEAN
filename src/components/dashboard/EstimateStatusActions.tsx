@@ -46,11 +46,11 @@ const statuses: {
   {
     value: "DRAFT",
     label: "Entwurf",
-    description: "Interne Kalkulation ist noch nicht geprueft.",
+    description: "Interne Kalkulation ist noch nicht geprüft.",
   },
   {
     value: "AI_REVIEW",
-    label: "AI-Pruefung",
+    label: "KI-Prüfung",
     description: "Automatisch vorbereitet, braucht Kontrolle.",
   },
   {
@@ -60,12 +60,12 @@ const statuses: {
   },
   {
     value: "NEEDS_HUMAN_REVIEW",
-    label: "Interne Pruefung",
+    label: "Interne Prüfung",
     description: "Inhaber / Operator muss freigeben.",
   },
   {
     value: "READY_TO_SEND",
-    label: "Bereit fuer Offerte",
+    label: "Bereit für Offerte",
     description: "Kalkulation ist freigegeben. Offerte vorbereiten.",
   },
   {
@@ -86,7 +86,7 @@ const statuses: {
   {
     value: "EXPIRED",
     label: "Abgelaufen",
-    description: "Offerte ist nicht mehr gueltig.",
+    description: "Offerte ist nicht mehr gültig.",
   },
 ];
 
@@ -154,9 +154,9 @@ function processMessage(status: EstimateStatus) {
   ) {
     return {
       tone: "amber",
-      title: "Interne Pruefung offen",
+      title: "Interne Prüfung offen",
       message:
-        "Diese Kalkulation ist noch intern. Erst nach Kontrolle auf Bereit fuer Offerte setzen.",
+        "Diese Kalkulation ist noch intern. Erst nach Kontrolle auf Bereit für Offerte setzen.",
     };
   }
 
@@ -165,7 +165,7 @@ function processMessage(status: EstimateStatus) {
       tone: "cyan",
       title: "Offerte vorbereiten",
       message:
-        "Die Kalkulation ist freigegeben. Jetzt Offerte erstellen/pruefen und danach senden.",
+        "Die Kalkulation ist freigegeben. Jetzt Offerte erstellen/prüfen und danach senden.",
     };
   }
 
@@ -174,7 +174,7 @@ function processMessage(status: EstimateStatus) {
       tone: "cyan",
       title: "Wartet auf Kundenantwort",
       message:
-        "Der Vorgang ist als versendet markiert. Jetzt Antwort ueber E-Mail, Kundenlink, Chat oder Rueckfrage pruefen.",
+        "Der Vorgang ist als versendet markiert. Jetzt Antwort über E-Mail, Kundenlink, Chat oder Rückfrage prüfen.",
     };
   }
 
@@ -183,7 +183,7 @@ function processMessage(status: EstimateStatus) {
       tone: "green",
       title: "Kunde hat akzeptiert",
       message:
-        "Naechster Schritt: Auftrag planen. Rechnung erst nach ausgefuehrter Leistung oder klarer Anzahlung.",
+        "Nächster Schritt: Auftrag planen. Rechnung erst nach ausgeführter Leistung oder klarer Anzahlung.",
     };
   }
 
@@ -192,7 +192,7 @@ function processMessage(status: EstimateStatus) {
       tone: "red",
       title: "Kunde hat abgelehnt",
       message:
-        "Fall dokumentieren, neue Version vorbereiten oder Vorgang abschliessen.",
+        "Fall dokumentieren, neue Version vorbereiten oder Vorgang abschließen.",
     };
   }
 
@@ -200,7 +200,7 @@ function processMessage(status: EstimateStatus) {
     tone: "amber",
     title: "Offerte abgelaufen",
     message:
-      "Entscheiden: erneuern, neue Version vorbereiten oder Vorgang abschliessen.",
+      "Entscheiden: erneuern, neue Version vorbereiten oder Vorgang abschließen.",
   };
 }
 
@@ -399,7 +399,7 @@ export default function EstimateStatusActions({
               href={`/dashboard/estimates/${estimateId}/offer`}
               className="rounded-2xl border border-cyan-300/30 bg-cyan-300/15 px-5 py-3 text-center text-sm font-black text-cyan-100 transition hover:bg-cyan-300/25"
             >
-              Offerte / Versand pruefen
+              Offerte / Versand prüfen
             </Link>
           ) : null}
 
@@ -416,7 +416,7 @@ export default function EstimateStatusActions({
             href="/dashboard/quotes"
             className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-center text-sm font-bold text-zinc-200 transition hover:bg-white/10"
           >
-            Offerten oeffnen
+            Offerten öffnen
           </Link>
         </div>
       </div>

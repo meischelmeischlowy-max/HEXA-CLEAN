@@ -37,7 +37,7 @@ describe("E10R.1 estimate photo preview", () => {
     );
 
     expect(content).toContain("src={attachment.url}");
-    expect(content).toContain("Foto oeffnen");
+    expect(content).toContain("Foto öffnen");
     expect(content).toContain("attachment.fileName");
     expect(content).toContain("attachment.sizeBytes");
   });

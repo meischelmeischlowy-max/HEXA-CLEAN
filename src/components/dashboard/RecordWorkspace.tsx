@@ -133,8 +133,8 @@ export function RecordWorkspacePanel({
           </div>
 
           <span className="w-fit rounded-2xl border border-white/15 bg-black/20 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white transition group-open:bg-white/10">
-            <span className="group-open:hidden">Oeffnen</span>
-            <span className="hidden group-open:inline">Schliessen</span>
+            <span className="group-open:hidden">Öffnen</span>
+            <span className="hidden group-open:inline">Schließen</span>
           </span>
         </div>
       </summary>

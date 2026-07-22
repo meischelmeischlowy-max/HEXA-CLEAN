@@ -61,7 +61,7 @@ function humanLabel(value: string) {
     PENDING: "Wartend",
     IN_PROGRESS: "In Bearbeitung",
     WAITING_FOR_CUSTOMER: "Wartet auf Kunde",
-    CONFIRMED: "BestĂ¤tigt",
+    CONFIRMED: "Bestätigt",
     SCHEDULED: "Geplant",
     COMPLETED: "Abgeschlossen",
     CANCELLED: "Storniert",
@@ -69,7 +69,7 @@ function humanLabel(value: string) {
     BASIC_CLEANING: "Grundreinigung",
     DEEP_CLEANING: "Intensivreinigung",
     END_OF_TENANCY: "Wohnungsabgabe",
-    OFFICE_CLEANING: "BĂĽroreinigung",
+    OFFICE_CLEANING: "Büroreinigung",
     WINDOW_CLEANING: "Fensterreinigung",
     MOVE_IN_OUT: "Umzug / Abgabe",
     OTHER: "Andere",
@@ -181,8 +181,8 @@ export default function OrderForm({
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
-          Erfassen Sie Kunde, Kontaktdaten und Leistungsumfang. Daraus kĂ¶nnen
-          spĂ¤ter Angebot, Rechnung und Zahlung entstehen.
+          Erfassen Sie Kunde, Kontaktdaten und Leistungsumfang. Daraus können
+          später Angebot, Rechnung und Zahlung entstehen.
         </p>
       </div>
 
@@ -344,7 +344,7 @@ export default function OrderForm({
                 onChange={(event) =>
                   updateField("description", event.target.value)
                 }
-                placeholder="Arbeitsumfang, Kundenhinweise, FlĂ¤che, Zugang, Material..."
+                placeholder="Arbeitsumfang, Kundenhinweise, Fläche, Zugang, Material..."
                 rows={5}
                 className={inputClass()}
               />
@@ -364,7 +364,7 @@ export default function OrderForm({
               </div>
 
               <div>
-                <label className={labelClass()}>WĂ¤hrung</label>
+                <label className={labelClass()}>Währung</label>
                 <input
                   value={form.currency}
                   onChange={(event) =>
@@ -376,7 +376,7 @@ export default function OrderForm({
               </div>
 
               <div>
-                <label className={labelClass()}>GeschĂ¤tzter Preis</label>
+                <label className={labelClass()}>Geschätzter Preis</label>
                 <input
                   type="number"
                   min="0"
@@ -426,7 +426,7 @@ export default function OrderForm({
             ? "Speichern..."
             : mode === "create"
               ? "Auftrag erstellen"
-              : "Ă„nderungen speichern"}
+              : "Änderungen speichern"}
         </button>
 
         <button

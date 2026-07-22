@@ -110,7 +110,7 @@ function formatDate(value: Date | null | undefined) {
 
 function formatFileSize(value: number | null | undefined) {
   if (!value || value <= 0) {
-    return "Groesse unbekannt";
+    return "Größe unbekannt";
   }
 
   if (value < 1024 * 1024) {
@@ -142,10 +142,10 @@ function customerName(customer: {
 function statusLabel(status: string | null | undefined) {
   const labels: Record<string, string> = {
     DRAFT: "Entwurf",
-    AI_REVIEW: "AI-Pruefung",
+    AI_REVIEW: "KI-Prüfung",
     NEEDS_PHOTOS: "Fotos erforderlich",
-    NEEDS_HUMAN_REVIEW: "Interne Pruefung",
-    READY_TO_SEND: "Bereit fuer Offerte",
+    NEEDS_HUMAN_REVIEW: "Interne Prüfung",
+    READY_TO_SEND: "Bereit für Offerte",
     SENT: "Versendet",
     ACCEPTED: "Akzeptiert",
     REJECTED: "Abgelehnt",
@@ -160,7 +160,7 @@ function statusLabel(status: string | null | undefined) {
 function sourceLabel(source: string | null | undefined) {
   const labels: Record<string, string> = {
     QUICK_OFFER: "QuickOffer Website",
-    CHATBOT: "AI Chatbox",
+    CHATBOT: "KI-Chatbox",
     ADMIN: "Dashboard",
     PUBLIC_FORM: "Public Form",
     IMPORT: "Import",
@@ -238,8 +238,8 @@ function unitLabel(value: unknown) {
     H: "Std.",
     HOUR: "Std.",
     HOURS: "Std.",
-    M2: "m2",
-    SQM: "m2",
+    M2: "m²",
+    SQM: "m²",
     PIECE: "Stk.",
     PIECES: "Stk.",
     STK: "Stk.",
@@ -258,9 +258,9 @@ function unitLabel(value: unknown) {
 function auditActionLabel(action: string | null | undefined) {
   const labels: Record<string, string> = {
     CREATE: "Erstellt",
-    UPDATE: "Geaendert",
-    DELETE: "Geloescht",
-    STATUS_CHANGE: "Status geaendert",
+    UPDATE: "Geändert",
+    DELETE: "Gelöscht",
+    STATUS_CHANGE: "Status geändert",
     SYSTEM: "System",
     AI: "AI",
     SEND: "Gesendet",
@@ -311,23 +311,23 @@ function ReviewChecklist({
   const baseItems =
     leadType === "quick_offer"
       ? [
-          "Kontakt pruefen: Telefon oder E-Mail muss erreichbar sein.",
-          "Leistungsumfang pruefen: Flaeche, Zusatzleistungen und Termin plausibel?",
-          "Anfahrt, Material, Risiko und Zeitaufwand ergaenzen.",
-          "Bei Unsicherheit Fotos oder Rueckfrage beim Kunden anfordern.",
+          "Kontakt prüfen: Telefon oder E-Mail muss erreichbar sein.",
+          "Leistungsumfang prüfen: Fläche, Zusatzleistungen und Termin plausibel?",
+          "Anfahrt, Material, Risiko und Zeitaufwand ergänzen.",
+          "Bei Unsicherheit Fotos oder Rückfrage beim Kunden anfordern.",
         ]
       : leadType === "chatbot"
         ? [
-            "Chatverlauf pruefen: Hat der Kunde wirklich eine konkrete Anfrage gestellt?",
-            "Kontakt pruefen: Telefon oder E-Mail muss erreichbar sein.",
-            "Angaben aus dem Chat pruefen: Leistung, Flaeche, Fenster, Etage, Termin.",
-            "AI-Preis ist nur Orientierung: Risiko, Anfahrt, Material und Zeitaufwand pruefen.",
+            "Chatverlauf prüfen: Hat der Kunde wirklich eine konkrete Anfrage gestellt?",
+            "Kontakt prüfen: Telefon oder E-Mail muss erreichbar sein.",
+            "Angaben aus dem Chat prüfen: Leistung, Fläche, Fenster, Etage, Termin.",
+            "KI-Preis ist nur Orientierung: Risiko, Anfahrt, Material und Zeitaufwand prüfen.",
           ]
         : [
-            "Positionen pruefen.",
+            "Positionen prüfen.",
             "Preis, Risiko, Rabatt und Anfahrt kontrollieren.",
-            "Kundennotiz und interne Notiz pruefen.",
-            "Erst nach Kontrolle fuer Offerte freigeben.",
+            "Kundennotiz und interne Notiz prüfen.",
+            "Erst nach Kontrolle für Offerte freigeben.",
           ];
 
   const statusItem =
@@ -343,7 +343,7 @@ function ReviewChecklist({
         Kontrollliste
       </p>
       <h3 className="mt-2 text-xl font-black text-amber-50">
-        Interne Pruefung vor Offerte
+        Interne Prüfung vor Offerte
       </h3>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -425,8 +425,8 @@ function CommunicationStatusPanel({
 
           <p className="mt-2 max-w-4xl text-sm leading-6 opacity-80">
             {hasSendEvidence
-              ? "Der Vorgang ist als versendet dokumentiert. Jetzt Antwort ueber E-Mail, Kundenlink, Chat oder Rueckfrage pruefen."
-              : "Der Status steht auf Versendet, aber es wurde kein eindeutiger Versandnachweis gefunden. E-Mail, Kundenlink oder Notification im Offertenprozess pruefen."}
+              ? "Der Vorgang ist als versendet dokumentiert. Jetzt Antwort über E-Mail, Kundenlink, Chat oder Rückfrage prüfen."
+              : "Der Status steht auf Versendet, aber es wurde kein eindeutiger Versandnachweis gefunden. E-Mail, Kundenlink oder Notification im Offertenprozess prüfen."}
           </p>
         </div>
 
@@ -435,14 +435,14 @@ function CommunicationStatusPanel({
             href="/dashboard/quotes"
             className="rounded-2xl border border-white/20 bg-black/20 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10"
           >
-            Offerten oeffnen
+            Offerten öffnen
           </Link>
 
           <Link
             href="/dashboard/notifications"
             className="rounded-2xl border border-white/20 bg-black/20 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10"
           >
-            Versandlog pruefen
+            Versandlog prüfen
           </Link>
         </div>
       </div>
@@ -637,7 +637,7 @@ export default async function DashboardEstimateDetailsPage({
               href="/dashboard/estimates"
               className="text-sm font-bold text-cyan-300 transition hover:text-cyan-200"
             >
-              Zurueck zu den Kalkulationen
+              Zurück zu den Kalkulationen
             </Link>
 
             <p className="mt-5 text-xs font-black uppercase tracking-[0.35em] text-cyan-400">
@@ -651,7 +651,7 @@ export default async function DashboardEstimateDetailsPage({
             <p className="mt-2 max-w-5xl text-sm leading-6 text-zinc-400">
               Kurzer Entscheidungsbereich oben. Details liegen in Panels:
               Anfrage, Kunde, Preis, Kommunikation, Verlauf und System.
-              Immer nur ein Arbeitsbereich ist gleichzeitig geoeffnet.
+              Immer nur ein Arbeitsbereich ist gleichzeitig geöffnet.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -678,7 +678,7 @@ export default async function DashboardEstimateDetailsPage({
               href={`/dashboard/customers/${estimate.customerId}`}
               className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.07]"
             >
-              Kunde oeffnen
+              Kunde öffnen
             </Link>
 
             {estimate.order?.id ? (
@@ -686,7 +686,7 @@ export default async function DashboardEstimateDetailsPage({
                 href={`/dashboard/orders/${estimate.order.id}`}
                 className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.07]"
               >
-                Auftrag oeffnen
+                Auftrag öffnen
               </Link>
             ) : null}
           </div>
@@ -716,7 +716,7 @@ export default async function DashboardEstimateDetailsPage({
 
         <RecordWorkspace
           title="Kalkulation Workspace"
-          description="Sechs klare Arbeitsbereiche. Beim Oeffnen eines Panels wird das vorherige automatisch geschlossen."
+          description="Sechs klare Arbeitsbereiche. Beim Öffnen eines Panels wird das vorherige automatisch geschlossen."
         >
           <RecordWorkspacePanel
             id="anfrage"
@@ -753,12 +753,12 @@ export default async function DashboardEstimateDetailsPage({
                       QuickOffer Lead
                     </p>
                     <h3 className="mt-2 text-2xl font-black text-fuchsia-50">
-                      Anfrage aus dem oeffentlichen Formular
+                      Anfrage aus dem öffentlichen Formular
                     </h3>
                     <p className="mt-3 text-sm leading-6 text-fuchsia-50/80">
-                      Diese Daten sind nur Grundlage fuer die interne
-                      Kalkulation. Vor einer Offerte muessen Umfang, Risiko,
-                      Material, Anfahrt und Preis geprueft werden.
+                      Diese Daten sind nur Grundlage für die interne
+                      Kalkulation. Vor einer Offerte müssen Umfang, Risiko,
+                      Material, Anfahrt und Preis geprüft werden.
                     </p>
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -767,9 +767,9 @@ export default async function DashboardEstimateDetailsPage({
                         value={String(quickOfferService)}
                       />
                       <InfoLine
-                        label="Groesse"
+                        label="Größe"
                         value={
-                          quickOfferSize ? `${String(quickOfferSize)} m2` : "-"
+                          quickOfferSize ? `${String(quickOfferSize)} m²` : "-"
                         }
                       />
                       <InfoLine
@@ -803,19 +803,19 @@ export default async function DashboardEstimateDetailsPage({
                       Chatbot Lead
                     </p>
                     <h3 className="mt-2 text-2xl font-black text-violet-50">
-                      Anfrage aus der AI Chatbox
+                      Anfrage aus der KI-Chatbox
                     </h3>
                     <p className="mt-3 text-sm leading-6 text-violet-50/80">
                       Chatbot-Daten sind Arbeitsmaterial. Vor einer Offerte muss
-                      der Verlauf geprueft und bei Unsicherheit Rueckfrage oder
+                      der Verlauf geprüft und bei Unsicherheit Rückfrage oder
                       Foto-Upload angefordert werden.
                     </p>
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
                       <InfoLine label="Leistung" value={String(chatbotService)} />
                       <InfoLine
-                        label="Flaeche"
-                        value={chatbotArea ? `${String(chatbotArea)} m2` : "-"}
+                        label="Fläche"
+                        value={chatbotArea ? `${String(chatbotArea)} m²` : "-"}
                       />
                       <InfoLine
                         label="Fenster"
@@ -869,7 +869,7 @@ export default async function DashboardEstimateDetailsPage({
                     <p className="mt-3 text-sm leading-6 text-zinc-400">
                       Diese Kalkulation wurde nicht als QuickOffer oder
                       Chatbot-Lead erkannt. Positionen, Notizen und Kundendaten
-                      manuell pruefen.
+                      manuell prüfen.
                     </p>
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -922,7 +922,7 @@ export default async function DashboardEstimateDetailsPage({
 
                   <p className="mt-3 text-sm leading-6 text-zinc-400">
                     {estimate.attachments.length > 0
-                      ? "Diese Fotos muessen vor der Preisfreigabe geprueft werden."
+                      ? "Diese Fotos müssen vor der Preisfreigabe geprüft werden."
                       : estimate.status === "NEEDS_PHOTOS"
                         ? "Fotos fehlen. Kunde kontaktieren und Uploads anfordern."
                         : "Keine Uploads vorhanden. Bei Preisunsicherheit Fotos anfordern."}
@@ -969,7 +969,7 @@ export default async function DashboardEstimateDetailsPage({
                               </p>
 
                               <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
-                                Foto oeffnen
+                                Foto öffnen
                               </p>
                             </div>
                           </a>
@@ -1011,7 +1011,7 @@ export default async function DashboardEstimateDetailsPage({
                 value={serviceAddress || estimate.serviceCity || "-"}
               />
               <InfoLine
-                label="Strasse"
+                label="Straße"
                 value={estimate.serviceStreet ?? "-"}
               />
               <InfoLine
@@ -1033,7 +1033,7 @@ export default async function DashboardEstimateDetailsPage({
                 href={`/dashboard/customers/${estimate.customerId}`}
                 className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20"
               >
-                Kundenprofil oeffnen
+                Kundenprofil öffnen
               </Link>
 
               <Link
@@ -1049,7 +1049,7 @@ export default async function DashboardEstimateDetailsPage({
             id="preisberechnung"
             eyebrow="Preis / Risiko"
             title="Preis"
-            description="Positionen, Faktoren, AI-Spanne, Notizen und interne Summe."
+            description="Positionen, Faktoren, KI-Spanne, Notizen und interne Summe."
             tone="green"
             count={estimate.items.length}
             meta={
@@ -1072,12 +1072,12 @@ export default async function DashboardEstimateDetailsPage({
                     Kalkulationspositionen
                   </h3>
                   <p className="mt-1 text-sm text-neutral-400">
-                    Interne Positionen fuer Preis, Risiko, Aufwand und Total.
+                    Interne Positionen für Preis, Risiko, Aufwand und Total.
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-                  Vor der Offerte pruefen und freigeben.
+                  Vor der Offerte prüfen und freigeben.
                 </div>
               </div>
 
@@ -1169,7 +1169,7 @@ export default async function DashboardEstimateDetailsPage({
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
                 <h3 className="text-xl font-black text-white">
-                  AI-Spanne / Pruefung
+                  KI-Spanne / Prüfung
                 </h3>
 
                 {estimate.aiMinTotal !== null || estimate.aiMaxTotal !== null ? (
@@ -1185,7 +1185,7 @@ export default async function DashboardEstimateDetailsPage({
 
                 <p className="mt-3 text-sm leading-6 text-neutral-400">
                   {estimate.aiNotes ??
-                    "Keine AI-Analyse vorhanden. Dieser Bereich ist fuer spaetere Fotoanalyse, Risikoanalyse und Plausibilitaetspruefung vorbereitet."}
+                    "Keine KI-Analyse vorhanden. Dieser Bereich ist für spätere Fotoanalyse, Risikoanalyse und Plausibilitätsprüfung vorbereitet."}
                 </p>
               </div>
 
@@ -1195,7 +1195,7 @@ export default async function DashboardEstimateDetailsPage({
                 <div className="mt-4 space-y-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
-                      Fuer Kunden
+                      Für Kunden
                     </p>
                     <p className="mt-2 text-sm leading-6 text-neutral-300">
                       {estimate.notesCustomer ?? "-"}
@@ -1249,7 +1249,7 @@ export default async function DashboardEstimateDetailsPage({
               </h3>
               <p className="mt-2 text-sm leading-6 text-neutral-400">
                 Nachrichten aus QuickOffer, Chatbot oder Session. Nur Kontext
-                fuer diese Kalkulation.
+                für diese Kalkulation.
               </p>
 
               {conversationMessages.length === 0 ? (
@@ -1286,7 +1286,7 @@ export default async function DashboardEstimateDetailsPage({
             id="verlauf"
             eyebrow="Prozess / Verknuepfungen"
             title="Verlauf"
-            description="Verknuepfte Datensaetze und Aenderungshistorie."
+            description="Verknuepfte Datensätze und Änderungshistorie."
             tone="neutral"
             count={estimate.auditLogs.length}
             meta={
@@ -1304,7 +1304,7 @@ export default async function DashboardEstimateDetailsPage({
           >
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
               <h3 className="text-xl font-black text-white">
-                Verknuepfte Datensaetze
+                Verknuepfte Datensätze
               </h3>
               <p className="mt-2 text-sm leading-6 text-neutral-400">
                 Diese Kalkulation ist mit Kunde, Session und optional Auftrag
@@ -1332,12 +1332,12 @@ export default async function DashboardEstimateDetailsPage({
 
             <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
               <h3 className="text-xl font-black text-white">
-                Aenderungshistorie
+                Änderungshistorie
               </h3>
 
               {estimate.auditLogs.length === 0 ? (
                 <div className="mt-5 rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-                  Keine Aenderungshistorie.
+                  Keine Änderungshistorie.
                 </div>
               ) : (
                 <div className="mt-5 max-h-[520px] space-y-4 overflow-auto pr-2">
@@ -1388,7 +1388,7 @@ export default async function DashboardEstimateDetailsPage({
             id="system-technik"
             eyebrow="Debug / Technik"
             title="System"
-            description="Technische Zaehlung fuer Uploads, Notifications und Logs. Nicht fuer taegliche Arbeit."
+            description="Technische Zählung für Uploads, Notifications und Logs. Nicht für tägliche Arbeit."
             tone="amber"
             meta={
               <>
@@ -1422,7 +1422,7 @@ export default async function DashboardEstimateDetailsPage({
               </h3>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
                 Systemdaten bleiben hier gesammelt. Die normale Arbeit laeuft
-                ueber Naechste Aktion, Status und die Panels oben.
+                über Nächste Aktion, Status und die Panels oben.
               </p>
             </div>
           </RecordWorkspacePanel>
