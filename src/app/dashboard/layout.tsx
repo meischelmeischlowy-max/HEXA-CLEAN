@@ -19,6 +19,11 @@ const workItems = [
     description: "Arbeiten planen und verfolgen",
   },
   {
+    label: "Termine",
+    href: "/dashboard/availability",
+    description: "Freie Zeiten planen und blockieren",
+  },
+  {
     label: "Kalkulationen",
     href: "/dashboard/estimates",
     description: "Berechnen, pruefen und freigeben",

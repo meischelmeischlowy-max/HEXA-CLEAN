@@ -105,6 +105,12 @@ enum NotificationStatus {
   READ
 }
 
+enum AvailabilitySlotStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
 enum AttachmentType {
   PHOTO
   DOCUMENT
@@ -263,13 +269,14 @@ model Order {
   notesCustomer String?
   notesInternal String?
 
-  estimates     Estimate[]
-  quotes        Quote[]
-  invoices      Invoice[]
-  payments      Payment[]
-  notifications Notification[]
-  attachments   Attachment[]
-  auditLogs     AuditLog[]
+  estimates        Estimate[]
+  quotes           Quote[]
+  invoices         Invoice[]
+  payments         Payment[]
+  notifications    Notification[]
+  attachments      Attachment[]
+  auditLogs        AuditLog[]
+  availabilitySlot AvailabilitySlot?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -280,6 +287,33 @@ model Order {
   @@index([serviceType])
   @@index([scheduledStart])
   @@map("orders")
+}
+
+model AvailabilitySlot {
+  id String @id @default(uuid()) @db.Uuid
+
+  tenantKey String @default("hexa-clean")
+
+  startAt DateTime
+  endAt   DateTime
+
+  status AvailabilitySlotStatus @default(AVAILABLE)
+
+  orderId String? @unique @db.Uuid
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantKey, startAt, endAt])
+  @@index([tenantKey])
+  @@index([status])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([tenantKey, status, startAt])
+  @@map("availability_slots")
 }
 
 model Estimate {
