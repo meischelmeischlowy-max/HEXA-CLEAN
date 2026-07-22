@@ -839,6 +839,7 @@ export default async function OrderDetailsPage({
   const confirmed = orderStatus === "CONFIRMED";
   const scheduled = orderStatus === "SCHEDULED";
   const latestEstimate = firstEstimate(estimates);
+  const latestInvoice = invoices[0] ?? null;
   const leadMessage = firstMessage(conversationMessages);
   const metadata = leadMetadata({
     session,
@@ -975,13 +976,13 @@ export default async function OrderDetailsPage({
           </h1>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {quickOffer ? (
+            {quickOffer && reviewRequired ? (
               <span className="rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-3 py-1 text-xs font-bold text-fuchsia-100">
                 QuickOffer Website Lead
               </span>
             ) : null}
 
-            {chatbot ? (
+            {chatbot && reviewRequired ? (
               <span className="rounded-full border border-violet-300/30 bg-violet-300/10 px-3 py-1 text-xs font-bold text-violet-100">
                 Chatbot Website Lead
               </span>
@@ -999,9 +1000,7 @@ export default async function OrderDetailsPage({
           </div>
 
           <p className="mt-4 max-w-3xl text-sm text-neutral-500">
-            Vollständige Ansicht des Auftrags: Kunde, Leistungsdaten, Termine,
-            Kalkulationen, Rechnungen, Zahlungen, Nachrichten, Anhänge und
-            Änderungsverlauf.
+            Kunde, Termin, Fotos und Abrechnung auf einen Blick.
           </p>
         </div>
 
@@ -1048,10 +1047,20 @@ export default async function OrderDetailsPage({
                 <MarkOrderAsCompletedButton
                   orderId={String(order.id)}
                 />
+              ) : completed && latestInvoice?.id ? (
+                <ActionButton
+                  href={`/dashboard/invoices/${latestInvoice.id}`}
+                  variant="primary"
+                >
+                  Rechnung öffnen
+                </ActionButton>
               ) : completed ? (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100">
-                  Auftrag abgeschlossen
-                </div>
+                <ActionButton
+                  href={`/dashboard/invoices?orderId=${order.id}`}
+                  variant="warning"
+                >
+                  Rechnung prüfen
+                </ActionButton>
               ) : latestEstimate?.id ? (
                 <ActionButton
                   href={`/dashboard/estimates/${latestEstimate.id}`}
@@ -1098,15 +1107,35 @@ export default async function OrderDetailsPage({
           value={appointmentWindow}
         />
 
-        <StatCard
-          label="Preis / Offerte"
-          value={formatMoney(displayedPrice, currency)}
-          href={
-            latestEstimate?.id
-              ? `/dashboard/estimates/${latestEstimate.id}`
-              : null
-          }
-        />
+        {completed ? (
+          <StatCard
+            label="Rechnung"
+            value={
+              latestInvoice
+                ? `${formatValue(
+                    latestInvoice.invoiceNumber ??
+                      latestInvoice.number ??
+                      latestInvoice.id,
+                  )} · ${statusLabel(latestInvoice.status)}`
+                : "Prüfung erforderlich"
+            }
+            href={
+              latestInvoice?.id
+                ? `/dashboard/invoices/${latestInvoice.id}`
+                : `/dashboard/invoices?orderId=${order.id}`
+            }
+          />
+        ) : (
+          <StatCard
+            label="Preis / Offerte"
+            value={formatMoney(displayedPrice, currency)}
+            href={
+              latestEstimate?.id
+                ? `/dashboard/estimates/${latestEstimate.id}`
+                : null
+            }
+          />
+        )}
       </section>
 
       {(confirmed || scheduled || completed) ? (
@@ -1127,9 +1156,19 @@ export default async function OrderDetailsPage({
           </h2>
 
           <p className="mt-3 text-sm leading-6 text-emerald-50/80">
-            {scheduled || completed
-              ? `Gebuchter Termin: ${appointmentWindow}. Eine erneute Angebotsprüfung ist nicht erforderlich.`
-              : "Die Offerte wurde akzeptiert. Als nächster Schritt muss der Termin geplant werden."}
+            {completed
+              ? latestInvoice
+                ? `Rechnung ${formatValue(
+                    latestInvoice.invoiceNumber ??
+                      latestInvoice.number ??
+                      latestInvoice.id,
+                  )} wurde erstellt. Status: ${statusLabel(
+                    latestInvoice.status,
+                  )}.`
+                : "Der Auftrag ist abgeschlossen. Die Rechnung muss geprüft werden."
+              : scheduled
+                ? `Gebuchter Termin: ${appointmentWindow}.`
+                : "Die Offerte wurde akzeptiert. Als nächster Schritt muss der Termin geplant werden."}
           </p>
         </section>
       ) : null}

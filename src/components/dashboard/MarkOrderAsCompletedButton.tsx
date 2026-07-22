@@ -16,7 +16,7 @@ export default function MarkOrderAsCompletedButton({
 
   async function handleMarkAsCompleted() {
     const confirmed = window.confirm(
-      "Möchten Sie diesen Auftrag wirklich als abgeschlossen markieren?"
+      "Auftrag abschliessen? Die Rechnung wird automatisch erstellt und per E-Mail versendet.",
     );
 
     if (!confirmed) {
@@ -34,10 +34,18 @@ export default function MarkOrderAsCompletedButton({
         }
       );
 
-      const result = await response.json();
+      const result = (await response.json()) as {
+        status?: string;
+        message?: string;
+      };
 
       if (!response.ok || result.status !== "OK") {
-        setError("Der Auftrag konnte nicht als abgeschlossen markiert werden.");
+        setError(
+          result.message ??
+            "Der Auftrag konnte nicht vollständig abgeschlossen werden.",
+        );
+
+        router.refresh();
         return;
       }
 
@@ -57,7 +65,7 @@ export default function MarkOrderAsCompletedButton({
         disabled={isLoading}
         className="rounded-xl border border-orange-600 bg-orange-950/50 px-4 py-3 text-sm font-semibold text-orange-100 transition hover:border-orange-300 hover:bg-orange-900/70 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Wird markiert..." : "Als abgeschlossen markieren"}
+        {isLoading ? "Wird abgeschlossen..." : "Auftrag abschliessen"}
       </button>
 
       {error && <p className="text-xs text-red-400">{error}</p>}
