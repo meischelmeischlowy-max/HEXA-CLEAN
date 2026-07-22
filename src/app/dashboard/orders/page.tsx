@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import DashboardPanel from "../../../components/dashboard/DashboardPanel";
 import DashboardTable, {
   type DashboardTableColumn,
@@ -387,9 +388,13 @@ export default function DashboardOrdersPage() {
 
         return (
           <div>
-            <p className="font-black tracking-tight text-white">
+            <Link
+              href={`/dashboard/orders/${order.id}`}
+              className="font-black tracking-tight text-white transition hover:text-cyan-300 hover:underline"
+              aria-label={`Auftrag ${getOrderTitle(order)} öffnen`}
+            >
               {getOrderTitle(order)}
-            </p>
+            </Link>
 
             <div className="mt-2 flex flex-wrap gap-2">
               {quickOffer ? (
@@ -648,7 +653,7 @@ export default function DashboardOrdersPage() {
           />
 
           <MetricCard
-            title="Do kontroli"
+            title="Zu prüfen"
             value={String(stats.publicLeadReview)}
             description="Public-Leads, die noch geprüft werden müssen."
             trend="Vor Versand prüfen"

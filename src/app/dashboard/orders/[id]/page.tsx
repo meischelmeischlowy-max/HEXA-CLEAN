@@ -141,15 +141,15 @@ function statusLabel(status: unknown) {
   const value = String(status ?? "");
 
   const labels: Record<string, string> = {
-    NEW: "Nowe",
-    OPEN: "Otwarte",
-    PENDING: "Oczekuje",
-    IN_PROGRESS: "W trakcie",
-    WAITING_FOR_CUSTOMER: "Czeka na klienta",
-    CONFIRMED: "Potwierdzone",
-    SCHEDULED: "Zaplanowane",
+    NEW: "Neu",
+    OPEN: "Offen",
+    PENDING: "Ausstehend",
+    IN_PROGRESS: "In Bearbeitung",
+    WAITING_FOR_CUSTOMER: "Wartet auf Kunden",
+    CONFIRMED: "Bestätigt",
+    SCHEDULED: "Geplant",
     COMPLETED: "Abgeschlossen",
-    CANCELLED: "Anulowane",
+    CANCELLED: "Storniert",
     PAID: "Bezahlt",
     PARTIALLY_PAID: "Teilweise bezahlt",
     UNPAID: "Unbezahlt",
@@ -462,28 +462,28 @@ function ReviewChecklist({
   const items =
     leadType === "quick_offer"
       ? [
-          "Sprawdź kontakt klienta: telefon albo e-mail.",
-          "Sprawdź zakres: usługa, m², dodatki i termin.",
-          "Sprawdź orientacyjną cenę z formularza.",
-          "Uzupełnij ryzyko, dojazd, materiały i ewentualne zdjęcia.",
-          "Otwórz powiązaną wycenę i ustaw właściwy status przed wysłaniem oferty.",
+          "Kundenkontakt prüfen: Telefon oder E-Mail muss erreichbar sein.",
+          "Leistungsumfang prüfen: Service, Fläche, Zusatzleistungen und Termin.",
+          "Richtpreis aus dem Formular fachlich prüfen.",
+          "Risiko, Anfahrt, Material und vorhandene Fotos prüfen.",
+          "Verknüpfte Kalkulation öffnen und vor dem Versand fachlich freigeben.",
         ]
       : leadType === "chatbot"
         ? [
-            "Sprawdź rozmowę z klientem i upewnij się, że to realna Anfrage.",
-            "Sprawdź kontakt: telefon albo e-mail.",
-            "Zweryfikuj dane z chatu: usługa, metraż, okna, piętro, termin i opis.",
-            "Cena z chatu jest tylko orientacyjna — sprawdź ryzyko, dojazd, materiał i czas.",
-            "Otwórz powiązaną wycenę i ustaw właściwy status przed wysłaniem oferty.",
+            "Kundengespräch prüfen und sicherstellen, dass es sich um eine reale Anfrage handelt.",
+            "Kontakt prüfen: Telefon oder E-Mail muss erreichbar sein.",
+            "Chatdaten prüfen: Leistung, Fläche, Fenster, Etage, Termin und Beschreibung.",
+            "Der Chatpreis ist nur ein Richtwert — Risiko, Anfahrt, Material und Zeit prüfen.",
+            "Verknüpfte Kalkulation öffnen und vor dem Versand fachlich freigeben.",
           ]
         : [
-            "Sprawdź dane zlecenia.",
-            "Sprawdź powiązane wyceny i faktury.",
-            "Uzupełnij brakujące dane klienta.",
+            "Auftragsdaten prüfen.",
+            "Verknüpfte Kalkulationen und Rechnungen prüfen.",
+            "Fehlende Kundendaten ergänzen.",
           ];
 
   return (
-    <Section title="Kontrola przed dalszą obsługą">
+    <Section title="Prüfung vor der weiteren Bearbeitung">
       <div className="grid gap-3">
         {items.map((item, index) => (
           <div
@@ -888,7 +888,7 @@ export default async function OrderDetailsPage({
                 Anfrage aus dem öffentlichen Formular
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-fuchsia-50/80">
-                Dieses Zlecenie wurde automatisch aus QuickOffer erstellt. Es ist
+                Dieser Auftrag wurde automatisch aus QuickOffer erstellt. Es ist
                 noch keine verbindliche Offerte. Erst Daten prüfen, ggf. Kunde
                 kontaktieren, dann die Kalkulation freigeben.
               </p>
@@ -899,7 +899,7 @@ export default async function OrderDetailsPage({
                 href={`/dashboard/estimates/${latestEstimate.id}`}
                 variant="quick"
               >
-                Powiązaną wycenę otworzyć
+                Verknüpfte Kalkulation öffnen
               </ActionButton>
             ) : null}
           </div>
@@ -943,7 +943,7 @@ export default async function OrderDetailsPage({
                 Anfrage aus der AI Chatbox
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-violet-50/80">
-                Dieses Zlecenie wurde automatisch aus dem öffentlichen Chatbot
+                Dieser Auftrag wurde automatisch aus dem öffentlichen Chatbot
                 erstellt. Chatverlauf und Kundendaten sind im CRM gespeichert.
                 Vor einer offiziellen Offerte muss alles manuell geprüft werden.
               </p>
@@ -954,7 +954,7 @@ export default async function OrderDetailsPage({
                 href={`/dashboard/estimates/${latestEstimate.id}`}
                 variant="chat"
               >
-                Chatbot-Wycena öffnen
+                Chatbot-Kalkulation öffnen
               </ActionButton>
             ) : null}
           </div>
@@ -1015,7 +1015,7 @@ export default async function OrderDetailsPage({
         <Section title="Auftragsdaten">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <InfoCard label="ID" value={order.id} />
-            <InfoCard label="Numer" value={order.orderNumber ?? order.number} />
+            <InfoCard label="Nummer" value={order.orderNumber ?? order.number} />
             <InfoCard label="Status" value={statusLabel(order.status)} />
             <InfoCard label="Leistungstyp" value={order.serviceType ?? order.type} />
 
@@ -1031,7 +1031,7 @@ export default async function OrderDetailsPage({
             />
 
             <InfoCard label="Start" value={order.scheduledStart} />
-            <InfoCard label="Koniec" value={order.scheduledEnd} />
+            <InfoCard label="Ende" value={order.scheduledEnd} />
             <InfoCard label="Erstellt am" value={order.createdAt} />
             <InfoCard label="Aktualisiert am" value={order.updatedAt} />
 
@@ -1101,7 +1101,7 @@ export default async function OrderDetailsPage({
         <Section title="Sitzung / Gespräch">
           {session ? (
             <div className="grid gap-4 md:grid-cols-2">
-              <InfoCard label="ID sesji" value={session.id} />
+              <InfoCard label="Sitzungs-ID" value={session.id} />
               <InfoCard label="Status" value={session.status} />
               <InfoCard label="Kanal" value={session.channel} />
               <InfoCard label="Quelle" value={session.source} />
@@ -1117,7 +1117,7 @@ export default async function OrderDetailsPage({
       </section>
 
       <section className="mb-8 grid gap-6 xl:grid-cols-2">
-        <Section title="Wiadomość klienta / Formularz / Chat">
+        <Section title="Kundennachricht / Formular / Chat">
           {conversationMessages.length === 0 ? (
             <p className="text-sm text-neutral-500">
               Keine gespeicherten Nachrichten.
@@ -1206,7 +1206,7 @@ export default async function OrderDetailsPage({
           basePath="/dashboard/estimates"
           columns={[
             {
-              label: "Numer",
+              label: "Nummer",
               value: (item) => item.estimateNumber ?? item.number ?? item.id,
             },
             {
@@ -1236,7 +1236,7 @@ export default async function OrderDetailsPage({
           basePath="/dashboard/invoices"
           columns={[
             {
-              label: "Numer",
+              label: "Nummer",
               value: (item) => item.invoiceNumber ?? item.number ?? item.id,
             },
             {
@@ -1287,7 +1287,7 @@ export default async function OrderDetailsPage({
               money: true,
             },
             {
-              label: "Data",
+              label: "Datum",
               value: (item) => item.paidAt ?? item.createdAt,
             },
           ]}
@@ -1351,7 +1351,7 @@ export default async function OrderDetailsPage({
               value: (item) => item.mimeType ?? item.type,
             },
             {
-              label: "Rozmiar",
+              label: "Grösse",
               value: (item) => item.size ?? item.fileSize,
             },
             {
@@ -1362,7 +1362,7 @@ export default async function OrderDetailsPage({
         />
 
         <MiniTable
-          title="Audit logi"
+          title="Audit-Protokoll"
           items={auditLogs}
           basePath="/dashboard/audit-logs"
           columns={[
@@ -1379,7 +1379,7 @@ export default async function OrderDetailsPage({
               value: (item) => item.description ?? item.message,
             },
             {
-              label: "Data",
+              label: "Datum",
               value: (item) => item.createdAt,
             },
           ]}

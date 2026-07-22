@@ -62,7 +62,7 @@ function formatAction(action?: string | null) {
     UPDATED: "Zaktualizowano",
     DELETE: "Gelöscht",
     DELETED: "Gelöscht",
-    STATUS_CHANGE: "Zmiana statusu",
+    STATUS_CHANGE: "Statusänderung",
     MARK_PAID: "Als bezahlt markiert",
     MARK_SENT: "Als gesendet markiert",
     MARK_ACCEPTED: "Oznaczono jako zaakceptowane",
