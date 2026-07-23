@@ -128,11 +128,11 @@ describe(
       "adds owner slot management UI",
       () => {
         expect(pageSource).toContain(
-          "Freie Kundentermine",
+          "HEXA OS CRM / Termine",
         );
 
         expect(pageSource).toContain(
-          "Termin veröffentlichen",
+          "Sondertermin erstellen",
         );
 
         expect(pageSource).toContain(
@@ -145,6 +145,10 @@ describe(
 
         expect(pageSource).toContain(
           "versendet keine E-Mail",
+        );
+
+        expect(pageSource).toContain(
+          'data-testid="availability-operational-list"',
         );
       },
     );
