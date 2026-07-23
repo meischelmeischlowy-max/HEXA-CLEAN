@@ -93,11 +93,15 @@ describe(
       "shows the next step and one action per order",
       () => {
         expect(source).toContain(
-          'title="Nächster Schritt"',
+          'data-testid="orders-operational-list"',
         );
 
         expect(source).toContain(
-          'title="Aktive Aufträge"',
+          "Nächster Schritt",
+        );
+
+        expect(source).toContain(
+          "Aktive Aufträge",
         );
 
         expect(source).toContain(
@@ -122,7 +126,7 @@ describe(
       "keeps the orders page operationally focused",
       () => {
         expect(source).toContain(
-          "Nur aktive Arbeit: der nächste erforderliche Schritt und pro Auftrag genau eine Aktion.",
+          "Nur aktive Arbeit. Pro Auftrag zeigt das System genau den nächsten Schritt.",
         );
 
         expect(source).toContain(

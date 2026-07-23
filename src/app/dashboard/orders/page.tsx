@@ -7,8 +7,6 @@ import {
   useState,
 } from "react";
 
-import DashboardPanel from "../../../components/dashboard/DashboardPanel";
-import PageHeader from "../../../components/dashboard/PageHeader";
 import PremiumButton from "../../../components/dashboard/PremiumButton";
 import StatusBadge from "../../../components/dashboard/StatusBadge";
 
@@ -365,81 +363,76 @@ function OrderQueueCard({
 
   return (
     <article
-      className={
+      className={`grid gap-2 border-l-2 px-3 py-2.5 transition hover:bg-white/[0.04] xl:grid-cols-[56px_minmax(210px,1.1fr)_minmax(130px,0.65fr)_170px_130px_auto] xl:items-center ${
         highlighted
-          ? "rounded-3xl border border-cyan-300/35 bg-cyan-300/[0.08] p-5"
-          : "rounded-2xl border border-white/10 bg-white/[0.025] p-4"
-      }
+          ? "border-cyan-300/70 bg-cyan-300/[0.07]"
+          : "border-white/15 bg-white/[0.015]"
+      }`}
     >
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr_0.8fr_auto] lg:items-center">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-            Kunde
-          </p>
+      <div className="flex items-center gap-1.5">
+        <span className="inline-flex min-w-10 justify-center rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-[11px] font-black text-cyan-100">
+          {highlighted ? "1" : "•"}
+        </span>
+      </div>
 
-          <h2 className="mt-1 text-lg font-black text-white">
-            {getCustomerName(order)}
-          </h2>
+      <div className="min-w-0">
+        <h2 className="truncate text-sm font-black text-white">
+          {getCustomerName(order)}
+        </h2>
 
-          <p className="mt-1 text-sm text-zinc-500">
-            {getOrderTitle(order)}
-          </p>
+        <p className="mt-0.5 truncate text-xs text-white/50">
+          {getOrderTitle(order)}
+        </p>
+      </div>
+
+      <div className="min-w-0">
+        <p className="truncate text-xs font-bold text-white/75">
+          {getOrderService(order)}
+        </p>
+
+        <div className="mt-1">
+          <StatusBadge
+            status={order.status}
+            label={getWorkflowLabel(order)}
+          />
         </div>
+      </div>
 
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Leistung
-          </p>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/35">
+          Termin
+        </p>
 
-          <p className="mt-1 font-bold text-zinc-100">
-            {getOrderService(order)}
-          </p>
-        </div>
+        <p className="mt-0.5 truncate text-xs font-semibold text-white/65">
+          {formatAppointment(order.scheduledAt)}
+        </p>
+      </div>
 
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Termin
-          </p>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/35">
+          Betrag
+        </p>
 
-          <p className="mt-1 font-bold text-zinc-100">
-            {formatAppointment(order.scheduledAt)}
-          </p>
-        </div>
+        <p className="mt-0.5 truncate text-xs font-black text-emerald-100">
+          {formatAmount(
+            getOrderAmount(order),
+            order.currency,
+          )}
+        </p>
+      </div>
 
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">
-            Betrag
-          </p>
-
-          <p className="mt-1 font-black text-emerald-100">
-            {formatAmount(
-              getOrderAmount(order),
-              order.currency,
-            )}
-          </p>
-
-          <div className="mt-2">
-            <StatusBadge
-              status={order.status}
-              label={getWorkflowLabel(order)}
-            />
-          </div>
-        </div>
-
-        <div className="lg:text-right">
-          <PremiumButton
-            href={action.href}
-            variant="primary"
-            size="sm"
-          >
-            {action.label}
-          </PremiumButton>
-        </div>
+      <div className="xl:text-right">
+        <PremiumButton
+          href={action.href}
+          variant="primary"
+          size="sm"
+        >
+          {action.label}
+        </PremiumButton>
       </div>
     </article>
   );
 }
-
 export default function DashboardOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -513,75 +506,96 @@ export default function DashboardOrdersPage() {
   const remainingOrders = activeOrders.slice(1);
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-6xl flex-col gap-6">
-        <PageHeader
-          eyebrow="HEXA OS CRM / Aufträge"
-          title="Aufträge"
-          description="Nur aktive Arbeit: der nächste erforderliche Schritt und pro Auftrag genau eine Aktion."
-        />
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Aufträge
+              </p>
 
-        {loading ? (
-          <DashboardPanel
-            title="Aufträge werden geladen"
-            description="Die aktuelle Arbeitsliste wird vorbereitet."
-          >
-            <div className="h-28 animate-pulse rounded-3xl border border-white/10 bg-white/[0.04]" />
-          </DashboardPanel>
-        ) : null}
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Aufträge
+                </h1>
 
-        {errorMessage ? (
-          <DashboardPanel
-            title="Aufträge nicht verfügbar"
-            description="Die Arbeitsliste konnte nicht geladen werden."
-          >
-            <p className="rounded-2xl border border-red-400/25 bg-red-400/10 p-4 font-bold text-red-100">
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Nur aktive Arbeit. Pro Auftrag zeigt das System genau den nächsten Schritt.
+                </p>
+              </div>
+            </div>
+
+            <span className="inline-flex w-fit shrink-0 rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {activeOrders.length} aktiv
+            </span>
+          </div>
+        </header>
+
+        <section
+          data-testid="orders-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Aktive Aufträge
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                Der wichtigste Vorgang steht oben. Eine Zeile entspricht einem Auftrag.
+              </p>
+            </div>
+
+            {nextOrder ? (
+              <span className="shrink-0 rounded-lg border border-cyan-300/25 bg-cyan-300/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100">
+                Nächster Schritt
+              </span>
+            ) : null}
+          </div>
+
+          {loading ? (
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+            </div>
+          ) : null}
+
+          {errorMessage ? (
+            <div className="m-3 rounded-xl border border-red-400/25 bg-red-400/10 p-3 text-sm font-bold text-red-100">
               {errorMessage}
-            </p>
-          </DashboardPanel>
-        ) : null}
+            </div>
+          ) : null}
 
-        {!loading && !errorMessage && nextOrder ? (
-          <DashboardPanel
-            title="Nächster Schritt"
-            description="Diese Aktion benötigt als Nächstes Ihre Entscheidung."
-          >
-            <OrderQueueCard
-              order={nextOrder}
-              highlighted
-            />
-          </DashboardPanel>
-        ) : null}
+          {!loading && !errorMessage && nextOrder ? (
+            <div className="divide-y divide-white/10">
+              <OrderQueueCard
+                order={nextOrder}
+                highlighted
+              />
 
-        {!loading && !errorMessage ? (
-          <DashboardPanel
-            title="Aktive Aufträge"
-            description={
-              remainingOrders.length > 0
-                ? "Weitere laufende Arbeiten in der richtigen Reihenfolge."
-                : nextOrder
-                  ? "Keine weiteren aktiven Aufträge."
-                  : "Aktuell ist keine Arbeit offen."
-            }
-          >
-            {remainingOrders.length > 0 ? (
-              <div className="grid gap-3">
-                {remainingOrders.map((order) => (
-                  <OrderQueueCard
-                    key={order.id}
-                    order={order}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-5 text-sm text-zinc-400">
-                {nextOrder
-                  ? "Nach dem nächsten Schritt ist die Arbeitsliste wieder leer."
-                  : "Neue Kundenanfragen erscheinen automatisch hier, sobald eine Aktion erforderlich ist."}
-              </div>
-            )}
-          </DashboardPanel>
-        ) : null}
+              {remainingOrders.map((order) => (
+                <OrderQueueCard
+                  key={order.id}
+                  order={order}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {!loading && !errorMessage && !nextOrder ? (
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine aktiven Aufträge
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Neue Kundenanfragen erscheinen automatisch, sobald eine Aktion erforderlich ist.
+              </p>
+            </div>
+          ) : null}
+        </section>
       </section>
     </main>
   );
