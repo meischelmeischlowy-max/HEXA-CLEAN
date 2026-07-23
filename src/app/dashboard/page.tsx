@@ -326,11 +326,11 @@ function PrimaryAlertCard({
 }) {
   return (
     <section
-      className={`rounded-3xl border p-5 shadow-xl shadow-black/20 sm:p-6 ${toneCardClass(
+      className={`rounded-3xl border p-4 shadow-xl shadow-black/20 sm:p-5 ${toneCardClass(
         alert.tone,
       )}`}
     >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -351,15 +351,15 @@ function PrimaryAlertCard({
             </span>
           </div>
 
-          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-white/60">
+          <p className="mt-3.5 text-xs font-black uppercase tracking-[0.22em] text-white/60">
             {alert.type}
           </p>
 
-          <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+          <h2 className="mt-1.5 text-2xl font-black tracking-tight text-white sm:text-3xl">
             {alert.title}
           </h2>
 
-          <p className="mt-3 max-w-3xl break-words text-sm leading-6 text-white/75">
+          <p className="mt-2 max-w-3xl break-words text-sm leading-5 text-white/75">
             {alert.description}
           </p>
 
@@ -388,7 +388,7 @@ function PrimaryAlertCard({
         <Link
           data-testid="dashboard-primary-action"
           href={alert.href}
-          className={`w-full shrink-0 rounded-2xl border px-6 py-3.5 text-center text-sm font-black uppercase tracking-[0.13em] transition sm:w-auto ${toneButtonClass(
+          className={`w-full shrink-0 rounded-2xl border px-5 py-3 text-center text-sm font-black uppercase tracking-[0.12em] transition sm:w-auto ${toneButtonClass(
             alert.tone,
           )}`}
         >
@@ -886,27 +886,27 @@ export default async function DashboardCockpitPage() {
   const remainingAlerts =
     alerts.slice(1, 9);
   return (
-    <main className="min-h-screen px-4 py-6 text-white sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
-        <header className="rounded-3xl border border-white/10 bg-white/[0.03] px-5 py-4 shadow-xl shadow-black/20 sm:px-6 sm:py-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className="min-h-screen px-4 py-4 text-white sm:px-6 lg:px-7">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
+        <header className="rounded-3xl border border-white/10 bg-white/[0.03] px-5 py-3.5 shadow-xl shadow-black/20 sm:px-6 sm:py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">
                 HEXA OS / Arbeitscockpit
               </p>
 
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-white">
+              <h1 className="mt-1.5 text-2xl font-black tracking-tight text-white sm:text-3xl">
                 Cockpit
               </h1>
 
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
+              <p className="mt-1.5 max-w-3xl text-sm leading-5 text-zinc-400">
                 Die wichtigste Aufgabe steht direkt darunter. Weitere Vorgänge
                 folgen automatisch nach Priorität.
               </p>
             </div>
 
             <div
-              className={`inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.14em] ${
+              className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] ${
                 urgentActionCount > 0
                   ? "border-red-300/30 bg-red-300/10 text-red-100"
                   : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
@@ -936,7 +936,7 @@ export default async function DashboardCockpitPage() {
           <EmptyInbox />
         )}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 [&>*]:!p-4">
           <StatCard
             label="P1 kritisch"
             value={p1Count}
@@ -966,7 +966,7 @@ export default async function DashboardCockpitPage() {
           />
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 [&>*]:!p-4">
           <StatCard
             label="Fotos fehlen"
             value={photoCount}

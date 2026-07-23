@@ -74,7 +74,7 @@ describe(
         );
 
         expect(page).toContain(
-          "rounded-3xl border p-5 shadow-xl",
+          "rounded-3xl border p-4 shadow-xl",
         );
 
         expect(page).toContain(
@@ -91,7 +91,7 @@ describe(
         );
 
         expect(layout).toContain(
-          "w-[276px]",
+          "w-[260px]",
         );
 
         expect(layout).not.toContain(

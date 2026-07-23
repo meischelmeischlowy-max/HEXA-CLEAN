@@ -85,31 +85,36 @@ function SidebarSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.025] p-3">
-      <p className="px-3 pb-3 pt-2 text-xs font-black uppercase tracking-[0.22em] text-neutral-500">
+    <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-2.5">
+      <p className="px-2.5 pb-2 pt-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-neutral-500">
         {title}
       </p>
 
-      <div className="grid gap-2">{children}</div>
+      <div className="grid gap-1.5">{children}</div>
     </section>
   );
 }
 
 function DesktopSidebar() {
   return (
-    <aside className="hidden w-[276px] shrink-0 border-r border-white/10 bg-neutral-950 p-4 lg:block">
-      <div className="sticky top-5 grid gap-4">
+    <aside className="hidden w-[260px] shrink-0 border-r border-white/10 bg-neutral-950 p-3 lg:block">
+      <div className="sticky top-3 grid gap-3">
         <Link
           href="/dashboard"
-          className="block rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 transition hover:border-cyan-300/40 hover:bg-cyan-400/15"
+          className="flex items-center gap-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] px-3.5 py-3 transition hover:border-cyan-300/40 hover:bg-cyan-400/12"
         >
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-cyan-300">
-            HEXA OS
-          </p>
-          <h1 className="mt-2 text-xl font-black text-white">Cockpit</h1>
-          <p className="mt-2 text-xs leading-5 text-neutral-400">
-            Zentrale Arbeitsansicht statt technischer Datenflut.
-          </p>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-400/10 text-sm font-black text-cyan-100">
+            H
+          </span>
+
+          <span className="min-w-0">
+            <span className="block text-xs font-black uppercase tracking-[0.26em] text-cyan-300">
+              HEXA OS
+            </span>
+            <span className="mt-0.5 block text-xs text-neutral-500">
+              Automatisierter Betrieb
+            </span>
+          </span>
         </Link>
 
         <SidebarSection title="Taegliche Arbeit">
