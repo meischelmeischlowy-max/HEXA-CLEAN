@@ -1,16 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import DashboardPanel from "../../../components/dashboard/DashboardPanel";
-import DashboardTable, {
-  type DashboardTableColumn,
-} from "../../../components/dashboard/DashboardTable";
-import EmptyState from "../../../components/dashboard/EmptyState";
-import MetricCard from "../../../components/dashboard/MetricCard";
-import PageHeader from "../../../components/dashboard/PageHeader";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import PremiumButton from "../../../components/dashboard/PremiumButton";
-import StatusBadge from "../../../components/dashboard/StatusBadge";
 
 type Customer = {
   id: string;
@@ -58,89 +55,203 @@ type DashboardPaymentsResponse = {
 };
 
 function normalizeCurrency(value?: string | null) {
-  const raw = String(value || "CHF").trim().toUpperCase();
+  const currency = String(value ?? "CHF")
+    .trim()
+    .toUpperCase();
 
-  if (/^[A-Z]{3}$/.test(raw)) return raw;
-  if (raw.startsWith("CHF")) return "CHF";
-  if (raw.startsWith("EUR")) return "EUR";
-  if (raw.startsWith("USD")) return "USD";
-  if (raw.startsWith("PLN")) return "PLN";
+  return /^[A-Z]{3}$/.test(currency)
+    ? currency
+    : "CHF";
+}
 
-  return "CHF";
+function normalizeStatus(status?: string | null) {
+  return String(status ?? "UNKNOWN")
+    .trim()
+    .toUpperCase();
+}
+
+function toNumber(value?: string | number | null) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return 0;
+  }
+
+  const number =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(",", "."));
+
+  return Number.isFinite(number)
+    ? number
+    : 0;
+}
+
+function formatMoney(
+  value?: string | number | null,
+  currency = "CHF",
+) {
+  return new Intl.NumberFormat("de-CH", {
+    style: "currency",
+    currency: normalizeCurrency(currency),
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(toNumber(value));
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "—";
+  if (!value) {
+    return "Nicht festgelegt";
+  }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return "Nicht festgelegt";
   }
 
-  return date.toLocaleString("de-CH", {
+  return new Intl.DateTimeFormat("de-CH", {
     dateStyle: "short",
     timeStyle: "short",
-  });
-}
-
-function toNumber(value?: string | number | null) {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-
-  if (typeof value === "number") {
-    return Number.isNaN(value) ? 0 : value;
-  }
-
-  const parsed = Number(String(value).replace(",", "."));
-
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function formatMoney(value?: string | number | null, currency = "CHF") {
-  const numberValue = toNumber(value);
-
-  return new Intl.NumberFormat("de-CH", {
-    style: "currency",
-    currency: normalizeCurrency(currency),
-    maximumFractionDigits: 2,
-  }).format(numberValue);
-}
-
-function normalizeStatus(status?: string | null) {
-  return status?.toUpperCase() ?? "UNKNOWN";
+    timeZone: "Europe/Zurich",
+  }).format(date);
 }
 
 function formatPaymentMethod(method?: string | null) {
-  if (!method) return "—";
+  switch (String(method ?? "").toUpperCase()) {
+    case "BANK_TRANSFER":
+      return "Banküberweisung";
 
-  const labels: Record<string, string> = {
-    BANK_TRANSFER: "Banküberweisung",
-    CASH: "Barzahlung",
-    CARD: "Karte",
-    TWINT: "TWINT",
-    OTHER: "Andere Methode",
-  };
+    case "CASH":
+      return "Barzahlung";
 
-  return labels[method.toUpperCase()] ?? method;
+    case "CARD":
+      return "Karte";
+
+    case "TWINT":
+      return "TWINT";
+
+    default:
+      return "Andere Methode";
+  }
 }
 
 function customerName(customer?: Customer | null) {
-  if (!customer) return "Kein Kunde";
-  if (customer.companyName) return customer.companyName;
+  if (!customer) {
+    return "Kein Kunde";
+  }
 
-  const fullName = [customer.firstName, customer.lastName]
+  if (customer.companyName) {
+    return customer.companyName;
+  }
+
+  const fullName = [
+    customer.firstName,
+    customer.lastName,
+  ]
     .filter(Boolean)
-    .join(" ");
+    .join(" ")
+    .trim();
 
-  return fullName || "Kein Kunde";
+  return (
+    fullName ||
+    customer.email ||
+    "Kein Kunde"
+  );
 }
 
 function invoiceLabel(invoice?: InvoiceOption | null) {
-  if (!invoice) return "Keine Rechnung";
+  if (!invoice) {
+    return "Keine Rechnung";
+  }
 
-  return `${invoice.invoiceNumber || invoice.id} · ${customerName(invoice.customer)}`;
+  return `${invoice.invoiceNumber || invoice.id} · ${customerName(
+    invoice.customer,
+  )}`;
+}
+
+function statusLabel(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case "PAID":
+      return "Bezahlt";
+
+    case "PENDING":
+      return "Ausstehend";
+
+    case "FAILED":
+      return "Fehlgeschlagen";
+
+    case "CANCELLED":
+    case "CANCELED":
+      return "Storniert";
+
+    case "REFUNDED":
+      return "Erstattet";
+
+    default:
+      return "In Bearbeitung";
+  }
+}
+
+function statusClass(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case "PAID":
+      return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
+
+    case "PENDING":
+      return "border-amber-300/25 bg-amber-300/10 text-amber-100";
+
+    case "FAILED":
+    case "CANCELLED":
+    case "CANCELED":
+      return "border-red-300/25 bg-red-300/10 text-red-100";
+
+    case "REFUNDED":
+      return "border-violet-300/25 bg-violet-300/10 text-violet-100";
+
+    default:
+      return "border-white/10 bg-white/[0.04] text-zinc-300";
+  }
+}
+
+function paymentPriority(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case "FAILED":
+    case "CANCELLED":
+    case "CANCELED":
+      return 0;
+
+    case "PENDING":
+      return 1;
+
+    case "REFUNDED":
+      return 2;
+
+    case "PAID":
+      return 3;
+
+    default:
+      return 4;
+  }
+}
+
+function paymentTimestamp(payment: Payment) {
+  const value =
+    payment.paidAt ??
+    payment.createdAt ??
+    payment.updatedAt;
+
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
 }
 
 export default function DashboardPaymentsPage() {
@@ -148,6 +259,7 @@ export default function DashboardPaymentsPage() {
   const [invoices, setInvoices] = useState<InvoiceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [invoiceId, setInvoiceId] = useState("");
   const [amount, setAmount] = useState("");
@@ -156,29 +268,38 @@ export default function DashboardPaymentsPage() {
   const [notes, setNotes] = useState("");
 
   const [message, setMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/dashboard/payments", {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/dashboard/payments",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
       if (!response.ok) {
-        throw new Error("Die Zahlungs-API hat einen Fehler zurückgegeben.");
+        throw new Error(
+          "Die Zahlungen konnten nicht geladen werden.",
+        );
       }
 
-      const json: DashboardPaymentsResponse = await response.json();
+      const json =
+        (await response.json()) as DashboardPaymentsResponse;
 
       setPayments(json.data.payments ?? []);
       setInvoices(json.data.invoices ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unbekannter Zahlungsfehler",
+        error instanceof Error
+          ? error.message
+          : "Die Zahlungen konnten nicht geladen werden.",
       );
     } finally {
       setLoading(false);
@@ -190,62 +311,85 @@ export default function DashboardPaymentsPage() {
       void loadPayments();
     }, 0);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadPayments]);
 
   const selectedInvoice = useMemo(() => {
-    return invoices.find((invoice) => invoice.id === invoiceId) ?? null;
+    return (
+      invoices.find(
+        (invoice) => invoice.id === invoiceId,
+      ) ?? null
+    );
   }, [invoiceId, invoices]);
 
   const selectedRemaining = useMemo(() => {
-    if (!selectedInvoice) return 0;
+    if (!selectedInvoice) {
+      return 0;
+    }
 
     return Math.max(
-      toNumber(selectedInvoice.total) - toNumber(selectedInvoice.paidAmount),
+      toNumber(selectedInvoice.total) -
+        toNumber(selectedInvoice.paidAmount),
       0,
     );
   }, [selectedInvoice]);
 
+  const sortedPayments = useMemo(() => {
+    return [...payments].sort((left, right) => {
+      const priorityDifference =
+        paymentPriority(left.status) -
+        paymentPriority(right.status);
+
+      if (priorityDifference !== 0) {
+        return priorityDifference;
+      }
+
+      return (
+        paymentTimestamp(right) -
+        paymentTimestamp(left)
+      );
+    });
+  }, [payments]);
+
   const stats = useMemo(() => {
-    const pending = payments.filter(
-      (payment) => normalizeStatus(payment.status) === "PENDING",
-    ).length;
+    return payments.reduce(
+      (result, payment) => {
+        const value = toNumber(payment.amount);
+        const status = normalizeStatus(payment.status);
 
-    const paid = payments.filter(
-      (payment) => normalizeStatus(payment.status) === "PAID",
-    ).length;
+        result.totalValue += value;
 
-    const failed = payments.filter((payment) =>
-      ["FAILED", "CANCELLED", "CANCELED"].includes(
-        normalizeStatus(payment.status),
-      ),
-    ).length;
+        if (status === "PAID") {
+          result.paid += 1;
+          result.paidValue += value;
+        }
 
-    const totalValue = payments.reduce((sum, payment) => {
-      return sum + toNumber(payment.amount);
-    }, 0);
+        if (status === "PENDING") {
+          result.pending += 1;
+          result.pendingValue += value;
+        }
 
-    const paidValue = payments.reduce((sum, payment) => {
-      return normalizeStatus(payment.status) === "PAID"
-        ? sum + toNumber(payment.amount)
-        : sum;
-    }, 0);
+        if (
+          ["FAILED", "CANCELLED", "CANCELED"].includes(
+            status,
+          )
+        ) {
+          result.failed += 1;
+        }
 
-    const pendingValue = payments.reduce((sum, payment) => {
-      return normalizeStatus(payment.status) === "PENDING"
-        ? sum + toNumber(payment.amount)
-        : sum;
-    }, 0);
-
-    return {
-      total: payments.length,
-      pending,
-      paid,
-      failed,
-      totalValue,
-      paidValue,
-      pendingValue,
-    };
+        return result;
+      },
+      {
+        paid: 0,
+        pending: 0,
+        failed: 0,
+        totalValue: 0,
+        paidValue: 0,
+        pendingValue: 0,
+      },
+    );
   }, [payments]);
 
   async function createPayment() {
@@ -254,31 +398,40 @@ export default function DashboardPaymentsPage() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/dashboard/payments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "/api/dashboard/payments",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            invoiceId,
+            amount,
+            method,
+            status: "PAID",
+            externalRef,
+            notes,
+          }),
         },
-        body: JSON.stringify({
-          invoiceId,
-          amount,
-          method,
-          status: "PAID",
-          externalRef,
-          notes,
-        }),
-      });
+      );
 
       const json = await response.json();
 
       if (!response.ok) {
-        throw new Error(json?.data?.message || `HTTP ${response.status}`);
+        throw new Error(
+          json?.data?.message ??
+            `HTTP ${response.status}`,
+        );
       }
 
       setAmount("");
       setExternalRef("");
       setNotes("");
-      setMessage("Die Zahlung wurde gespeichert und die Rechnung aktualisiert.");
+      setMessage(
+        "Die Zahlung wurde gespeichert und die Rechnung aktualisiert.",
+      );
+      setFormOpen(false);
 
       await loadPayments();
     } catch (error) {
@@ -293,192 +446,111 @@ export default function DashboardPaymentsPage() {
   }
 
   function fillRemainingAmount() {
-    if (!selectedInvoice) return;
+    if (!selectedInvoice) {
+      return;
+    }
 
     setAmount(selectedRemaining.toFixed(2));
   }
 
-  const columns: DashboardTableColumn<Payment>[] = [
-    {
-      key: "payment",
-      header: "Zahlung",
-      render: (payment) => (
-        <div>
-          <p className="max-w-xs truncate font-black tracking-tight text-white">
-            {payment.externalRef || payment.id}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">ID: {payment.id}</p>
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (payment) => <StatusBadge status={payment.status} />,
-    },
-    {
-      key: "amount",
-      header: "Betrag",
-      render: (payment) => (
-        <p className="font-black text-emerald-100">
-          {formatMoney(payment.amount, payment.currency ?? "CHF")}
-        </p>
-      ),
-    },
-    {
-      key: "method",
-      header: "Methode",
-      render: (payment) => (
-        <div>
-          <p className="font-semibold text-zinc-200">
-            {formatPaymentMethod(payment.method)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Ref: {payment.externalRef ?? "—"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "invoice",
-      header: "Rechnung",
-      render: (payment) => (
-        <div>
-          <p className="max-w-xs truncate font-semibold text-zinc-200">
-            {payment.invoice?.invoiceNumber ?? payment.invoiceId ?? "—"}
-          </p>
-          <p className="mt-1 max-w-xs truncate text-xs text-zinc-500">
-            {customerName(payment.invoice?.customer)}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "paidAt",
-      header: "Bezahlt am",
-      render: (payment) => (
-        <p className="text-sm font-medium text-zinc-400">
-          {formatDate(payment.paidAt)}
-        </p>
-      ),
-    },
-    {
-      key: "created",
-      header: "Erstellt am",
-      render: (payment) => (
-        <p className="text-sm font-medium text-zinc-400">
-          {formatDate(payment.createdAt)}
-        </p>
-      ),
-    },
-    {
-      key: "action",
-      header: "Aktion",
-      className: "text-right",
-      render: (payment) => (
-        <div className="flex justify-end gap-2">
-          <PremiumButton
-            href={`/dashboard/payments/${payment.id}`}
-            variant="primary"
-            size="sm"
-          >
-            Details
-          </PremiumButton>
-
-          {payment.invoiceId ? (
-            <PremiumButton
-              href={`/dashboard/invoices/${payment.invoiceId}`}
-              variant="secondary"
-              size="sm"
-            >
-              Rechnung
-            </PremiumButton>
-          ) : null}
-        </div>
-      ),
-    },
-  ];
-
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-7xl flex-col gap-6">
-        <PageHeader
-          eyebrow="HEXA OS CRM / Payments"
-          title="Zahlungen"
-          description="Erfassen Sie reale Zahlungseingänge zu Rechnungen. Jede bezahlte Zahlung aktualisiert den bezahlten Betrag und den Rechnungsstatus."
-        >
-          <PremiumButton
-            type="button"
-            variant="secondary"
-            onClick={loadPayments}
-            disabled={loading}
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Zahlungen
+              </p>
+
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Zahlungen
+                </h1>
+
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Zahlungseingänge erfassen und Rechnungen automatisch aktualisieren.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <PremiumButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={loadPayments}
+                disabled={loading}
+              >
+                Aktualisieren
+              </PremiumButton>
+
+              <PremiumButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setFormOpen((value) => !value)}
+              >
+                {formOpen
+                  ? "Formular schliessen"
+                  : "Zahlung erfassen"}
+              </PremiumButton>
+            </div>
+          </div>
+
+          <div
+            data-testid="payments-summary-strip"
+            className="mt-3 flex flex-wrap gap-1.5 border-t border-white/10 pt-3"
           >
-            Aktualisieren
-          </PremiumButton>
-          <PremiumButton href="/dashboard/invoices" variant="ghost">
-            Rechnungen
-          </PremiumButton>
-        </PageHeader>
+            <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {payments.length} gesamt
+            </span>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            title="Alle Zahlungen"
-            value={String(stats.total)}
-            description="Gesamtzahl der in der Datenbank gespeicherten Zahlungen."
-            trend={formatMoney(stats.totalValue, "CHF")}
-            tone="cyan"
-            icon={<span className="text-lg font-black">PAY</span>}
-          />
+            <span className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-cyan-100">
+              {formatMoney(stats.totalValue, "CHF")}
+            </span>
 
-          <MetricCard
-            title="Ausstehend"
-            value={String(stats.pending)}
-            description="Erfasste Zahlungen, die noch nicht bezahlt wurden."
-            trend={formatMoney(stats.pendingValue, "CHF")}
-            tone="amber"
-            icon={<span className="text-lg font-black">…</span>}
-          />
+            <span className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              {stats.paid} bezahlt · {formatMoney(stats.paidValue, "CHF")}
+            </span>
 
-          <MetricCard
-            title="Bezahlt"
-            value={String(stats.paid)}
-            description="Zahlungen, die als bezahlt markiert sind."
-            trend={formatMoney(stats.paidValue, "CHF")}
-            tone="emerald"
-            icon={<span className="text-lg font-black">✓</span>}
-          />
+            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
+              {stats.pending} ausstehend · {formatMoney(stats.pendingValue, "CHF")}
+            </span>
 
-          <MetricCard
-            title="Probleme"
-            value={String(stats.failed)}
-            description="Stornierte oder fehlgeschlagene Zahlungen."
-            trend="Zur manuellen Kontrolle"
-            tone={stats.failed > 0 ? "red" : "zinc"}
-            icon={<span className="text-lg font-black">!</span>}
-          />
-        </section>
+            <span className="rounded-lg border border-red-300/20 bg-red-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-red-100">
+              {stats.failed} Probleme
+            </span>
+          </div>
+        </header>
 
-        <DashboardPanel
-          title="Zahlung zu Rechnung hinzufügen"
-          description="Eine erfasste Zahlung erstellt einen Zahlungseintrag und aktualisiert die Rechnung automatisch."
-        >
-          <div className="grid gap-4 xl:grid-cols-[1.5fr_0.7fr_0.7fr_1fr]">
-            <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Rechnung
-              </span>
+        {formOpen ? (
+          <section
+            data-testid="payment-entry-form"
+            className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.05] p-3"
+          >
+            <div className="grid gap-2 xl:grid-cols-[minmax(260px,1.5fr)_140px_170px_auto]">
               <select
                 value={invoiceId}
-                onChange={(event) => setInvoiceId(event.target.value)}
-                className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-cyan-400"
+                onChange={(event) =>
+                  setInvoiceId(event.target.value)
+                }
+                className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-cyan-400"
               >
-                <option value="">Rechnung auswählen</option>
+                <option value="">
+                  Rechnung auswählen
+                </option>
+
                 {invoices.map((invoice) => (
-                  <option key={invoice.id} value={invoice.id}>
+                  <option
+                    key={invoice.id}
+                    value={invoice.id}
+                  >
                     {invoiceLabel(invoice)} · offen{" "}
                     {formatMoney(
                       Math.max(
-                        toNumber(invoice.total) - toNumber(invoice.paidAmount),
+                        toNumber(invoice.total) -
+                          toNumber(invoice.paidAmount),
                         0,
                       ),
                       invoice.currency ?? "CHF",
@@ -486,201 +558,244 @@ export default function DashboardPaymentsPage() {
                   </option>
                 ))}
               </select>
-            </label>
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Betrag
-              </span>
               <input
                 value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                placeholder="np. 100.00"
-                className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-400"
+                onChange={(event) =>
+                  setAmount(event.target.value)
+                }
+                placeholder="Betrag"
+                className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-xs font-bold text-white outline-none placeholder:text-zinc-600 focus:border-cyan-400"
               />
-            </label>
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Methode
-              </span>
               <select
                 value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition focus:border-cyan-400"
+                onChange={(event) =>
+                  setMethod(event.target.value)
+                }
+                className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-cyan-400"
               >
-                <option value="BANK_TRANSFER">Banküberweisung</option>
-                <option value="CASH">Barzahlung</option>
-                <option value="TWINT">TWINT</option>
-                <option value="CARD">Karta</option>
-                <option value="OTHER">Andere Methode</option>
+                <option value="BANK_TRANSFER">
+                  Banküberweisung
+                </option>
+                <option value="CASH">
+                  Barzahlung
+                </option>
+                <option value="TWINT">
+                  TWINT
+                </option>
+                <option value="CARD">
+                  Karte
+                </option>
+                <option value="OTHER">
+                  Andere Methode
+                </option>
               </select>
-            </label>
 
-            <div className="flex items-end gap-2">
-              <PremiumButton
-                type="button"
-                variant="secondary"
-                onClick={fillRemainingAmount}
-                disabled={!selectedInvoice || selectedRemaining <= 0}
-              >
-                Restbetrag
-              </PremiumButton>
+              <div className="flex gap-2">
+                <PremiumButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={fillRemainingAmount}
+                  disabled={
+                    !selectedInvoice ||
+                    selectedRemaining <= 0
+                  }
+                >
+                  Restbetrag
+                </PremiumButton>
 
-              <PremiumButton
-                type="button"
-                variant="primary"
-                onClick={createPayment}
-                disabled={saving || !invoiceId || !amount}
-              >
-                {saving ? "Wird gespeichert..." : "Zahlung speichern"}
-              </PremiumButton>
+                <PremiumButton
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={createPayment}
+                  disabled={
+                    saving ||
+                    !invoiceId ||
+                    !amount
+                  }
+                >
+                  {saving
+                    ? "Speichert..."
+                    : "Speichern"}
+                </PremiumButton>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-2">
-            <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Referenz / Transaktionsnummer
-              </span>
+            <div className="mt-2 grid gap-2 xl:grid-cols-2">
               <input
                 value={externalRef}
-                onChange={(event) => setExternalRef(event.target.value)}
-                placeholder="z. B. Banküberweisung, TWINT, Barzahlung"
-                className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-400"
+                onChange={(event) =>
+                  setExternalRef(event.target.value)
+                }
+                placeholder="Referenz / Transaktionsnummer"
+                className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-xs font-bold text-white outline-none placeholder:text-zinc-600 focus:border-cyan-400"
               />
-            </label>
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Notiz
-              </span>
               <input
                 value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="z. B. Teilzahlung, Kunde zahlte bar"
-                className="rounded-2xl border border-white/10 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-400"
+                onChange={(event) =>
+                  setNotes(event.target.value)
+                }
+                placeholder="Notiz"
+                className="rounded-xl border border-white/10 bg-zinc-950 px-3 py-2.5 text-xs font-bold text-white outline-none placeholder:text-zinc-600 focus:border-cyan-400"
               />
-            </label>
+            </div>
+          </section>
+        ) : null}
+
+        {message ? (
+          <section className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2.5 text-sm font-bold text-emerald-100">
+            {message}
+          </section>
+        ) : null}
+
+        {errorMessage ? (
+          <section className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-100">
+            {errorMessage}
+          </section>
+        ) : null}
+
+        <section
+          data-testid="payments-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Zahlungseingänge
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                Problematische und ausstehende Zahlungen stehen zuerst.
+              </p>
+            </div>
+
+            <span className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {sortedPayments.length} Positionen
+            </span>
           </div>
 
-          {selectedInvoice ? (
-            <div className="mt-4 rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-100">
-              <p className="font-bold">{invoiceLabel(selectedInvoice)}</p>
-              <p className="mt-1 text-cyan-100/75">
-                Total:{" "}
-                {formatMoney(selectedInvoice.total, selectedInvoice.currency ?? "CHF")} ·
-                Bezahlt:{" "}
-                {formatMoney(
-                  selectedInvoice.paidAmount,
-                  selectedInvoice.currency ?? "CHF",
-                )}{" "}
-                · Offen:{" "}
-                {formatMoney(selectedRemaining, selectedInvoice.currency ?? "CHF")}
+          {loading ? (
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+            </div>
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedPayments.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine Zahlungen vorhanden
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Die erste Zahlung erscheint nach der Erfassung zu einer Rechnung.
               </p>
             </div>
           ) : null}
 
-          {message ? (
-            <div className="mt-4 rounded-3xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm font-semibold text-emerald-100">
-              {message}
-            </div>
-          ) : null}
+          {!loading &&
+          !errorMessage &&
+          sortedPayments.length > 0 ? (
+            <div className="divide-y divide-white/10">
+              {sortedPayments.map((payment) => (
+                <article
+                  key={payment.id}
+                  className="grid gap-2 px-3 py-2.5 transition hover:bg-white/[0.03] xl:grid-cols-[minmax(190px,1fr)_120px_140px_160px_minmax(190px,0.9fr)_140px_auto] xl:items-center"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-cyan-100">
+                      {payment.externalRef ??
+                        payment.id}
+                    </p>
 
-          {errorMessage ? (
-            <div className="mt-4 rounded-3xl border border-red-400/25 bg-red-400/10 p-4 text-sm font-semibold text-red-100">
-              {errorMessage}
-            </div>
-          ) : null}
-        </DashboardPanel>
+                    <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                      {formatDate(
+                        payment.paidAt ??
+                          payment.createdAt,
+                      )}
+                    </p>
+                  </div>
 
-        {loading ? (
-          <DashboardPanel
-            title="Zahlungen werden geladen"
-            description="HEXA OS lädt die aktuellen Daten aus dem Zahlungsmodul."
-          >
-            <div className="grid gap-3">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
-                />
+                  <div className="min-w-0">
+                    <span
+                      className={`inline-flex max-w-full truncate rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${statusClass(
+                        payment.status,
+                      )}`}
+                    >
+                      {statusLabel(payment.status)}
+                    </span>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                      Betrag
+                    </p>
+
+                    <p className="mt-0.5 truncate text-xs font-black text-emerald-100">
+                      {formatMoney(
+                        payment.amount,
+                        payment.currency ?? "CHF",
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-zinc-100">
+                      {formatPaymentMethod(
+                        payment.method,
+                      )}
+                    </p>
+
+                    <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                      Ref: {payment.externalRef ?? "Keine"}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-zinc-100">
+                      {payment.invoice?.invoiceNumber ??
+                        payment.invoiceId ??
+                        "Keine Rechnung"}
+                    </p>
+
+                    <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                      {customerName(
+                        payment.invoice?.customer,
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                      Bezahlt am
+                    </p>
+
+                    <p className="mt-0.5 truncate text-xs font-bold text-zinc-300">
+                      {formatDate(payment.paidAt)}
+                    </p>
+                  </div>
+
+                  <div className="xl:text-right">
+                    <PremiumButton
+                      href={`/dashboard/payments/${payment.id}`}
+                      variant="primary"
+                      size="sm"
+                    >
+                      Zahlung öffnen
+                    </PremiumButton>
+                  </div>
+                </article>
               ))}
             </div>
-          </DashboardPanel>
-        ) : null}
-
-        {!loading ? (
-          <DashboardPanel
-            title="Zahlungsliste"
-            description={`Anzahl Datensätze: ${payments.length}. Eine Zahlung aktualisiert die Rechnung und schließt den finanziellen Schritt des Prozesses ab.`}
-            action={
-              <StatusBadge
-                status={payments.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={
-                  payments.length > 0 ? "Aktive Zahlungen" : "Keine Zahlungen"
-                }
-              />
-            }
-          >
-            <DashboardTable
-              columns={columns}
-              rows={payments}
-              getRowKey={(payment) => payment.id}
-              empty={
-                <EmptyState
-                  title="Keine Zahlungen in der Datenbank"
-                  description="Die erste Zahlung erscheint hier nach der Erstellung über eine Rechnung."
-                  actionLabel="Zu den Rechnungen"
-                  actionHref="/dashboard/invoices"
-                />
-              }
-            />
-          </DashboardPanel>
-        ) : null}
-
-        <DashboardPanel
-          title="Abwicklungsprinzip"
-          description="Eine Zahlung ist ein separater Datensatz zur Zahlungshistorie. Die Rechnung enthält die Summe der bezahlten Beträge und den Zahlungsstatus."
-        >
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
-              <p className="text-sm font-black text-cyan-100">
-                1. Rechnung auswählen
-              </p>
-              <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                Das System zeigt Gesamtbetrag, bereits bezahlten Betrag und den Restbetrag.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-              <p className="text-sm font-black text-violet-100">
-                2. Zahlung erfassen
-              </p>
-              <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                Sie können Banküberweisung, Barzahlung, TWINT, Kartenzahlung oder eine andere Methode erfassen.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-              <p className="text-sm font-black text-emerald-100">
-                3. Die Rechnung wird aktualisiert
-              </p>
-              <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                Nach vollständiger Zahlung wechselt der Rechnungsstatus auf BEZAHLT.
-              </p>
-            </div>
-          </div>
-        </DashboardPanel>
-
-        <div className="flex justify-end">
-          <Link
-            href="/dashboard/invoices"
-            className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.07]"
-          >
-            Zurück zu Rechnungen
-          </Link>
-        </div>
+          ) : null}
+        </section>
       </section>
     </main>
   );
