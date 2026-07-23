@@ -172,9 +172,10 @@ describe(
         );
 
         expect(source).toContain(
-          "calculateServerQuickOfferPrice",
+          "calculateQuickOfferPrice({",
         );
       },
     );
   },
 );
+
