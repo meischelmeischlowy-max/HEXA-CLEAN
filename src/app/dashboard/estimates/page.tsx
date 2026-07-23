@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import ActionStatusBadge from "../../../components/dashboard/ActionStatusBadge";
-import PageHeader from "../../../components/dashboard/PageHeader";
 import PremiumButton from "../../../components/dashboard/PremiumButton";
 import { getEstimateAction } from "../../../lib/dashboard/next-action";
 
@@ -142,9 +141,6 @@ function isChatbotEstimate(estimate: Estimate) {
   return String(estimate.source ?? "").toUpperCase() === "CHATBOT";
 }
 
-function isLeadEstimate(estimate: Estimate) {
-  return isQuickOfferEstimate(estimate) || isChatbotEstimate(estimate);
-}
 
 function isReviewStatus(status?: string | null) {
   const normalized = String(status ?? "").toUpperCase();
@@ -249,127 +245,120 @@ export default function DashboardEstimatesPage() {
   }, []);
 
   return (
-    <main className="min-h-screen px-4 py-6 text-white sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-none flex-col gap-5">
-        <PageHeader
-          eyebrow="HEXA OS CRM / Kalkulationen"
-          title="Kalkulationen"
-          description="Interne Arbeitsliste für Preisberechnung, Risiko, Fotos, KI-Prüfung und Freigabe. Aus einer fertigen Kalkulation entsteht erst danach eine Offerte."
-        >
-          <PremiumButton href="/dashboard/estimates/new" variant="primary">
-            Neue Kalkulation
-          </PremiumButton>
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Kalkulationen
+              </p>
 
-          <PremiumButton
-            type="button"
-            variant="secondary"
-            onClick={loadEstimates}
-            disabled={isLoading}
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Kalkulationen
+                </h1>
+
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Interne Preisprüfung. Pro Kalkulation genau der nächste erforderliche Schritt.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <PremiumButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={loadEstimates}
+                disabled={isLoading}
+              >
+                Aktualisieren
+              </PremiumButton>
+
+              <PremiumButton
+                href="/dashboard/estimates/new"
+                variant="primary"
+                size="sm"
+              >
+                Neue Kalkulation
+              </PremiumButton>
+            </div>
+          </div>
+
+          <div
+            data-testid="estimates-summary-strip"
+            className="mt-3 flex flex-wrap gap-1.5 border-t border-white/10 pt-3"
           >
-            Aktualisieren
-          </PremiumButton>
-        </PageHeader>
+            <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {totals.count} gesamt
+            </span>
 
-        <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-              Kalkulationen
-            </p>
-            <p className="mt-2 text-2xl font-black text-white">
-              {totals.count}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-200/70">
-              Summe
-            </p>
-            <p className="mt-2 text-2xl font-black text-cyan-100">
+            <span className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-cyan-100">
               {formatMoney(totals.totalValue, "CHF")}
-            </p>
-          </div>
+            </span>
 
-          <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200/70">
-              Prüfung
-            </p>
-            <p className="mt-2 text-2xl font-black text-amber-100">
-              {totals.reviewCount}
-            </p>
-          </div>
+            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
+              {totals.reviewCount} prüfen
+            </span>
 
-          <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/70">
-              Bereit für Offerte
-            </p>
-            <p className="mt-2 text-2xl font-black text-emerald-100">
-              {totals.readyCount}
-            </p>
-          </div>
+            <span className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              {totals.readyCount} bereit
+            </span>
 
-          <div className="rounded-3xl border border-fuchsia-400/20 bg-fuchsia-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-fuchsia-200/70">
-              QuickOffer
-            </p>
-            <p className="mt-2 text-2xl font-black text-fuchsia-100">
-              {totals.quickOfferCount}
-            </p>
-          </div>
+            <span className="rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-fuchsia-100">
+              {totals.quickOfferCount} QuickOffer
+            </span>
 
-          <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-200/70">
-              Chatbot
-            </p>
-            <p className="mt-2 text-2xl font-black text-violet-100">
-              {totals.chatbotCount}
-            </p>
+            <span className="rounded-lg border border-violet-300/20 bg-violet-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-violet-100">
+              {totals.chatbotCount} Chatbot
+            </span>
           </div>
-        </section>
-
-        <section className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-100/80">
-            Prozessregel
-          </p>
-          <p className="mt-2 text-sm leading-6 text-amber-100">
-            Kalkulationen sind intern. QuickOffer- und Chatbot-Daten sind keine
-            verbindliche Offerte. Erst prüfen, dann auf READY_TO_SEND setzen,
-            dann Offerte vorbereiten.
-          </p>
-        </section>
+        </header>
 
         {error ? (
-          <section className="rounded-3xl border border-red-400/20 bg-red-500/10 p-5 text-sm text-red-100">
+          <section className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-100">
             {error}
           </section>
         ) : null}
 
-        <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
-          <div className="flex flex-col gap-2 border-b border-white/10 px-5 py-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-xl font-black text-white">
-                Kalkulationsliste
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Status anklicken oder Kalkulation öffnen. Angebot, Rechnung und
-                Zahlung werden nicht auf dieser Liste bearbeitet.
+        <section
+          data-testid="estimates-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Aktive Kalkulationen
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                QuickOffer und Chatbot bleiben interne Anfragen, bis die Kalkulation geprüft wurde.
               </p>
             </div>
+
+            <span className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {estimates.length} Positionen
+            </span>
           </div>
 
           {isLoading ? (
-            <div className="p-5">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-8 text-center text-neutral-400">
-                Kalkulationen werden geladen...
-              </div>
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
             </div>
           ) : null}
 
           {!isLoading && estimates.length === 0 ? (
-            <div className="p-5">
-              <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center text-neutral-400">
-                Keine Kalkulationen vorhanden. Erstellen Sie eine neue
-                Kalkulation oder warten Sie auf QuickOffer-/Chatbot-Anfragen.
-              </div>
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine Kalkulationen vorhanden
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Neue QuickOffer-, Chatbot- oder manuelle Anfragen erscheinen automatisch.
+              </p>
             </div>
           ) : null}
 
@@ -384,32 +373,26 @@ export default function DashboardEstimatesPage() {
                 return (
                   <article
                     key={estimate.id}
-                    className={`grid gap-4 px-5 py-4 transition lg:grid-cols-[minmax(220px,1.2fr)_minmax(150px,0.8fr)_minmax(220px,1fr)_minmax(180px,0.9fr)_minmax(130px,0.6fr)_auto] lg:items-center ${rowClass(
+                    className={`grid gap-2 px-3 py-2.5 transition xl:grid-cols-[minmax(190px,0.9fr)_110px_minmax(210px,1fr)_minmax(170px,0.8fr)_140px_auto] xl:items-center ${rowClass(
                       estimate,
                     )}`}
                   >
                     <div className="min-w-0">
                       <Link
                         href={`/dashboard/estimates/${estimate.id}`}
-                        className="block truncate text-base font-black text-cyan-200 transition hover:text-cyan-100"
+                        className="block truncate text-sm font-black text-cyan-100 transition hover:text-white"
                       >
                         {estimate.estimateNumber ?? estimate.id}
                       </Link>
 
-                      <p className="mt-1 truncate text-sm text-zinc-500">
+                      <p className="mt-0.5 truncate text-xs text-zinc-500">
                         {estimate.title ?? "Interne Kalkulation"}
                       </p>
-
-                      {isLeadEstimate(estimate) ? (
-                        <p className="mt-2 w-fit rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[11px] font-bold text-zinc-300">
-                          Website Lead
-                        </p>
-                      ) : null}
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                       <span
-                        className={`rounded-full border px-3 py-1 text-xs font-bold ${sourceBadgeClass(
+                        className={`inline-flex max-w-full truncate rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${sourceBadgeClass(
                           estimate.source,
                         )}`}
                       >
@@ -418,57 +401,56 @@ export default function DashboardEstimatesPage() {
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-100">
+                      <p className="truncate text-xs font-bold text-zinc-100">
                         {customerName(estimate.customer)}
                       </p>
-                      <p className="mt-1 truncate text-xs text-zinc-500">
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
                         {customerContact(estimate.customer)}
                       </p>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                      <ActionStatusBadge
-                        href={`/dashboard/estimates/${estimate.id}`}
-                        tone={action.tone}
-                        label={action.label}
-                        title={action.description}
-                      />
-                      <p className="text-xs text-zinc-500">
-                        {formatDate(estimate.createdAt)}
-                      </p>
-                    </div>
-
-                    <div className="text-left lg:text-right">
-                      <p className="font-black text-zinc-100">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-black text-zinc-100">
                         {formatMoney(
                           estimate.total,
                           estimate.currency ?? "CHF",
                         )}
                       </p>
 
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {formatDate(estimate.createdAt)}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
                       {estimate.aiMinTotal || estimate.aiMaxTotal ? (
-                        <p className="mt-1 text-xs text-zinc-500">
-                          AI:{" "}
+                        <p className="truncate text-[11px] font-bold text-zinc-400">
+                          AI{" "}
                           {formatMoney(
                             estimate.aiMinTotal,
                             estimate.currency ?? "CHF",
                           )}{" "}
-                          -{" "}
+                          –{" "}
                           {formatMoney(
                             estimate.aiMaxTotal,
                             estimate.currency ?? "CHF",
                           )}
                         </p>
-                      ) : null}
+                      ) : (
+                        <p className="text-[11px] text-zinc-600">
+                          Keine AI-Spanne
+                        </p>
+                      )}
                     </div>
 
-                    <div className="flex justify-start lg:justify-end">
-                      <Link
+                    <div className="xl:text-right">
+                      <ActionStatusBadge
                         href={`/dashboard/estimates/${estimate.id}`}
-                        className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-400/20"
-                      >
-                        Öffnen
-                      </Link>
+                        tone={action.tone}
+                        label={action.label}
+                        title={action.description}
+                      />
                     </div>
                   </article>
                 );
