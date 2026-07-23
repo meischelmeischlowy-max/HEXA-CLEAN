@@ -1,330 +1,560 @@
-import Link from "next/link";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+"use client";
 
-export const dynamic = "force-dynamic";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL!,
-});
+import PremiumButton from "../../../components/dashboard/PremiumButton";
 
-const prisma = new PrismaClient({ adapter });
+type InvoiceCustomer = {
+  companyName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+};
 
-function decimalToNumber(value: unknown) {
-  if (value === null || value === undefined) {
+type Invoice = {
+  id: string;
+  invoiceNumber?: string | null;
+  status?: string | null;
+  total?: string | number | null;
+  paidAmount?: string | number | null;
+  currency?: string | null;
+  issueDate?: string | null;
+  dueDate?: string | null;
+  createdAt?: string | null;
+  customer?: InvoiceCustomer | null;
+};
+
+type InvoicesResponse = {
+  message?: string;
+  data?: {
+    status?: string;
+    message?: string;
+    invoices?: Invoice[];
+  };
+};
+
+type InvoiceAction = {
+  label: string;
+  priority: number;
+};
+
+function normalizeStatus(status?: string | null) {
+  return String(status ?? "UNKNOWN")
+    .trim()
+    .toUpperCase();
+}
+
+function normalizeCurrency(value?: string | null) {
+  const currency = String(value ?? "CHF")
+    .trim()
+    .toUpperCase();
+
+  return /^[A-Z]{3}$/.test(currency)
+    ? currency
+    : "CHF";
+}
+
+function toNumber(value?: string | number | null) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return 0;
   }
 
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
-  }
+  const number =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(",", "."));
 
-  if (typeof value === "string") {
-    const number = Number(value.replace(",", "."));
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "toString" in value &&
-    typeof value.toString === "function"
-  ) {
-    const number = Number(value.toString());
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  return 0;
+  return Number.isFinite(number)
+    ? number
+    : 0;
 }
 
-function normalizeCurrency(value: string | null | undefined) {
-  const raw = String(value || "CHF").trim().toUpperCase();
-
-  if (raw === "CHF" || raw.startsWith("CHF")) return "CHF";
-  if (raw === "EUR" || raw.startsWith("EUR")) return "EUR";
-  if (raw === "USD" || raw.startsWith("USD")) return "USD";
-
-  return "CHF";
-}
-
-function formatMoney(value: unknown, currency: string | null | undefined = "CHF") {
+function formatMoney(
+  value?: string | number | null,
+  currency = "CHF",
+) {
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
     currency: normalizeCurrency(currency),
-  }).format(decimalToNumber(value));
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(toNumber(value));
 }
 
-function formatDate(value: Date | string | null | undefined) {
-  if (!value) return "—";
+function formatDate(value?: string | null) {
+  if (!value) {
+    return "Nicht festgelegt";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Nicht festgelegt";
+  }
 
   return new Intl.DateTimeFormat("de-CH", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
+    dateStyle: "short",
+    timeZone: "Europe/Zurich",
+  }).format(date);
 }
 
-function statusLabel(status: string | null | undefined) {
-  switch (status) {
-    case "DRAFT":
-      return "Entwurf";
-    case "SENT":
-      return "Gesendet";
-    case "PAID":
-      return "Bezahlt";
-    case "PARTIALLY_PAID":
-      return "Teilweise bezahlt";
-    case "OVERDUE":
-      return "Überfällig";
-    case "CANCELLED":
-      return "Storniert";
-    default:
-      return status || "Kein Status";
+function customerName(customer?: InvoiceCustomer | null) {
+  if (!customer) {
+    return "Kein Kunde";
   }
-}
 
-function statusClass(status: string | null | undefined) {
-  switch (status) {
-    case "PAID":
-      return "border-emerald-400/40 bg-emerald-400/10 text-emerald-200";
-    case "PARTIALLY_PAID":
-      return "border-amber-400/40 bg-amber-400/10 text-amber-200";
-    case "OVERDUE":
-      return "border-rose-400/40 bg-rose-400/10 text-rose-200";
-    case "SENT":
-      return "border-cyan-400/40 bg-cyan-400/10 text-cyan-200";
-    case "CANCELLED":
-      return "border-slate-500/40 bg-slate-500/10 text-slate-300";
-    default:
-      return "border-slate-600 bg-slate-800 text-slate-300";
+  if (customer.companyName) {
+    return customer.companyName;
   }
-}
 
-function customerName(customer: {
-  companyName: string | null;
-  firstName: string | null;
-  lastName: string | null;
-}) {
-  if (customer.companyName) return customer.companyName;
-
-  const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
-
-  return fullName || "Kein Kunde";
-}
-
-export default async function InvoicesPage() {
-  const invoices = await prisma.invoice.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    include: {
-      customer: true,
-    },
-  });
-
-  const totalOpen = invoices.reduce((sum, invoice) => {
-    const total = decimalToNumber(invoice.total);
-    const paid = decimalToNumber(invoice.paidAmount);
-
-    return sum + Math.max(total - paid, 0);
-  }, 0);
-
-  const totalPaid = invoices.reduce((sum, invoice) => {
-    return sum + decimalToNumber(invoice.paidAmount);
-  }, 0);
-
-  const overdueCount = invoices.filter((invoice) => invoice.status === "OVERDUE").length;
-  const paidCount = invoices.filter((invoice) => invoice.status === "PAID").length;
+  const fullName = [
+    customer.firstName,
+    customer.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/30">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.3em] text-cyan-400">
-                Rechnungen
+    fullName ||
+    customer.email ||
+    "Kein Kunde"
+  );
+}
+
+function statusLabel(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case "DRAFT":
+      return "Entwurf";
+
+    case "SENT":
+      return "Gesendet";
+
+    case "PARTIALLY_PAID":
+      return "Teilbezahlt";
+
+    case "PAID":
+      return "Bezahlt";
+
+    case "OVERDUE":
+      return "Überfällig";
+
+    case "CANCELLED":
+      return "Storniert";
+
+    default:
+      return "In Bearbeitung";
+  }
+}
+
+function statusClass(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case "PAID":
+      return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
+
+    case "PARTIALLY_PAID":
+      return "border-amber-300/25 bg-amber-300/10 text-amber-100";
+
+    case "OVERDUE":
+      return "border-red-300/25 bg-red-300/10 text-red-100";
+
+    case "SENT":
+      return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
+
+    case "CANCELLED":
+      return "border-zinc-300/20 bg-white/[0.05] text-zinc-300";
+
+    default:
+      return "border-white/10 bg-white/[0.04] text-zinc-300";
+  }
+}
+
+function getInvoiceAction(
+  status?: string | null,
+): InvoiceAction {
+  switch (normalizeStatus(status)) {
+    case "DRAFT":
+      return {
+        label: "Rechnung senden",
+        priority: 0,
+      };
+
+    case "OVERDUE":
+      return {
+        label: "Zahlung prüfen",
+        priority: 1,
+      };
+
+    case "PARTIALLY_PAID":
+      return {
+        label: "Restbetrag prüfen",
+        priority: 2,
+      };
+
+    case "SENT":
+      return {
+        label: "Zahlung erfassen",
+        priority: 3,
+      };
+
+    case "PAID":
+      return {
+        label: "Rechnung öffnen",
+        priority: 5,
+      };
+
+    case "CANCELLED":
+      return {
+        label: "Rechnung prüfen",
+        priority: 6,
+      };
+
+    default:
+      return {
+        label: "Rechnung öffnen",
+        priority: 4,
+      };
+  }
+}
+
+function getInvoiceTimestamp(invoice: Invoice) {
+  const value =
+    invoice.dueDate ??
+    invoice.issueDate ??
+    invoice.createdAt;
+
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
+}
+
+export default function InvoicesPage() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
+
+  const loadInvoices = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch(
+        "/api/dashboard/invoices",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+
+      const data =
+        (await response.json()) as InvoicesResponse;
+
+      if (!response.ok) {
+        throw new Error(
+          data.data?.message ??
+            data.message ??
+            "Die Rechnungen konnten nicht geladen werden.",
+        );
+      }
+
+      setInvoices(data.data?.invoices ?? []);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Die Rechnungen konnten nicht geladen werden.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadInvoices();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [loadInvoices]);
+
+  const sortedInvoices = useMemo(() => {
+    return [...invoices].sort((left, right) => {
+      const priorityDifference =
+        getInvoiceAction(left.status).priority -
+        getInvoiceAction(right.status).priority;
+
+      if (priorityDifference !== 0) {
+        return priorityDifference;
+      }
+
+      return (
+        getInvoiceTimestamp(right) -
+        getInvoiceTimestamp(left)
+      );
+    });
+  }, [invoices]);
+
+  const totals = useMemo(() => {
+    return invoices.reduce(
+      (result, invoice) => {
+        const total = toNumber(invoice.total);
+        const paid = toNumber(invoice.paidAmount);
+        const remaining = Math.max(total - paid, 0);
+
+        result.total += total;
+        result.paid += paid;
+        result.open += remaining;
+
+        if (
+          normalizeStatus(invoice.status) === "OVERDUE"
+        ) {
+          result.overdue += 1;
+        }
+
+        return result;
+      },
+      {
+        total: 0,
+        paid: 0,
+        open: 0,
+        overdue: 0,
+      },
+    );
+  }, [invoices]);
+
+  return (
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Rechnungen
               </p>
 
-              <h1 className="mt-2 text-3xl font-bold text-white">
-                Rechnungsliste
-              </h1>
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Rechnungen
+                </h1>
 
-              <p className="mt-2 text-sm text-slate-400">
-                Übersicht über Rechnungen, offene Beträge und erfasste Zahlungen.
-                Der Status wird durch echte Aktionen automatisch aktualisiert.
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Versand und Zahlung. Pro Rechnung genau der nächste erforderliche Schritt.
+                </p>
+              </div>
+            </div>
+
+            <PremiumButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={loadInvoices}
+              disabled={loading}
+            >
+              Aktualisieren
+            </PremiumButton>
+          </div>
+
+          <div
+            data-testid="invoices-summary-strip"
+            className="mt-3 flex flex-wrap gap-1.5 border-t border-white/10 pt-3"
+          >
+            <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {invoices.length} gesamt
+            </span>
+
+            <span className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-cyan-100">
+              {formatMoney(totals.total, "CHF")} fakturiert
+            </span>
+
+            <span className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              {formatMoney(totals.paid, "CHF")} bezahlt
+            </span>
+
+            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
+              {formatMoney(totals.open, "CHF")} offen
+            </span>
+
+            <span className="rounded-lg border border-red-300/20 bg-red-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-red-100">
+              {totals.overdue} überfällig
+            </span>
+          </div>
+        </header>
+
+        {errorMessage ? (
+          <section className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-100">
+            {errorMessage}
+          </section>
+        ) : null}
+
+        <section
+          data-testid="invoices-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Aktive Rechnungen
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                Entwürfe, überfällige und offene Rechnungen stehen zuerst.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/dashboard"
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
-              >
-                Dashboard
-              </Link>
+            <span className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {sortedInvoices.length} Positionen
+            </span>
+          </div>
 
-              <Link
-                href="/dashboard/estimates"
-                className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
-              >
-                Angebote
-              </Link>
+          {loading ? (
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
             </div>
-          </div>
-        </section>
+          ) : null}
 
-        <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-            <p className="text-sm text-slate-400">Rechnungen</p>
-            <p className="mt-2 text-3xl font-bold text-white">{invoices.length}</p>
-          </div>
+          {!loading &&
+          !errorMessage &&
+          sortedInvoices.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine Rechnungen vorhanden
+              </h2>
 
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-            <p className="text-sm text-slate-400">Bezahlt</p>
-            <p className="mt-2 text-3xl font-bold text-emerald-300">
-              {formatMoney(totalPaid, "CHF")}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-            <p className="text-sm text-slate-400">Offen</p>
-            <p className="mt-2 text-3xl font-bold text-rose-300">
-              {formatMoney(totalOpen, "CHF")}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-            <p className="text-sm text-slate-400">Bezahlt / Überfällig</p>
-            <p className="mt-2 text-3xl font-bold text-white">
-              {paidCount} / {overdueCount}
-            </p>
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-          <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">Rechnungen</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Öffnen Sie eine Rechnung, um Details zu prüfen, Zahlungen zu
-                erfassen oder das PDF zu drucken.
+              <p className="mt-1 text-sm text-zinc-500">
+                Rechnungen entstehen automatisch nach Abschluss eines Auftrags.
               </p>
             </div>
-          </div>
+          ) : null}
 
-          {invoices.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-8 text-center">
-              <p className="text-sm text-slate-400">Keine Rechnungen vorhanden.</p>
-              <p className="mt-2 text-xs text-slate-500">
-                Rechnungen entstehen aus Angeboten oder werden später manuell erfasst.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-2xl border border-slate-800">
-              <table className="w-full min-w-[1100px] text-left text-sm">
-                <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <tr>
-                    <th className="px-4 py-4">Rechnung</th>
-                    <th className="px-4 py-4">Kunde</th>
-                    <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4 text-right">Total</th>
-                    <th className="px-4 py-4 text-right">Bezahlt</th>
-                    <th className="px-4 py-4 text-right">Offen</th>
-                    <th className="px-4 py-4">Fällig bis</th>
-                    <th className="px-4 py-4 text-right">Aktionen</th>
-                  </tr>
-                </thead>
+          {!loading &&
+          !errorMessage &&
+          sortedInvoices.length > 0 ? (
+            <div className="divide-y divide-white/10">
+              {sortedInvoices.map((invoice) => {
+                const currency = normalizeCurrency(
+                  invoice.currency,
+                );
 
-                <tbody className="divide-y divide-slate-800">
-                  {invoices.map((invoice) => {
-                    const currency = normalizeCurrency(invoice.currency);
-                    const total = decimalToNumber(invoice.total);
-                    const paid = decimalToNumber(invoice.paidAmount);
-                    const remaining = Math.max(total - paid, 0);
+                const total = toNumber(invoice.total);
+                const paid = toNumber(invoice.paidAmount);
+                const remaining = Math.max(
+                  total - paid,
+                  0,
+                );
 
-                    return (
-                      <tr
-                        key={invoice.id}
-                        className="bg-slate-900/40 hover:bg-slate-800/60"
+                const action = getInvoiceAction(
+                  invoice.status,
+                );
+
+                return (
+                  <article
+                    key={invoice.id}
+                    className="grid gap-2 px-3 py-2.5 transition hover:bg-white/[0.03] xl:grid-cols-[minmax(190px,1fr)_minmax(190px,0.9fr)_120px_140px_140px_120px_auto] xl:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-cyan-100">
+                        {invoice.invoiceNumber ?? invoice.id}
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        Erstellt:{" "}
+                        {formatDate(
+                          invoice.issueDate ??
+                            invoice.createdAt,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-zinc-100">
+                        {customerName(invoice.customer)}
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {invoice.customer?.email ??
+                          "Keine E-Mail"}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-flex max-w-full truncate rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${statusClass(
+                          invoice.status,
+                        )}`}
                       >
-                        <td className="px-4 py-4 align-top">
-                          <div className="font-semibold text-white">
-                            {invoice.invoiceNumber || invoice.id}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            Datum: {formatDate(invoice.issueDate)}
-                          </div>
-                        </td>
+                        {statusLabel(invoice.status)}
+                      </span>
+                    </div>
 
-                        <td className="px-4 py-4 align-top">
-                          <div className="font-medium text-slate-100">
-                            {customerName(invoice.customer)}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            {invoice.customer.email || "Keine E-Mail"}
-                          </div>
-                        </td>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Total
+                      </p>
 
-                        <td className="px-4 py-4 align-top">
-                          <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(
-                              invoice.status,
-                            )}`}
-                          >
-                            {statusLabel(invoice.status)}
-                          </span>
-                        </td>
+                      <p className="mt-0.5 truncate text-xs font-black text-zinc-100">
+                        {formatMoney(total, currency)}
+                      </p>
+                    </div>
 
-                        <td className="px-4 py-4 text-right align-top font-semibold text-white">
-                          {formatMoney(total, currency)}
-                        </td>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Offen
+                      </p>
 
-                        <td className="px-4 py-4 text-right align-top font-semibold text-emerald-300">
-                          {formatMoney(paid, currency)}
-                        </td>
+                      <p className="mt-0.5 truncate text-xs font-black text-amber-100">
+                        {formatMoney(
+                          remaining,
+                          currency,
+                        )}
+                      </p>
+                    </div>
 
-                        <td className="px-4 py-4 text-right align-top font-semibold text-rose-300">
-                          {formatMoney(remaining, currency)}
-                        </td>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Fällig bis
+                      </p>
 
-                        <td className="px-4 py-4 align-top text-slate-300">
-                          {formatDate(invoice.dueDate)}
-                        </td>
+                      <p className="mt-0.5 truncate text-xs font-bold text-zinc-300">
+                        {formatDate(invoice.dueDate)}
+                      </p>
+                    </div>
 
-                        <td className="px-4 py-4 align-top">
-                          <div className="flex justify-end gap-2">
-                            <Link
-                              href={`/dashboard/invoices/${invoice.id}`}
-                              className="rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
-                            >
-                              Öffnen
-                            </Link>
-
-                            <Link
-                              href={`/dashboard/invoices/${invoice.id}/edit`}
-                              className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
-                            >
-                              Bearbeiten
-                            </Link>
-
-                            <Link
-                              href={`/documents/invoices/${invoice.id}/print`}
-                              className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
-                            >
-                              PDF
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    <div className="xl:text-right">
+                      <PremiumButton
+                        href={`/dashboard/invoices/${invoice.id}`}
+                        variant="primary"
+                        size="sm"
+                      >
+                        {action.label}
+                      </PremiumButton>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          )}
+          ) : null}
         </section>
-      </div>
+      </section>
     </main>
   );
 }
