@@ -267,7 +267,7 @@ function StatCard({
         tone,
       )}`}
     >
-      <p className="min-w-0 truncate text-[10px] font-black uppercase tracking-[0.16em] opacity-75">
+      <p className="min-w-0 text-[10px] font-black uppercase leading-3 tracking-[0.12em] opacity-75">
         {label}
       </p>
 
@@ -289,11 +289,11 @@ function AlertCard({
 }) {
   return (
     <article
-      className={`grid gap-2 border-l-2 px-3 py-2.5 transition hover:bg-white/[0.04] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center ${toneRowClass(
+      className={`grid gap-2 border-l-2 px-3 py-2.5 transition hover:bg-white/[0.04] xl:grid-cols-[76px_minmax(180px,0.85fr)_minmax(260px,1.45fr)_150px_auto] xl:items-center ${toneRowClass(
         alert.tone,
       )}`}
     >
-      <div className="flex items-center gap-2 lg:block">
+      <div className="flex items-center gap-1.5">
         <span
           className={`inline-flex min-w-10 justify-center rounded-lg border px-2 py-1 text-[11px] font-black ${priorityClass(
             alert.priority,
@@ -303,57 +303,55 @@ function AlertCard({
         </span>
 
         {isPrimary ? (
-          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/65 lg:mt-1 lg:block">
-            Heute zuerst
+          <span
+            title="Heute zuerst"
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-[10px] font-black text-white/70"
+          >
+            1
           </span>
         ) : null}
       </div>
 
       <div className="min-w-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <h2 className="max-w-full truncate text-sm font-black text-white">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="truncate text-sm font-black text-white">
             {alert.title}
           </h2>
 
-          <span className="rounded-md border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-white/65">
-            {alert.type}
-          </span>
-
           {isPrimary && totalAlerts ? (
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/50">
+            <span className="hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.1em] text-white/45 2xl:inline">
               {totalAlerts} offen
             </span>
           ) : null}
         </div>
 
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/60">
-          <span className="shrink-0 font-bold text-white/85">
-            {alert.customer}
-          </span>
+        <p className="mt-0.5 truncate text-xs font-bold text-white/65">
+          {alert.customer}
+          {alert.amount ? ` · ${alert.amount}` : ""}
+        </p>
+      </div>
 
-          {alert.amount ? (
-            <span className="shrink-0 font-bold text-white/75">
-              {alert.amount}
-            </span>
-          ) : null}
+      <div className="min-w-0">
+        <p className="truncate text-xs leading-5 text-white/60">
+          {alert.description}
+        </p>
 
-          <span className="min-w-[180px] flex-1 truncate">
-            {alert.description}
-          </span>
+        <span className="mt-0.5 inline-flex rounded-md border border-white/10 bg-black/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-white/50">
+          {alert.type}
+        </span>
+      </div>
 
-          {alert.meta.slice(0, 1).map((item) => (
-            <span
-              key={item}
-              className="hidden shrink-0 text-white/45 2xl:inline"
-            >
-              {item}
-            </span>
-          ))}
+      <div className="hidden min-w-0 text-right text-[11px] leading-4 text-white/45 xl:block">
+        {alert.meta.slice(0, 1).map((item) => (
+          <p
+            key={item}
+            className="truncate font-semibold text-white/55"
+          >
+            {item}
+          </p>
+        ))}
 
-          <span className="hidden shrink-0 text-white/45 xl:inline">
-            {formatDate(alert.createdAt)}
-          </span>
-        </div>
+        <p>{formatDate(alert.createdAt)}</p>
       </div>
 
       <Link
@@ -363,7 +361,7 @@ function AlertCard({
             : undefined
         }
         href={alert.href}
-        className={`w-full shrink-0 whitespace-nowrap rounded-xl border px-3 py-2 text-center text-xs font-black uppercase tracking-[0.1em] transition sm:w-auto ${toneButtonClass(
+        className={`w-full shrink-0 whitespace-nowrap rounded-xl border px-3 py-2 text-center text-xs font-black uppercase tracking-[0.08em] transition sm:w-auto ${toneButtonClass(
           alert.tone,
         )}`}
       >
@@ -372,7 +370,6 @@ function AlertCard({
     </article>
   );
 }
-
 function PrimaryAlertCard({
   alert,
   totalAlerts,
@@ -903,7 +900,7 @@ export default async function DashboardCockpitPage() {
 
         <section
           aria-label="Arbeitsübersicht"
-          className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8"
+          className="grid grid-cols-2 gap-2 md:grid-cols-4 2xl:grid-cols-8"
         >
           <StatCard
             label="P1 kritisch"

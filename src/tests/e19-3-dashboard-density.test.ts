@@ -41,7 +41,7 @@ describe("E19.3 dashboard density", () => {
 
   it("uses one compact summary strip instead of two large card grids", () => {
     expect(pageSource).toContain(
-      "grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8",
+      "grid grid-cols-2 gap-2 md:grid-cols-4 2xl:grid-cols-8",
     );
 
     expect(pageSource).not.toContain(

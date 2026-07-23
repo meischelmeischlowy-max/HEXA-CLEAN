@@ -14,7 +14,7 @@ function countOccurrences(source: string, value: string) {
 describe("E19.4 operational list cockpit", () => {
   it("renders one compact row per operational event", () => {
     expect(pageSource).toContain(
-      "lg:grid-cols-[auto_minmax(0,1fr)_auto]",
+      "xl:grid-cols-[76px_minmax(180px,0.85fr)_minmax(260px,1.45fr)_150px_auto]",
     );
 
     expect(pageSource).toContain(
