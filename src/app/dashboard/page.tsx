@@ -134,6 +134,43 @@ function sourceLabel(source: string | null | undefined) {
   return source || "Unbekannte Quelle";
 }
 
+function notificationFailureDescription(
+  errorMessage: string | null | undefined,
+) {
+  const raw = String(
+    errorMessage || "",
+  ).trim();
+
+  if (!raw) {
+    return "Der E-Mail-Versand ist fehlgeschlagen. Öffnen Sie den Datensatz und prüfen Sie die Versanddetails.";
+  }
+
+  if (
+    raw.includes('"statusCode":403') ||
+    raw.includes("You can only send testing emails") ||
+    raw.includes("verify a domain")
+  ) {
+    return "Die Absender-Domain ist in Resend noch nicht verifiziert. Deshalb kann das System aktuell nur Test-E-Mails an die eigene Konto-Adresse senden.";
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      statusCode?: unknown;
+    };
+
+    const status =
+      typeof parsed.statusCode === "number"
+        ? ` (HTTP ${parsed.statusCode})`
+        : "";
+
+    return `Der Versanddienst hat die Nachricht abgelehnt${status}. Technische Details stehen im Benachrichtigungsdatensatz.`;
+  } catch {
+    return raw.length > 220
+      ? `${raw.slice(0, 217)}...`
+      : raw;
+  }
+}
+
 function priorityWeight(priority: AlertPriority) {
   if (priority === "P1") return 1;
   if (priority === "P2") return 2;
@@ -241,7 +278,7 @@ function AlertCard({ alert }: { alert: AutomationAlert }) {
             {alert.title}
           </h2>
 
-          <p className="mt-2 max-w-5xl text-sm leading-6 opacity-80">
+          <p className="mt-2 max-w-3xl break-words text-sm leading-6 opacity-80">
             {alert.description}
           </p>
 
@@ -289,11 +326,11 @@ function PrimaryAlertCard({
 }) {
   return (
     <section
-      className={`rounded-[2rem] border p-5 shadow-2xl shadow-black/20 sm:p-7 ${toneCardClass(
+      className={`rounded-3xl border p-5 shadow-xl shadow-black/20 sm:p-6 ${toneCardClass(
         alert.tone,
       )}`}
     >
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -318,11 +355,11 @@ function PrimaryAlertCard({
             {alert.type}
           </p>
 
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
             {alert.title}
           </h2>
 
-          <p className="mt-3 max-w-4xl text-sm leading-6 text-white/75 sm:text-base">
+          <p className="mt-3 max-w-3xl break-words text-sm leading-6 text-white/75">
             {alert.description}
           </p>
 
@@ -351,7 +388,7 @@ function PrimaryAlertCard({
         <Link
           data-testid="dashboard-primary-action"
           href={alert.href}
-          className={`w-full shrink-0 rounded-2xl border px-6 py-4 text-center text-sm font-black uppercase tracking-[0.13em] transition xl:w-auto ${toneButtonClass(
+          className={`w-full shrink-0 rounded-2xl border px-6 py-3.5 text-center text-sm font-black uppercase tracking-[0.13em] transition sm:w-auto ${toneButtonClass(
             alert.tone,
           )}`}
         >
@@ -647,9 +684,9 @@ export default async function DashboardCockpitPage() {
       priority: "P1" as const,
       tone: "red" as const,
       title: "E-Mail Versand fehlgeschlagen",
-      description:
-        notification.errorMessage ||
-        "Eine E-Mail wurde im CRM gespeichert, aber nicht erfolgreich versendet. Versandfehler sofort prüfen.",
+      description: notificationFailureDescription(
+        notification.errorMessage,
+      ),
       href: `/dashboard/notifications/${notification.id}`,
       primaryLabel: "Fehler prüfen",
       customer: customerName(notification.customer),
@@ -851,67 +888,44 @@ export default async function DashboardCockpitPage() {
   return (
     <main className="min-h-screen px-4 py-6 text-white sm:px-6 lg:px-8">
       <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
-        <section
-          className={`rounded-3xl border p-6 ${
-            urgentActionCount > 0
-              ? "border-red-300/25 bg-red-300/10"
-              : "border-emerald-300/25 bg-emerald-300/10"
-          }`}
-        >
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+        <header className="rounded-3xl border border-white/10 bg-white/[0.03] px-5 py-4 shadow-xl shadow-black/20 sm:px-6 sm:py-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-cyan-300">
-                HEXA OS CRM / Automation Inbox
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">
+                HEXA OS / Arbeitscockpit
               </p>
 
-              <h1 className="mt-3 text-4xl font-black tracking-tight text-white">
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-white">
                 Cockpit
               </h1>
 
-              <p className="mt-3 max-w-5xl text-sm leading-6 text-zinc-300">
-                Zentrale Arbeitsansicht. Hier erscheinen nur Aufgaben, Warnungen
-                und nächste Schritte: neue Anfragen, interne Prüfung,
-                fehlende Fotos, Kundenantworten, Rechnungen, Zahlungen und
-                E-Mail Fehler.
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
+                Die wichtigste Aufgabe steht direkt darunter. Weitere Vorgänge
+                folgen automatisch nach Priorität.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/dashboard/estimates"
-                className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20"
-              >
-                Kalkulationen
-              </Link>
+            <div
+              className={`inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.14em] ${
+                urgentActionCount > 0
+                  ? "border-red-300/30 bg-red-300/10 text-red-100"
+                  : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+              }`}
+            >
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${
+                  urgentActionCount > 0
+                    ? "bg-red-300"
+                    : "bg-emerald-300"
+                }`}
+              />
 
-              <Link
-                href="/dashboard/notifications"
-                className="rounded-2xl border border-red-300/30 bg-red-300/10 px-5 py-3 text-sm font-black text-red-100 transition hover:bg-red-300/20"
-              >
-                Versandfehler
-              </Link>
+              {urgentActionCount > 0
+                ? `${urgentActionCount} kritisch`
+                : "Alles unter Kontrolle"}
             </div>
           </div>
-
-          {urgentActionCount > 0 ? (
-            <div className="mt-5 rounded-3xl border border-red-300/25 bg-black/25 p-5">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-red-100/80">
-                Sofortige Aktion erforderlich
-              </p>
-
-              <p className="mt-2 text-2xl font-black text-white">
-                {urgentActionCount} kritische Aufgabe
-                {urgentActionCount === 1 ? "" : "n"} offen
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-red-50/80">
-                Zuerst P1-Aktionen bearbeiten: E-Mail Fehler, neue
-                Kalkulationen in KI-Prüfung, fehlende Fotos und überfällige
-                Rechnungen.
-              </p>
-            </div>
-          ) : null}
-        </section>
+        </header>
 
         {primaryAlert ? (
           <PrimaryAlertCard
@@ -957,7 +971,7 @@ export default async function DashboardCockpitPage() {
             label="Fotos fehlen"
             value={photoCount}
             tone={photoCount > 0 ? "amber" : "neutral"}
-            description="Rückfrage / Upload noetig."
+            description="Rückfrage / Upload nötig."
           />
 
           <StatCard
@@ -1042,7 +1056,7 @@ export default async function DashboardCockpitPage() {
             </p>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               Fehlgeschlagene oder wartende Notifications. Technische Fehler
-              bleiben sichtbar, bis sie geloest sind.
+              bleiben sichtbar, bis sie gelöst sind.
             </p>
           </div>
 

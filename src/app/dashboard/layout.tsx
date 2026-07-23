@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import DashboardLogoutButton from "./DashboardLogoutButton";
+import DashboardNavigationLink from "./DashboardNavigationLink";
 
 const workItems = [
   {
@@ -76,31 +77,6 @@ const systemItems = [
   },
 ];
 
-function NavigationLink({
-  href,
-  label,
-  description,
-}: {
-  href: string;
-  label: string;
-  description?: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-cyan-400/50 hover:bg-cyan-400/10"
-    >
-      <span className="block text-sm font-bold text-white">{label}</span>
-
-      {description ? (
-        <span className="mt-1 block text-xs leading-5 text-neutral-500">
-          {description}
-        </span>
-      ) : null}
-    </Link>
-  );
-}
-
 function SidebarSection({
   title,
   children,
@@ -121,24 +97,24 @@ function SidebarSection({
 
 function DesktopSidebar() {
   return (
-    <aside className="hidden w-[300px] shrink-0 border-r border-white/10 bg-neutral-950 p-5 lg:block">
+    <aside className="hidden w-[276px] shrink-0 border-r border-white/10 bg-neutral-950 p-4 lg:block">
       <div className="sticky top-5 grid gap-4">
         <Link
           href="/dashboard"
-          className="block rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5 transition hover:border-cyan-300/40 hover:bg-cyan-400/15"
+          className="block rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-4 transition hover:border-cyan-300/40 hover:bg-cyan-400/15"
         >
           <p className="text-xs font-black uppercase tracking-[0.3em] text-cyan-300">
             HEXA OS
           </p>
-          <h1 className="mt-3 text-2xl font-black text-white">Cockpit</h1>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">
+          <h1 className="mt-2 text-xl font-black text-white">Cockpit</h1>
+          <p className="mt-2 text-xs leading-5 text-neutral-400">
             Zentrale Arbeitsansicht statt technischer Datenflut.
           </p>
         </Link>
 
         <SidebarSection title="Taegliche Arbeit">
           {workItems.map((item) => (
-            <NavigationLink
+            <DashboardNavigationLink
               key={item.href}
               href={item.href}
               label={item.label}
@@ -154,7 +130,7 @@ function DesktopSidebar() {
 
           <div className="mt-3 grid gap-2">
             {secondaryItems.map((item) => (
-              <NavigationLink
+              <DashboardNavigationLink
                 key={item.href}
                 href={item.href}
                 label={item.label}
@@ -171,7 +147,7 @@ function DesktopSidebar() {
 
           <div className="mt-3 grid gap-2">
             {systemItems.map((item) => (
-              <NavigationLink
+              <DashboardNavigationLink
                 key={item.href}
                 href={item.href}
                 label={item.label}
@@ -225,7 +201,7 @@ function MobileHeader() {
 
         <nav className="mt-3 grid gap-2">
           {workItems.map((item) => (
-            <NavigationLink
+            <DashboardNavigationLink
               key={item.href}
               href={item.href}
               label={item.label}
@@ -240,7 +216,7 @@ function MobileHeader() {
 
             <div className="mt-3 grid gap-2">
               {secondaryItems.map((item) => (
-                <NavigationLink
+                <DashboardNavigationLink
                   key={item.href}
                   href={item.href}
                   label={item.label}
@@ -257,7 +233,7 @@ function MobileHeader() {
 
             <div className="mt-3 grid gap-2">
               {systemItems.map((item) => (
-                <NavigationLink
+                <DashboardNavigationLink
                   key={item.href}
                   href={item.href}
                   label={item.label}
