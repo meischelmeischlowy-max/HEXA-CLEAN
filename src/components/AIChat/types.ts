@@ -1,4 +1,4 @@
-﻿export type ServiceType =
+export type ServiceType =
   | "reinigung"
   | "fenster"
   | "hauswartung"
@@ -39,42 +39,42 @@ export const SERVICES: ServiceCard[] = [
   {
     id: "reinigung",
     title: "Reinigung",
-    icon: "đź§ą",
+    icon: "🧹",
     basePrice: 120,
     question:
-      "Gerne. Wie groĂź ist die zu reinigende FlĂ¤che ungefĂ¤hr in Quadratmetern?",
+      "Gerne. Wie groß ist die zu reinigende Fläche ungefähr in Quadratmetern?",
   },
   {
     id: "fenster",
     title: "Fensterreinigung",
-    icon: "đźŞź",
+    icon: "🪟",
     basePrice: 90,
     question:
-      "Sehr gerne. Wie viele Fenster sollen ungefĂ¤hr gereinigt werden?",
+      "Sehr gerne. Wie viele Fenster sollen ungefähr gereinigt werden?",
   },
   {
     id: "hauswartung",
     title: "Hauswartung",
-    icon: "đźŹ ",
+    icon: "🏠",
     basePrice: 150,
     question:
-      "Gerne. Geht es um eine regelmĂ¤Ăźige Hauswartung oder um einen einmaligen Einsatz?",
+      "Gerne. Geht es um eine regelmäßige Hauswartung oder um einen einmaligen Einsatz?",
   },
   {
     id: "umzug",
     title: "Umzugsreinigung",
-    icon: "đźšš",
+    icon: "🚚",
     basePrice: 280,
     question:
-      "Gerne. Wie groĂź ist die Wohnung ungefĂ¤hr in Quadratmetern?",
+      "Gerne. Wie groß ist die Wohnung ungefähr in Quadratmetern?",
   },
   {
     id: "kleinreparaturen",
     title: "Kleinreparaturen",
-    icon: "đź› ď¸Ź",
+    icon: "🛠️",
     basePrice: 80,
     question:
-      "Gerne. Beschreiben Sie bitte kurz, welche Reparatur benĂ¶tigt wird.",
+      "Gerne. Beschreiben Sie bitte kurz, welche Reparatur benötigt wird.",
   },
 ];
 
