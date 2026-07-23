@@ -1,10 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import ActionStatusBadge from "../../../components/dashboard/ActionStatusBadge";
-import EmptyState from "../../../components/dashboard/EmptyState";
-import PageHeader from "../../../components/dashboard/PageHeader";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import PremiumButton from "../../../components/dashboard/PremiumButton";
 import {
   getCustomerListAction,
@@ -42,22 +44,27 @@ type DashboardCustomersResponse = {
 };
 
 function formatDate(value?: string) {
-  if (!value) return "kein Datum";
+  if (!value) {
+    return "Kein Datum";
+  }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return "Kein Datum";
   }
 
-  return date.toLocaleString("de-CH", {
+  return new Intl.DateTimeFormat("de-CH", {
     dateStyle: "short",
-    timeStyle: "short",
-  });
+    timeZone: "Europe/Zurich",
+  }).format(date);
 }
 
 function getCustomerName(customer: Customer) {
-  const fullName = [customer.firstName, customer.lastName]
+  const fullName = [
+    customer.firstName,
+    customer.lastName,
+  ]
     .filter(Boolean)
     .join(" ")
     .trim();
@@ -73,47 +80,116 @@ function getCustomerName(customer: Customer) {
 }
 
 function getCustomerLocation(customer: Customer) {
-  const zipValue = customer.zipCode || customer.postalCode;
-  return [zipValue, customer.city].filter(Boolean).join(" ") || "-";
+  const zipValue =
+    customer.zipCode ||
+    customer.postalCode;
+
+  return (
+    [zipValue, customer.city]
+      .filter(Boolean)
+      .join(" ") ||
+    "Kein Ort"
+  );
 }
 
 function getCustomerAddress(customer: Customer) {
-  return customer.street || customer.address || "";
+  return (
+    customer.street ||
+    customer.address ||
+    "Keine Adresse"
+  );
 }
 
 function customerTypeLabel(customer: Customer) {
-  if (customer.type === "COMPANY" || customer.companyName) {
+  if (
+    customer.type === "COMPANY" ||
+    customer.companyName
+  ) {
     return "Firma";
   }
 
   return "Privatkunde";
 }
 
+function customerProfileStatus(customer: Customer) {
+  if (!hasCustomerContact(customer)) {
+    return {
+      label: "Kontakt fehlt",
+      className:
+        "border-red-300/25 bg-red-300/10 text-red-100",
+      priority: 0,
+    };
+  }
+
+  if (!hasCustomerCompleteAddress(customer)) {
+    return {
+      label: "Adresse fehlt",
+      className:
+        "border-amber-300/25 bg-amber-300/10 text-amber-100",
+      priority: 1,
+    };
+  }
+
+  return {
+    label: "Vollständig",
+    className:
+      "border-emerald-300/25 bg-emerald-300/10 text-emerald-100",
+    priority: 2,
+  };
+}
+
+function customerTimestamp(customer: Customer) {
+  const value =
+    customer.updatedAt ??
+    customer.createdAt;
+
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
+}
+
 export default function DashboardCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/dashboard/customers", {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/dashboard/customers",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
       if (!response.ok) {
-        throw new Error("Die Kunden-API hat einen Fehler zurückgegeben.");
+        throw new Error(
+          "Die Kunden konnten nicht geladen werden.",
+        );
       }
 
-      const json: DashboardCustomersResponse = await response.json();
+      const json =
+        (await response.json()) as DashboardCustomersResponse;
 
-      setCustomers(json.data.customers ?? []);
+      setCustomers(
+        json.data?.customers ?? [],
+      );
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unbekannter Kundenfehler.",
+        error instanceof Error
+          ? error.message
+          : "Die Kunden konnten nicht geladen werden.",
       );
     } finally {
       setLoading(false);
@@ -125,226 +201,249 @@ export default function DashboardCustomersPage() {
       void loadCustomers();
     }, 0);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadCustomers]);
 
+  const sortedCustomers = useMemo(() => {
+    return [...customers].sort((left, right) => {
+      const priorityDifference =
+        customerProfileStatus(left).priority -
+        customerProfileStatus(right).priority;
+
+      if (priorityDifference !== 0) {
+        return priorityDifference;
+      }
+
+      return (
+        customerTimestamp(right) -
+        customerTimestamp(left)
+      );
+    });
+  }, [customers]);
+
   const stats = useMemo(() => {
-    const completeProfiles = customers.filter(
-      (customer) =>
-        hasCustomerContact(customer) && hasCustomerCompleteAddress(customer),
-    ).length;
+    return customers.reduce(
+      (result, customer) => {
+        const status =
+          customerProfileStatus(customer);
 
-    const missingAddress = customers.filter(
-      (customer) =>
-        hasCustomerContact(customer) && !hasCustomerCompleteAddress(customer),
-    ).length;
+        if (status.label === "Vollständig") {
+          result.complete += 1;
+        }
 
-    const missingContact = customers.filter(
-      (customer) => !hasCustomerContact(customer),
-    ).length;
+        if (status.label === "Adresse fehlt") {
+          result.missingAddress += 1;
+        }
 
-    return {
-      total: customers.length,
-      completeProfiles,
-      missingAddress,
-      missingContact,
-    };
+        if (status.label === "Kontakt fehlt") {
+          result.missingContact += 1;
+        }
+
+        return result;
+      },
+      {
+        complete: 0,
+        missingAddress: 0,
+        missingContact: 0,
+      },
+    );
   }, [customers]);
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-none flex-col gap-5">
-        <PageHeader
-          eyebrow="HEXA OS CRM / Kunden"
-          title="Kunden"
-          description="Kundenbasis. Status anklicken, dann öffnet sich der konkrete Kunde mit der passenden Aktion. Keine Rechnungs-, Offerten- oder Auftragsaktionen auf der Liste."
-        >
-          <PremiumButton href="/dashboard/customers/new" variant="primary">
-            Kunde erstellen
-          </PremiumButton>
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Kunden
+              </p>
 
-          <PremiumButton
-            type="button"
-            variant="secondary"
-            onClick={loadCustomers}
-            disabled={loading}
-          >
-            Aktualisieren
-          </PremiumButton>
-        </PageHeader>
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Kunden
+                </h1>
 
-        <section className="grid gap-3 md:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-              Kunden
-            </p>
-            <p className="mt-2 text-2xl font-black text-white">
-              {stats.total}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-200/70">
-              Vollständig
-            </p>
-            <p className="mt-2 text-2xl font-black text-emerald-100">
-              {stats.completeProfiles}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200/70">
-              Adresse fehlt
-            </p>
-            <p className="mt-2 text-2xl font-black text-amber-100">
-              {stats.missingAddress}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-rose-400/20 bg-rose-400/10 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-200/70">
-              Kontakt fehlt
-            </p>
-            <p className="mt-2 text-2xl font-black text-rose-100">
-              {stats.missingContact}
-            </p>
-          </div>
-        </section>
-
-        {loading ? (
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-lg font-black text-white">
-              Kunden werden geladen
-            </p>
-            <div className="mt-4 grid gap-3">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {errorMessage ? (
-          <section className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-            <p className="font-black">Fehler im Kundenmodul</p>
-            <p className="mt-2 text-sm leading-6 text-red-100/70">
-              {errorMessage}
-            </p>
-          </section>
-        ) : null}
-
-        {!loading && !errorMessage && customers.length === 0 ? (
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <EmptyState
-              title="Keine Kunden in der Datenbank"
-              description="Erstellen Sie den ersten Kunden manuell oder später über Formular, Auftrag oder KI-Concierge."
-              actionLabel="Kunde erstellen"
-              actionHref="/dashboard/customers/new"
-            />
-          </section>
-        ) : null}
-
-        {!loading && !errorMessage && customers.length > 0 ? (
-          <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
-            <div className="flex flex-col gap-2 border-b border-white/10 px-5 py-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-xl font-black text-white">Kundenliste</h2>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Status ist die Aktion. Öffnen/Bearbeiten bleibt nur für den
-                  Kundendatensatz.
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Kundendaten prüfen. Unvollständige Profile stehen zuerst.
                 </p>
               </div>
-
-              <ActionStatusBadge
-                tone="green"
-                label="Daten aktiv"
-                title="Kundenmodul aktiv"
-              />
             </div>
 
+            <div className="flex gap-2">
+              <PremiumButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={loadCustomers}
+                disabled={loading}
+              >
+                Aktualisieren
+              </PremiumButton>
+
+              <PremiumButton
+                href="/dashboard/customers/new"
+                variant="primary"
+                size="sm"
+              >
+                Kunde erstellen
+              </PremiumButton>
+            </div>
+          </div>
+
+          <div
+            data-testid="customers-summary-strip"
+            className="mt-3 flex flex-wrap gap-1.5 border-t border-white/10 pt-3"
+          >
+            <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {customers.length} gesamt
+            </span>
+
+            <span className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              {stats.complete} vollständig
+            </span>
+
+            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
+              {stats.missingAddress} ohne Adresse
+            </span>
+
+            <span className="rounded-lg border border-red-300/20 bg-red-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-red-100">
+              {stats.missingContact} ohne Kontakt
+            </span>
+          </div>
+        </header>
+
+        {errorMessage ? (
+          <section className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-100">
+            {errorMessage}
+          </section>
+        ) : null}
+
+        <section
+          data-testid="customers-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Kundenstamm
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                Fehlende Kontakt- oder Adressdaten werden priorisiert.
+              </p>
+            </div>
+
+            <span className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {sortedCustomers.length} Positionen
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+            </div>
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedCustomers.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine Kunden vorhanden
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Der erste Kunde entsteht über QuickOffer, Chat oder manuelle Erfassung.
+              </p>
+            </div>
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedCustomers.length > 0 ? (
             <div className="divide-y divide-white/10">
-              {customers.map((customer) => {
-                const action = getCustomerListAction(customer);
+              {sortedCustomers.map((customer) => {
+                const profile =
+                  customerProfileStatus(customer);
+
+                const action =
+                  getCustomerListAction(customer);
 
                 return (
                   <article
                     key={customer.id}
-                    className="grid gap-4 px-5 py-4 transition hover:bg-white/[0.025] lg:grid-cols-[minmax(220px,1.4fr)_minmax(180px,1fr)_minmax(190px,1fr)_minmax(180px,0.8fr)_auto] lg:items-center"
+                    className="grid gap-2 px-3 py-2.5 transition hover:bg-white/[0.03] xl:grid-cols-[minmax(210px,1.15fr)_minmax(220px,1fr)_minmax(210px,0.9fr)_130px_120px_auto] xl:items-center"
                   >
                     <div className="min-w-0">
-                      <Link
-                        href={`/dashboard/customers/${customer.id}`}
-                        className="block truncate text-base font-black text-white transition hover:text-cyan-200"
-                      >
+                      <p className="truncate text-sm font-black text-cyan-100">
                         {getCustomerName(customer)}
-                      </Link>
+                      </p>
 
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70">
+                      <p className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-500">
                         {customerTypeLabel(customer)}
                       </p>
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-200">
-                        {customer.email ?? "Keine E-Mail"}
+                      <p className="truncate text-xs font-bold text-zinc-100">
+                        {customer.email ??
+                          "Keine E-Mail"}
                       </p>
-                      <p className="mt-1 truncate text-sm text-zinc-500">
-                        {customer.phone ?? "Kein Telefon"}
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {customer.phone ??
+                          "Kein Telefon"}
                       </p>
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-200">
+                      <p className="truncate text-xs font-bold text-zinc-100">
                         {getCustomerLocation(customer)}
                       </p>
 
-                      {getCustomerAddress(customer) ? (
-                        <p className="mt-1 truncate text-sm text-zinc-500">
-                          {getCustomerAddress(customer)}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-sm text-zinc-600">
-                          Keine Adresse
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <ActionStatusBadge
-                        href={action.href}
-                        tone={action.tone}
-                        label={action.label}
-                        title={action.description}
-                      />
-                      <p className="text-xs text-zinc-500">
-                        Erstellt: {formatDate(customer.createdAt)}
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {getCustomerAddress(customer)}
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
-                      <Link
-                        href={`/dashboard/customers/${customer.id}`}
-                        className="rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-4 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-400/20"
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-flex max-w-full truncate rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${profile.className}`}
                       >
-                        Öffnen
-                      </Link>
+                        {profile.label}
+                      </span>
+                    </div>
 
-                      <Link
-                        href={`/dashboard/customers/${customer.id}/edit`}
-                        className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-xs font-bold text-zinc-200 transition hover:bg-white/[0.08]"
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Erstellt
+                      </p>
+
+                      <p className="mt-0.5 truncate text-xs font-bold text-zinc-300">
+                        {formatDate(customer.createdAt)}
+                      </p>
+                    </div>
+
+                    <div className="xl:text-right">
+                      <PremiumButton
+                        href={action.href}
+                        variant="primary"
+                        size="sm"
                       >
-                        Bearbeiten
-                      </Link>
+                        {action.label}
+                      </PremiumButton>
                     </div>
                   </article>
                 );
               })}
             </div>
-          </section>
-        ) : null}
+          ) : null}
+        </section>
       </section>
     </main>
   );
