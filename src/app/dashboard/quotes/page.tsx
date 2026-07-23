@@ -1,15 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import DashboardPanel from "../../../components/dashboard/DashboardPanel";
-import DashboardTable, {
-  type DashboardTableColumn,
-} from "../../../components/dashboard/DashboardTable";
-import EmptyState from "../../../components/dashboard/EmptyState";
-import MetricCard from "../../../components/dashboard/MetricCard";
-import PageHeader from "../../../components/dashboard/PageHeader";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import PremiumButton from "../../../components/dashboard/PremiumButton";
-import StatusBadge from "../../../components/dashboard/StatusBadge";
 
 type Quote = {
   id: string;
@@ -40,96 +38,235 @@ type DashboardQuotesResponse = {
   };
 };
 
-function formatDate(value?: string | null) {
-  if (!value) return "—";
+type QuoteAction = {
+  label: string;
+  priority: number;
+};
 
-  const date = new Date(value);
+function normalizeStatus(status?: string | null) {
+  return String(status ?? "UNKNOWN")
+    .trim()
+    .toUpperCase();
+}
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+function normalizeCurrency(value?: string | null) {
+  const currency = String(value ?? "CHF")
+    .trim()
+    .toUpperCase();
 
-  return date.toLocaleString("de-CH", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return /^[A-Z]{3}$/.test(currency)
+    ? currency
+    : "CHF";
 }
 
 function toNumber(value?: string | number | null) {
-  if (value === null || value === undefined || value === "") {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return null;
   }
 
-  if (typeof value === "number") {
-    return Number.isNaN(value) ? null : value;
-  }
+  const number =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(",", "."));
 
-  const parsed = Number(String(value).replace(",", "."));
-
-  return Number.isNaN(parsed) ? null : parsed;
+  return Number.isFinite(number)
+    ? number
+    : null;
 }
 
-function formatMoney(value?: string | number | null, currency = "CHF") {
-  const numberValue = toNumber(value);
+function formatMoney(
+  value?: string | number | null,
+  currency = "CHF",
+) {
+  const number = toNumber(value);
 
-  if (numberValue === null) {
-    return "—";
+  if (number === null) {
+    return "Noch offen";
   }
 
   return new Intl.NumberFormat("de-CH", {
     style: "currency",
-    currency,
+    currency: normalizeCurrency(currency),
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(numberValue);
+  }).format(number);
 }
 
-function formatTaxRate(value?: string | number | null) {
-  const numberValue = toNumber(value);
-
-  if (numberValue === null) {
-    return "—";
+function formatDate(value?: string | null) {
+  if (!value) {
+    return "Nicht festgelegt";
   }
 
-  return `${numberValue}%`;
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Nicht festgelegt";
+  }
+
+  return new Intl.DateTimeFormat("de-CH", {
+    dateStyle: "short",
+    timeZone: "Europe/Zurich",
+  }).format(date);
 }
 
 function getQuoteNumber(quote: Quote) {
-  return quote.quoteNumber ?? quote.number ?? quote.id;
+  return (
+    quote.quoteNumber ??
+    quote.number ??
+    quote.id
+  );
 }
 
 function getQuoteDeadline(quote: Quote) {
-  return quote.validUntil ?? quote.dueDate ?? null;
+  return (
+    quote.validUntil ??
+    quote.dueDate ??
+    null
+  );
 }
 
-function normalizeStatus(status?: string | null) {
-  return status?.toUpperCase() ?? "UNKNOWN";
+function getQuoteStatusLabel(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case "DRAFT":
+      return "Entwurf";
+
+    case "READY_TO_SEND":
+      return "Versandbereit";
+
+    case "SENT":
+      return "Versendet";
+
+    case "ACCEPTED":
+      return "Akzeptiert";
+
+    case "REJECTED":
+      return "Abgelehnt";
+
+    case "EXPIRED":
+      return "Abgelaufen";
+
+    default:
+      return "In Bearbeitung";
+  }
+}
+
+function getQuoteStatusClass(status?: string | null) {
+  switch (normalizeStatus(status)) {
+    case "DRAFT":
+      return "border-zinc-300/20 bg-white/[0.05] text-zinc-200";
+
+    case "READY_TO_SEND":
+      return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
+
+    case "SENT":
+      return "border-violet-300/25 bg-violet-300/10 text-violet-100";
+
+    case "ACCEPTED":
+      return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
+
+    case "REJECTED":
+      return "border-red-300/25 bg-red-300/10 text-red-100";
+
+    case "EXPIRED":
+      return "border-amber-300/25 bg-amber-300/10 text-amber-100";
+
+    default:
+      return "border-white/10 bg-white/[0.04] text-zinc-300";
+  }
+}
+
+function getQuoteAction(
+  status?: string | null,
+): QuoteAction {
+  switch (normalizeStatus(status)) {
+    case "DRAFT":
+    case "READY_TO_SEND":
+      return {
+        label: "Offerte senden",
+        priority: 0,
+      };
+
+    case "ACCEPTED":
+      return {
+        label: "Auftrag öffnen",
+        priority: 2,
+      };
+
+    case "SENT":
+      return {
+        label: "Entscheidung prüfen",
+        priority: 1,
+      };
+
+    case "REJECTED":
+    case "EXPIRED":
+      return {
+        label: "Offerte prüfen",
+        priority: 4,
+      };
+
+    default:
+      return {
+        label: "Offerte öffnen",
+        priority: 3,
+      };
+  }
+}
+
+function getQuoteTimestamp(quote: Quote) {
+  const value =
+    quote.createdAt ??
+    quote.updatedAt;
+
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
 }
 
 export default function DashboardQuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
 
   const loadQuotes = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/dashboard/quotes", {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/dashboard/quotes",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
       if (!response.ok) {
-        throw new Error("Die Angebots-API hat einen Fehler zurückgegeben.");
+        throw new Error(
+          "Die Offerten konnten nicht geladen werden.",
+        );
       }
 
-      const json: DashboardQuotesResponse = await response.json();
+      const json =
+        (await response.json()) as DashboardQuotesResponse;
 
       setQuotes(json.data.quotes ?? []);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Unbekannter Angebotsfehler",
+        error instanceof Error
+          ? error.message
+          : "Die Offerten konnten nicht geladen werden.",
       );
     } finally {
       setLoading(false);
@@ -141,26 +278,55 @@ export default function DashboardQuotesPage() {
       void loadQuotes();
     }, 0);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [loadQuotes]);
+
+  const sortedQuotes = useMemo(() => {
+    return [...quotes].sort((left, right) => {
+      const priorityDifference =
+        getQuoteAction(left.status).priority -
+        getQuoteAction(right.status).priority;
+
+      if (priorityDifference !== 0) {
+        return priorityDifference;
+      }
+
+      return (
+        getQuoteTimestamp(right) -
+        getQuoteTimestamp(left)
+      );
+    });
+  }, [quotes]);
 
   const stats = useMemo(() => {
     const draft = quotes.filter(
-      (quote) => normalizeStatus(quote.status) === "DRAFT",
+      (quote) =>
+        normalizeStatus(quote.status) === "DRAFT" ||
+        normalizeStatus(quote.status) === "READY_TO_SEND",
     ).length;
 
     const sent = quotes.filter(
-      (quote) => normalizeStatus(quote.status) === "SENT",
+      (quote) =>
+        normalizeStatus(quote.status) === "SENT",
     ).length;
 
     const accepted = quotes.filter(
-      (quote) => normalizeStatus(quote.status) === "ACCEPTED",
+      (quote) =>
+        normalizeStatus(quote.status) === "ACCEPTED",
     ).length;
 
-    const totalValue = quotes.reduce((sum, quote) => {
-      const amount = toNumber(quote.total);
-      return amount === null ? sum : sum + amount;
-    }, 0);
+    const totalValue = quotes.reduce(
+      (sum, quote) => {
+        const value = toNumber(quote.total);
+
+        return value === null
+          ? sum
+          : sum + value;
+      },
+      0,
+    );
 
     return {
       total: quotes.length,
@@ -171,255 +337,193 @@ export default function DashboardQuotesPage() {
     };
   }, [quotes]);
 
-  const columns: DashboardTableColumn<Quote>[] = [
-    {
-      key: "quote",
-      header: "Angebot",
-      render: (quote) => (
-        <div>
-          <p className="font-black tracking-tight text-white">
-            {getQuoteNumber(quote)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">ID: {quote.id}</p>
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (quote) => <StatusBadge status={quote.status} />,
-    },
-    {
-      key: "links",
-      header: "Verknüpfungen",
-      render: (quote) => (
-        <div className="space-y-1">
-          <p className="text-sm text-zinc-300">
-            Kunde:{" "}
-            <span className="font-semibold text-zinc-100">
-              {quote.customerId ?? "—"}
-            </span>
-          </p>
-          <p className="text-xs text-zinc-500">
-            Auftrag: {quote.orderId ?? "—"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "subtotal",
-      header: "Zwischensumme",
-      render: (quote) => (
-        <p className="font-semibold text-zinc-200">
-          {formatMoney(quote.subtotal, quote.currency ?? "CHF")}
-        </p>
-      ),
-    },
-    {
-      key: "tax",
-      header: "Steuer",
-      render: (quote) => (
-        <div>
-          <p className="font-semibold text-zinc-200">
-            {formatMoney(quote.taxAmount, quote.currency ?? "CHF")}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Satz: {formatTaxRate(quote.taxRate)}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "total",
-      header: "Total",
-      render: (quote) => (
-        <p className="font-black text-emerald-100">
-          {formatMoney(quote.total, quote.currency ?? "CHF")}
-        </p>
-      ),
-    },
-    {
-      key: "deadline",
-      header: "Gültig bis",
-      render: (quote) => (
-        <p className="text-sm font-medium text-zinc-400">
-          {formatDate(getQuoteDeadline(quote))}
-        </p>
-      ),
-    },
-    {
-      key: "action",
-      header: "Aktion",
-      className: "text-right",
-      render: (quote) => (
-        <div className="flex justify-end">
-          <PremiumButton
-            href={`/dashboard/quotes/${quote.id}`}
-            variant="primary"
-            size="sm"
-          >
-            Details
-          </PremiumButton>
-        </div>
-      ),
-    },
-  ];
-
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-7xl flex-col gap-6">
-        <PageHeader
-          eyebrow="HEXA OS CRM / Angebote"
-          title="Angebote"
-          description="Das Angebotsmodul verbindet Kunden, Aufträge, freigegebene Kalkulationen, Angebotsstatus und spätere Rechnungen."
-        >
-          <PremiumButton
-            type="button"
-            variant="secondary"
-            onClick={loadQuotes}
-            disabled={loading}
-          >
-            Aktualisieren
-          </PremiumButton>
-          <PremiumButton href="/dashboard/orders" variant="ghost">
-            Aufträge
-          </PremiumButton>
-        </PageHeader>
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Offerten
+              </p>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            title="Alle Angebote"
-            value={String(stats.total)}
-            description="Gesamtzahl der in der Datenbank gespeicherten Angebote."
-            trend="Quelle: Angebots-API"
-            tone="cyan"
-            icon={<span className="text-lg font-black">A</span>}
-          />
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Offerten
+                </h1>
 
-          <MetricCard
-            title="Entwürfe"
-            value={String(stats.draft)}
-            description="Angebote, die vorbereitet, aber noch nicht versendet wurden."
-            trend="Status DRAFT"
-            tone="zinc"
-            icon={<span className="text-lg font-black">D</span>}
-          />
-
-          <MetricCard
-            title="Versendet"
-            value={String(stats.sent)}
-            description="Angebote, die dem Kunden zur Entscheidung übermittelt wurden."
-            trend="Status SENT"
-            tone="violet"
-            icon={<span className="text-lg font-black">↗</span>}
-          />
-
-          <MetricCard
-            title="Akzeptiert"
-            value={String(stats.accepted)}
-            description="Angebote, die für die Umwandlung in eine Rechnung bereit sind."
-            trend={formatMoney(stats.totalValue, "CHF")}
-            tone="emerald"
-            icon={<span className="text-lg font-black">✓</span>}
-          />
-        </section>
-
-        {loading ? (
-          <DashboardPanel
-            title="Angebote werden geladen"
-            description="HEXA OS lädt die aktuellen Daten aus dem Angebotsmodul."
-          >
-            <div className="grid gap-3">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
-                />
-              ))}
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Versand und Kundenentscheidung. Pro Offerte genau der nächste Schritt.
+                </p>
+              </div>
             </div>
-          </DashboardPanel>
-        ) : null}
+
+            <PremiumButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={loadQuotes}
+              disabled={loading}
+            >
+              Aktualisieren
+            </PremiumButton>
+          </div>
+
+          <div
+            data-testid="quotes-summary-strip"
+            className="mt-3 flex flex-wrap gap-1.5 border-t border-white/10 pt-3"
+          >
+            <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {stats.total} gesamt
+            </span>
+
+            <span className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-cyan-100">
+              {formatMoney(stats.totalValue, "CHF")}
+            </span>
+
+            <span className="rounded-lg border border-zinc-300/20 bg-white/[0.05] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-200">
+              {stats.draft} bereit
+            </span>
+
+            <span className="rounded-lg border border-violet-300/20 bg-violet-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-violet-100">
+              {stats.sent} versendet
+            </span>
+
+            <span className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              {stats.accepted} akzeptiert
+            </span>
+          </div>
+        </header>
 
         {errorMessage ? (
-          <DashboardPanel
-            title="Fehler im Angebotsmodul"
-            description="Die Angebotsliste konnte nicht aus der API geladen werden."
-          >
-            <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Fehler: {errorMessage}</p>
-              <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Prüfen Sie den Endpoint /api/dashboard/quotes und die
-                Datenbankverbindung.
+          <section className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-100">
+            {errorMessage}
+          </section>
+        ) : null}
+
+        <section
+          data-testid="quotes-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Aktive Offerten
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                Versandbereite und versendete Offerten stehen zuerst.
               </p>
             </div>
-          </DashboardPanel>
-        ) : null}
 
-        {!loading && !errorMessage ? (
-          <DashboardPanel
-            title="Angebotsliste"
-            description={`Anzahl Datensätze: ${quotes.length}. Ein Angebot ist der Schritt zwischen der Kalkulation und der Rechnung.`}
-            action={
-              <StatusBadge
-                status={quotes.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={quotes.length > 0 ? "Angebote aktiv" : "Keine Angebote"}
-              />
-            }
-          >
-            <DashboardTable
-              columns={columns}
-              rows={quotes}
-              getRowKey={(quote) => quote.id}
-              empty={
-                <EmptyState
-                  title="Keine Angebote in der Datenbank"
-                  description="Das erste Angebot erscheint hier nach der Erstellung aus einer freigegebenen Kalkulation."
-                  actionLabel="Zu den Aufträgen"
-                  actionHref="/dashboard/orders"
-                />
-              }
-            />
-          </DashboardPanel>
-        ) : null}
+            <span className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {sortedQuotes.length} Positionen
+            </span>
+          </div>
 
-        {!loading && !errorMessage ? (
-          <DashboardPanel
-            title="Rolle des Angebotsmoduls"
-            description="Angebote werden aus freigegebenen Kalkulationen erstellt und anschließend im Kundenworkflow weiterverarbeitet."
-          >
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
-                <p className="text-sm font-black text-cyan-100">
-                  Von der Kalkulation zum Angebot
-                </p>
-                <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  Eine geprüfte Kalkulation wird als offizielles Angebot
-                  vorbereitet und mit Kunde, Auftrag und Verlauf verknüpft.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-                <p className="text-sm font-black text-violet-100">
-                  Versand an den Kunden
-                </p>
-                <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Der Versand läuft über den Angebotsstatus, Benachrichtigungen
-                  und den dokumentierten Systemverlauf.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                <p className="text-sm font-black text-emerald-100">
-                  Akzeptanz
-                </p>
-                <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Ein akzeptiertes Angebot wird im Workflow von HEXA OS weiter
-                  zu Rechnung und Zahlung verarbeitet.
-                </p>
-              </div>
+          {loading ? (
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
             </div>
-          </DashboardPanel>
-        ) : null}
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedQuotes.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine Offerten vorhanden
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Die erste Offerte erscheint automatisch nach der Freigabe einer Kalkulation.
+              </p>
+            </div>
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedQuotes.length > 0 ? (
+            <div className="divide-y divide-white/10">
+              {sortedQuotes.map((quote) => {
+                const action =
+                  getQuoteAction(quote.status);
+
+                return (
+                  <article
+                    key={quote.id}
+                    className="grid gap-2 px-3 py-2.5 transition hover:bg-white/[0.03] xl:grid-cols-[minmax(190px,1fr)_120px_minmax(180px,0.9fr)_140px_130px_auto] xl:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-cyan-100">
+                        {getQuoteNumber(quote)}
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        Auftrag: {quote.orderId ?? "Nicht verknüpft"}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-flex max-w-full truncate rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${getQuoteStatusClass(
+                          quote.status,
+                        )}`}
+                      >
+                        {getQuoteStatusLabel(quote.status)}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-zinc-100">
+                        Kunde
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {quote.customerId ?? "Nicht verknüpft"}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-black text-emerald-100">
+                        {formatMoney(
+                          quote.total,
+                          quote.currency ?? "CHF",
+                        )}
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        Erstellt: {formatDate(quote.createdAt)}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Gültig bis
+                      </p>
+
+                      <p className="mt-0.5 truncate text-xs font-bold text-zinc-300">
+                        {formatDate(getQuoteDeadline(quote))}
+                      </p>
+                    </div>
+
+                    <div className="xl:text-right">
+                      <PremiumButton
+                        href={`/dashboard/quotes/${quote.id}`}
+                        variant="primary"
+                        size="sm"
+                      >
+                        {action.label}
+                      </PremiumButton>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+        </section>
       </section>
     </main>
   );
