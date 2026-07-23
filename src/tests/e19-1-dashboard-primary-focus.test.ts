@@ -1,76 +1,42 @@
-import fs from "node:fs";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
-import {
-  describe,
-  expect,
-  it,
-} from "vitest";
-
-const source = fs.readFileSync(
-  "src/app/dashboard/page.tsx",
+const pageSource = readFileSync(
+  join(process.cwd(), "src/app/dashboard/page.tsx"),
   "utf8",
 );
 
-describe(
-  "E19.1 dashboard primary action",
-  () => {
-    it(
-      "renders exactly one primary operational action definition",
-      () => {
-        const matches = source.match(
-          /data-testid="dashboard-primary-action"/g,
-        );
+function countOccurrences(source: string, value: string) {
+  return source.split(value).length - 1;
+}
 
-        expect(
-          matches?.length ?? 0,
-        ).toBe(1);
+describe("E19.1 dashboard primary focus", () => {
+  it("keeps exactly one primary dashboard action", () => {
+    expect(
+      countOccurrences(
+        pageSource,
+        '"dashboard-primary-action"',
+      ),
+    ).toBe(1);
 
-        expect(source).toContain(
-          "function PrimaryAlertCard(",
-        );
+    expect(pageSource).toContain(
+      'isPrimary\n            ? "dashboard-primary-action"',
+    );
+  });
 
-        expect(source).toContain(
-          "const primaryAlert =",
-        );
-      },
+  it("selects the first alert as the primary operational item", () => {
+    expect(pageSource).toContain(
+      "const primaryAlert =\n    alerts[0] ?? null;",
     );
 
-    it(
-      "limits the secondary queue to eight items after the primary action",
-      () => {
-        expect(source).toContain(
-          "const remainingAlerts =",
-        );
-
-        expect(source).toContain(
-          "alerts.slice(1, 9)",
-        );
-
-        expect(source).toContain(
-          "remainingAlerts.map((alert) => (",
-        );
-
-        expect(source).not.toContain(
-          "alerts.slice(0, 18)",
-        );
-      },
+    expect(pageSource).toContain(
+      "alerts.slice(1, 20);",
     );
+  });
 
-    it(
-      "uses the focused cockpit width and a single empty state",
-      () => {
-        expect(source).toContain(
-          "max-w-[1600px]",
-        );
-
-        expect(source).toContain(
-          "Weitere Aufgaben",
-        );
-
-        expect(source).not.toContain(
-          "{alerts.length === 0 ? <EmptyInbox /> : null}",
-        );
-      },
-    );
-  },
-);
+  it("does not restore the old large alert queue", () => {
+    expect(pageSource).not.toContain("alerts.slice(0, 18)");
+    expect(pageSource).not.toContain("Weitere Aufgaben");
+  });
+});

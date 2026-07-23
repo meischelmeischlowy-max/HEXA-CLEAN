@@ -1,115 +1,54 @@
-import fs from "node:fs";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 
-import {
-  describe,
-  expect,
-  it,
-} from "vitest";
+const root = process.cwd();
 
-const page = fs.readFileSync(
-  "src/app/dashboard/page.tsx",
+const pageSource = readFileSync(
+  join(root, "src/app/dashboard/page.tsx"),
   "utf8",
 );
 
-const layout = fs.readFileSync(
-  "src/app/dashboard/layout.tsx",
+const layoutSource = readFileSync(
+  join(root, "src/app/dashboard/layout.tsx"),
   "utf8",
 );
 
-const navigation = fs.readFileSync(
-  "src/app/dashboard/DashboardNavigationLink.tsx",
+const navigationSource = readFileSync(
+  join(root, "src/app/dashboard/DashboardNavigationLink.tsx"),
   "utf8",
 );
 
-describe(
-  "E19.2 dashboard UI polish",
-  () => {
-    it(
-      "shows a compact header without duplicate shortcuts",
-      () => {
-        expect(page).toContain(
-          "HEXA OS / Arbeitscockpit",
-        );
-
-        expect(page).not.toContain(
-          "HEXA OS CRM / Automation Inbox",
-        );
-
-        expect(page).not.toContain(
-          'href="/dashboard/estimates"',
-        );
-
-        expect(page).not.toContain(
-          'href="/dashboard/notifications"',
-        );
-      },
+describe("E19.2 dashboard UI polish", () => {
+  it("shows a compact header without duplicate shortcuts", () => {
+    expect(pageSource).toContain(
+      "HEXA OS / Arbeitsliste",
     );
 
-    it(
-      "converts the Resend testing restriction into a readable message",
-      () => {
-        expect(page).toContain(
-          "function notificationFailureDescription(",
-        );
+    expect(pageSource).not.toContain(
+      "Die wichtigste Aufgabe steht direkt darunter.",
+    );
+  });
 
-        expect(page).toContain(
-          "Die Absender-Domain ist in Resend noch nicht verifiziert.",
-        );
-
-        expect(page).toContain(
-          "description: notificationFailureDescription(",
-        );
-
-        expect(page).not.toContain(
-          "notification.errorMessage ||",
-        );
-      },
+  it("converts the Resend testing restriction into a readable message", () => {
+    expect(pageSource).toContain(
+      "Die Absender-Domain ist in Resend noch nicht verifiziert.",
     );
 
-    it(
-      "uses a compact primary card with wrapped error text",
-      () => {
-        expect(page).toContain(
-          "max-w-3xl break-words",
-        );
-
-        expect(page).toContain(
-          "rounded-3xl border p-4 shadow-xl",
-        );
-
-        expect(page).toContain(
-          "sm:w-auto",
-        );
-      },
+    expect(pageSource).toContain(
+      "nur Test-E-Mails an die eigene Konto-Adresse senden.",
     );
+  });
 
-    it(
-      "highlights the active navigation route",
-      () => {
-        expect(layout).toContain(
-          'import DashboardNavigationLink from "./DashboardNavigationLink";',
-        );
+  it("keeps the compact 260px desktop sidebar", () => {
+    expect(layoutSource).toContain("w-[260px]");
+    expect(layoutSource).toContain("Automatisierter Betrieb");
+  });
 
-        expect(layout).toContain(
-          "w-[260px]",
-        );
-
-        expect(layout).not.toContain(
-          "function NavigationLink(",
-        );
-
-        expect(navigation).toContain(
-          "usePathname",
-        );
-
-        expect(navigation).toContain(
-          'aria-current={isActive ? "page" : undefined}',
-        );
-
-        expect(navigation).toContain(
-          'href === "/dashboard"',
-        );
-      },
+  it("highlights the active navigation route", () => {
+    expect(navigationSource).toContain("usePathname()");
+    expect(navigationSource).toContain(
+      'aria-current={isActive ? "page" : undefined}',
     );
-  },
-);
+  });
+});

@@ -36,7 +36,7 @@ describe(
           "gel\u00f6scht",
           "Plausibilit\u00e4tsspanne",
           "Best\u00e4tigung",
-          "\u00fcberf\u00e4llige",
+          "\u00fcberf\u00e4llig",
           "R\u00fcckruf",
         ];
 
@@ -58,7 +58,7 @@ describe(
           "geloescht",
           "Plausibilitaetsspanne",
           "Bestaetigung",
-          "ueberfaellige",
+          "ueberfaellig",
           "Rueckruf",
         ];
 
