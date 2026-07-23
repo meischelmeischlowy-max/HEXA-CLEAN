@@ -1,7 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import PremiumButton from "../../../components/dashboard/PremiumButton";
 
 type Notification = {
   id: string;
@@ -27,390 +33,514 @@ type DashboardNotificationsResponse = {
   };
 };
 
-function formatDate(value?: string | null) {
-  if (!value) return "-";
+function normalizeStatus(
+  status?: string | null,
+) {
+  return String(
+    status || "UNKNOWN",
+  ).toUpperCase();
+}
+
+function statusLabel(
+  status?: string | null,
+) {
+  switch (
+    normalizeStatus(status)
+  ) {
+    case "FAILED":
+      return "Fehler";
+
+    case "PENDING":
+      return "Wartend";
+
+    case "SENT":
+      return "Gesendet";
+
+    case "READ":
+      return "Gelesen";
+
+    default:
+      return "Unbekannt";
+  }
+}
+
+function statusPriority(
+  status?: string | null,
+) {
+  switch (
+    normalizeStatus(status)
+  ) {
+    case "FAILED":
+      return 0;
+
+    case "PENDING":
+      return 1;
+
+    case "SENT":
+      return 2;
+
+    case "READ":
+      return 3;
+
+    default:
+      return 4;
+  }
+}
+
+function statusClasses(
+  status?: string | null,
+) {
+  switch (
+    normalizeStatus(status)
+  ) {
+    case "FAILED":
+      return "border-red-300/25 bg-red-300/10 text-red-100";
+
+    case "PENDING":
+      return "border-amber-300/25 bg-amber-300/10 text-amber-100";
+
+    case "SENT":
+      return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
+
+    case "READ":
+      return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
+
+    default:
+      return "border-white/10 bg-white/[0.04] text-zinc-300";
+  }
+}
+
+function formatDate(
+  value?: string | null,
+) {
+  if (!value) {
+    return "Kein Datum";
+  }
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return "Kein Datum";
   }
 
-  return date.toLocaleString("de-CH", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return new Intl.DateTimeFormat(
+    "de-CH",
+    {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone:
+        "Europe/Zurich",
+    },
+  ).format(date);
 }
 
-function normalizeStatus(status?: string | null) {
-  return String(status || "UNKNOWN").toUpperCase();
+function notificationTimestamp(
+  notification: Notification,
+) {
+  const value =
+    notification.createdAt ??
+    notification.updatedAt ??
+    notification.sentAt;
+
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp =
+    new Date(value).getTime();
+
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
 }
 
-function statusClass(status?: string | null) {
-  const normalized = normalizeStatus(status);
-
-  if (normalized === "SENT") {
-    return "border-emerald-300/25 bg-emerald-300/10 text-emerald-100";
-  }
-
-  if (normalized === "FAILED") {
-    return "border-red-300/25 bg-red-300/10 text-red-100";
-  }
-
-  if (normalized === "PENDING") {
-    return "border-amber-300/25 bg-amber-300/10 text-amber-100";
-  }
-
-  if (normalized === "READ") {
-    return "border-cyan-300/25 bg-cyan-300/10 text-cyan-100";
-  }
-
-  return "border-white/10 bg-white/[0.04] text-zinc-300";
-}
-
-function StatCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "neutral" | "green" | "amber" | "red";
-}) {
-  const className =
-    tone === "green"
-      ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
-      : tone === "amber"
-        ? "border-amber-300/25 bg-amber-300/10 text-amber-100"
-        : tone === "red"
-          ? "border-red-300/25 bg-red-300/10 text-red-100"
-          : "border-white/10 bg-white/[0.03] text-white";
-
-  return (
-    <div className={`rounded-3xl border p-5 ${className}`}>
-      <p className="text-xs font-black uppercase tracking-[0.22em] opacity-70">
-        {label}
-      </p>
-      <p className="mt-3 text-3xl font-black">{value}</p>
-    </div>
-  );
-}
-
-function ErrorBox({ errorMessage }: { errorMessage?: string | null }) {
-  if (!errorMessage) {
+function rowDescription(
+  notification: Notification,
+) {
+  if (
+    normalizeStatus(
+      notification.status,
+    ) === "FAILED"
+  ) {
     return (
-      <span className="text-xs text-zinc-500">
-        Kein Fehlertext gespeichert.
-      </span>
+      notification.errorMessage ||
+      notification.message ||
+      "Der Versand ist fehlgeschlagen."
     );
   }
 
   return (
-    <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-2xl border border-red-300/20 bg-red-950/30 p-3 text-xs leading-5 text-red-100">
-      {errorMessage}
-    </pre>
+    notification.message ||
+    "Keine zusätzliche Nachricht."
   );
 }
 
 export default function DashboardNotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [
+    notifications,
+    setNotifications,
+  ] = useState<
+    Notification[]
+  >([]);
 
-  async function loadNotifications() {
-    setLoading(true);
-    setErrorMessage(null);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-    try {
-      const response = await fetch("/api/dashboard/notifications", {
-        method: "GET",
-        cache: "no-store",
-      });
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState<
+    string | null
+  >(null);
 
-      if (!response.ok) {
-        throw new Error("Dashboard Notifications API returned an error");
-      }
+  const loadNotifications =
+    useCallback(
+      async () => {
+        setLoading(true);
+        setErrorMessage(null);
 
-      const json: DashboardNotificationsResponse = await response.json();
+        try {
+          const response =
+            await fetch(
+              "/api/dashboard/notifications",
+              {
+                method: "GET",
+                cache: "no-store",
+              },
+            );
 
-      setNotifications(json.data.notifications ?? []);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unknown notifications error",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+          if (!response.ok) {
+            throw new Error(
+              "Die Benachrichtigungen konnten nicht geladen werden.",
+            );
+          }
+
+          const json =
+            (await response.json()) as DashboardNotificationsResponse;
+
+          setNotifications(
+            json.data
+              ?.notifications ??
+              [],
+          );
+        } catch (error) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "Die Benachrichtigungen konnten nicht geladen werden.",
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      [],
+    );
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadNotifications();
-    }, 0);
+    const timeoutId =
+      window.setTimeout(() => {
+        void loadNotifications();
+      }, 0);
 
-    return () => window.clearTimeout(timeoutId);
-  }, []);
-
-  const stats = useMemo(() => {
-    const failed = notifications.filter(
-      (notification) => normalizeStatus(notification.status) === "FAILED",
-    ).length;
-
-    const pending = notifications.filter(
-      (notification) => normalizeStatus(notification.status) === "PENDING",
-    ).length;
-
-    const sent = notifications.filter(
-      (notification) => normalizeStatus(notification.status) === "SENT",
-    ).length;
-
-    return {
-      total: notifications.length,
-      failed,
-      pending,
-      sent,
+    return () => {
+      window.clearTimeout(
+        timeoutId,
+      );
     };
-  }, [notifications]);
+  }, [loadNotifications]);
 
-  const failedNotifications = useMemo(
-    () =>
-      notifications.filter(
-        (notification) => normalizeStatus(notification.status) === "FAILED",
-      ),
-    [notifications],
-  );
+  const sortedNotifications =
+    useMemo(() => {
+      return [
+        ...notifications,
+      ].sort(
+        (
+          left,
+          right,
+        ) => {
+          const priorityDifference =
+            statusPriority(
+              left.status,
+            ) -
+            statusPriority(
+              right.status,
+            );
+
+          if (
+            priorityDifference !==
+            0
+          ) {
+            return priorityDifference;
+          }
+
+          return (
+            notificationTimestamp(
+              right,
+            ) -
+            notificationTimestamp(
+              left,
+            )
+          );
+        },
+      );
+    }, [notifications]);
+
+  const stats =
+    useMemo(() => {
+      return notifications.reduce(
+        (
+          result,
+          notification,
+        ) => {
+          const status =
+            normalizeStatus(
+              notification.status,
+            );
+
+          if (
+            status === "FAILED"
+          ) {
+            result.failed += 1;
+          }
+
+          if (
+            status === "PENDING"
+          ) {
+            result.pending += 1;
+          }
+
+          if (
+            status === "SENT"
+          ) {
+            result.sent += 1;
+          }
+
+          return result;
+        },
+        {
+          failed: 0,
+          pending: 0,
+          sent: 0,
+        },
+      );
+    }, [notifications]);
 
   return (
-    <main className="min-h-screen px-4 py-6 text-white sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-none flex-col gap-5">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.35em] text-cyan-400">
-                HEXA OS CRM
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Benachrichtigungen
               </p>
 
-              <h1 className="mt-3 text-4xl font-black tracking-tight">
-                Benachrichtigungen
-              </h1>
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Benachrichtigungen
+                </h1>
 
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
-                Versandlog für Systemnachrichten, Kundenmails und interne
-                Owner-Benachrichtigungen. Fehler werden direkt sichtbar, damit
-                Resend / SMTP / Konfiguration sofort geprüft werden kann.
-              </p>
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Fehlgeschlagene und wartende Vorgänge stehen zuerst.
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={loadNotifications}
-                disabled={loading}
-                className="rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Aktualisieren
-              </button>
-
-              <Link
-                href="/dashboard/security"
-                className="rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-sm font-bold text-zinc-200 transition hover:bg-white/10"
-              >
-                Security Logs
-              </Link>
-            </div>
+            <PremiumButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={
+                loadNotifications
+              }
+              disabled={loading}
+            >
+              Aktualisieren
+            </PremiumButton>
           </div>
-        </div>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Gesamt" value={stats.total} tone="neutral" />
-          <StatCard label="Gesendet" value={stats.sent} tone="green" />
-          <StatCard label="Wartend" value={stats.pending} tone="amber" />
-          <StatCard label="Fehler" value={stats.failed} tone="red" />
-        </section>
+          <div
+            data-testid="notifications-summary-strip"
+            className="mt-3 flex flex-wrap gap-1.5 border-t border-white/10 pt-3"
+          >
+            <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {notifications.length} gesamt
+            </span>
 
-        {loading ? (
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-            Benachrichtigungen werden geladen...
+            <span className="rounded-lg border border-red-300/20 bg-red-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-red-100">
+              {stats.failed} Fehler
+            </span>
+
+            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
+              {stats.pending} wartend
+            </span>
+
+            <span className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              {stats.sent} gesendet
+            </span>
           </div>
-        ) : null}
+        </header>
 
         {errorMessage ? (
-          <div className="rounded-3xl border border-red-300/25 bg-red-300/10 p-6 text-red-100">
-            <p className="font-black">Fehler beim Laden</p>
-            <p className="mt-2 text-sm">{errorMessage}</p>
-          </div>
-        ) : null}
-
-        {!loading && !errorMessage && failedNotifications.length > 0 ? (
-          <section className="rounded-3xl border border-red-300/25 bg-red-300/10 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-red-100/80">
-              Sofort prüfen
-            </p>
-
-            <h2 className="mt-2 text-2xl font-black text-red-50">
-              Fehlgeschlagene E-Mail Benachrichtigungen
-            </h2>
-
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-red-50/80">
-              Diese Eintraege wurden im CRM gespeichert, aber der Versandkanal
-              hat die E-Mail nicht erfolgreich gesendet. Der genaue Fehler steht
-              direkt im Feld Fehler.
-            </p>
-
-            <div className="mt-5 grid gap-4">
-              {failedNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className="rounded-3xl border border-red-300/20 bg-black/30 p-5"
-                >
-                  <div className="grid gap-4 xl:grid-cols-[1fr_1fr_2fr]">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-red-100/60">
-                        Empfaenger
-                      </p>
-                      <p className="mt-2 break-words text-sm font-black text-white">
-                        {notification.recipient ?? "-"}
-                      </p>
-
-                      <p className="mt-4 text-xs uppercase tracking-[0.18em] text-red-100/60">
-                        Erstellt
-                      </p>
-                      <p className="mt-2 text-sm font-bold text-red-50">
-                        {formatDate(notification.createdAt)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-red-100/60">
-                        Betreff
-                      </p>
-                      <p className="mt-2 text-sm font-black text-white">
-                        {notification.subject ?? "-"}
-                      </p>
-
-                      <p className="mt-4 text-xs uppercase tracking-[0.18em] text-red-100/60">
-                        Kanal / Status
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-bold text-white">
-                          {notification.channel ?? "-"}
-                        </span>
-                        <span
-                          className={`rounded-full border px-3 py-1 text-xs font-bold ${statusClass(
-                            notification.status,
-                          )}`}
-                        >
-                          {normalizeStatus(notification.status)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.18em] text-red-100/60">
-                        Fehler
-                      </p>
-                      <div className="mt-2">
-                        <ErrorBox errorMessage={notification.errorMessage} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <section className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-100">
+            {errorMessage}
           </section>
         ) : null}
 
-        {!loading && !errorMessage ? (
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03]">
-            <div className="border-b border-white/10 p-5">
-              <h2 className="text-xl font-black">Benachrichtigungsliste</h2>
-              <p className="mt-1 text-sm text-neutral-400">
-                Anzahl Datensaetze: {notifications.length}
+        <section
+          data-testid="notifications-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Versand und Systemmeldungen
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                Pro Eintrag führt eine Aktion zu den vollständigen Details.
               </p>
             </div>
 
-            {notifications.length === 0 ? (
-              <div className="p-6 text-neutral-500">
-                Keine Benachrichtigungen in der Datenbank.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1350px] text-left text-sm">
-                  <thead className="border-b border-white/10 text-xs uppercase tracking-[0.16em] text-neutral-400">
-                    <tr>
-                      <th className="p-4 font-medium">Kanal</th>
-                      <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Empfaenger</th>
-                      <th className="p-4 font-medium">Betreff</th>
-                      <th className="p-4 font-medium">Nachricht</th>
-                      <th className="p-4 font-medium">Fehler</th>
-                      <th className="p-4 font-medium">Versendet</th>
-                      <th className="p-4 font-medium">Gelesen</th>
-                      <th className="p-4 font-medium">Hinzugefuegt</th>
-                    </tr>
-                  </thead>
+            <span className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {sortedNotifications.length} Positionen
+            </span>
+          </div>
 
-                  <tbody>
-                    {notifications.map((notification) => (
-                      <tr
-                        key={notification.id}
-                        className="border-b border-white/10 last:border-b-0"
+          {loading ? (
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+            </div>
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedNotifications.length ===
+            0 ? (
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine Benachrichtigungen vorhanden
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Neue Versand- und Systemmeldungen erscheinen automatisch.
+              </p>
+            </div>
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedNotifications.length >
+            0 ? (
+            <div className="divide-y divide-white/10">
+              {sortedNotifications.map(
+                (
+                  notification,
+                ) => (
+                  <article
+                    key={
+                      notification.id
+                    }
+                    className="grid gap-2 px-3 py-2.5 transition hover:bg-white/[0.03] xl:grid-cols-[120px_minmax(210px,0.9fr)_minmax(240px,1.1fr)_minmax(300px,1.4fr)_145px_auto] xl:items-center"
+                  >
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-flex max-w-full truncate rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${statusClasses(
+                          notification.status,
+                        )}`}
                       >
-                        <td className="p-4 text-neutral-300">
-                          {notification.channel ?? "-"}
-                        </td>
+                        {statusLabel(
+                          notification.status,
+                        )}
+                      </span>
 
-                        <td className="p-4">
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-black ${statusClass(
-                              notification.status,
-                            )}`}
-                          >
-                            {normalizeStatus(notification.status)}
-                          </span>
-                        </td>
+                      <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-600">
+                        {notification.channel ??
+                          "Kein Kanal"}
+                      </p>
+                    </div>
 
-                        <td className="max-w-[220px] break-words p-4 text-neutral-200">
-                          {notification.recipient ?? "-"}
-                        </td>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-cyan-100">
+                        {notification.recipient ??
+                          "Kein Empfänger"}
+                      </p>
 
-                        <td className="max-w-[260px] p-4 font-semibold text-white">
-                          {notification.subject ?? "-"}
-                        </td>
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {formatDate(
+                          notification.createdAt,
+                        )}
+                      </p>
+                    </div>
 
-                        <td className="max-w-[320px] truncate p-4 text-neutral-300">
-                          {notification.message ?? "-"}
-                        </td>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-black text-white">
+                        {notification.subject ??
+                          "Ohne Betreff"}
+                      </p>
 
-                        <td className="max-w-[420px] p-4">
-                          {normalizeStatus(notification.status) === "FAILED" ? (
-                            <ErrorBox errorMessage={notification.errorMessage} />
-                          ) : (
-                            <span className="text-neutral-500">-</span>
-                          )}
-                        </td>
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {normalizeStatus(
+                          notification.status,
+                        ) === "SENT"
+                          ? `Versendet: ${formatDate(
+                              notification.sentAt,
+                            )}`
+                          : "Noch nicht erfolgreich versendet"}
+                      </p>
+                    </div>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(notification.sentAt)}
-                        </td>
+                    <div className="min-w-0">
+                      <p
+                        className={
+                          normalizeStatus(
+                            notification.status,
+                          ) === "FAILED"
+                            ? "truncate text-xs font-bold text-red-100"
+                            : "truncate text-xs text-zinc-400"
+                        }
+                      >
+                        {rowDescription(
+                          notification,
+                        )}
+                      </p>
+                    </div>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(notification.readAt)}
-                        </td>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Erstellt
+                      </p>
 
-                        <td className="p-4 text-neutral-400">
-                          {formatDate(notification.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        ) : null}
+                      <p className="mt-0.5 truncate text-xs font-bold text-zinc-300">
+                        {formatDate(
+                          notification.createdAt,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="xl:text-right">
+                      <PremiumButton
+                        href={`/dashboard/notifications/${notification.id}`}
+                        variant="primary"
+                        size="sm"
+                      >
+                        Details öffnen
+                      </PremiumButton>
+                    </div>
+                  </article>
+                ),
+              )}
+            </div>
+          ) : null}
+        </section>
       </section>
     </main>
   );
