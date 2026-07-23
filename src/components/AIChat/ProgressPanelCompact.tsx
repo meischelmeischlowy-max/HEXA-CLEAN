@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   CheckCircle2,
@@ -17,7 +17,7 @@ interface Props {
 export default function ProgressPanelCompact({ progress }: Props) {
   const items = [
     ["Dienstleistung", progress.serviceLabel],
-    ["Wohnfläche", progress.area ? `${progress.area} m²` : undefined],
+    ["WohnflĂ¤che", progress.area ? `${progress.area} mÂ˛` : undefined],
     ["Fenster", progress.windows ? `${progress.windows} Fenster` : undefined],
     ["Etage", progress.floor],
     [
@@ -85,9 +85,9 @@ export default function ProgressPanelCompact({ progress }: Props) {
       <div className="rounded-2xl border border-white/10 bg-black/45 p-4 backdrop-blur-xl">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-bold uppercase">
-            Vorläufiger Preis
+            VorlĂ¤ufiger Preis
           </h3>
-          <span className="text-xs text-slate-500">Geschätzt</span>
+          <span className="text-xs text-slate-500">GeschĂ¤tzt</span>
         </div>
 
         <div className="text-4xl font-black">
@@ -120,7 +120,7 @@ export default function ProgressPanelCompact({ progress }: Props) {
           </a>
 
           <a
-            href="mailto:meischel.meischlowy@gmail.com"
+            href="mailto:info@hexaclean.ch"
             className="flex flex-col items-center rounded-xl border border-white/10 p-3 text-xs text-slate-300"
           >
             <Mail className="mb-2 h-6 w-6" />

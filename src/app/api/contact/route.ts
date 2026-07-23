@@ -18,6 +18,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { NextRequest, NextResponse } from "next/server";
 
 import { emailConfiguration, resend } from "@/lib/email-config";
+import { calculateQuickOfferPrice } from "@/lib/quick-offer-pricing";
 import {
   checkPublicRateLimit,
   createPublicRateLimitResponse,
@@ -53,9 +54,17 @@ type QuickOfferBody = {
   contact?: unknown;
   service?: unknown;
   size?: unknown;
+  rooms?: unknown;
+  bathrooms?: unknown;
+  condition?: unknown;
+  frequency?: unknown;
   selectedExtras?: unknown;
   time?: unknown;
   price?: unknown;
+  calculatedMinPrice?: unknown;
+  calculatedMaxPrice?: unknown;
+  pricingConfidence?: unknown;
+  requiresPhotoReview?: unknown;
 };
 
 type NormalizedQuickOffer = {
@@ -68,8 +77,15 @@ type NormalizedQuickOffer = {
   category: ServiceCatalogCategory;
   unit: ServiceCatalogUnit;
   size: number;
+  rooms: number;
+  bathrooms: number;
+  condition: string;
+  frequency: string;
   selectedExtras: string[];
   time: string;
+  photoCount: number;
+  pricingConfidence: string;
+  requiresPhotoReview: boolean;
   calculatedMinPrice: number;
   calculatedMaxPrice: number;
   clientPrice: string | null;
@@ -273,30 +289,6 @@ function normalizeService(value: unknown) {
   }
 }
 
-function calculateQuickOfferPrice(
-  service: string,
-  size: number,
-  selectedExtras: string[],
-) {
-  let base = 120;
-
-  if (service === "Wohnung") base = size * 2.6;
-  if (service === "Haus") base = size * 3.1;
-  if (service === "Buero") base = size * 2.2;
-  if (service === "Fenster") base = 140;
-  if (service === "Garten") base = 180;
-  if (service === "Kleine Reparaturen") base = 120;
-
-  const extraPrice = selectedExtras.length * 35;
-  const min = Math.round(base + extraPrice);
-  const max = Math.round(min * 1.18);
-
-  return {
-    min,
-    max,
-  };
-}
-
 function createOrderNumber() {
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const random = Math.floor(1000 + Math.random() * 9000);
@@ -418,7 +410,7 @@ function buildPlainMessage(offer: NormalizedQuickOffer) {
     `E-Mail: ${offer.email ?? "-"}`,
     `Telefon: ${offer.phone ?? "-"}`,
     `Leistung: ${offer.service}`,
-    `Groesse: ${offer.size} m2`,
+    `Grösse: ${offer.size} m2`,
     `Zusatzleistungen: ${
       offer.selectedExtras.length > 0 ? offer.selectedExtras.join(", ") : "Keine"
     }`,
@@ -461,7 +453,7 @@ function buildOwnerEmailHtml(
 
     <h3>Anfrage</h3>
     <p><strong>Leistung:</strong> ${escapeHtml(offer.service)}</p>
-    <p><strong>Groesse:</strong> ${escapeHtml(String(offer.size))} m2</p>
+    <p><strong>Grösse:</strong> ${escapeHtml(String(offer.size))} m2</p>
     <p><strong>Zusatzleistungen:</strong> ${
       offer.selectedExtras.length > 0
         ? escapeHtml(offer.selectedExtras.join(", "))
@@ -508,7 +500,7 @@ function buildCustomerEmailHtml(offer: NormalizedQuickOffer) {
 
     <h3>Ihre Angaben</h3>
     <p><strong>Leistung:</strong> ${escapeHtml(offer.service)}</p>
-    <p><strong>Groesse:</strong> ${escapeHtml(String(offer.size))} m2</p>
+    <p><strong>Grösse:</strong> ${escapeHtml(String(offer.size))} m2</p>
     <p><strong>Zusatzleistungen:</strong> ${
       offer.selectedExtras.length > 0
         ? escapeHtml(offer.selectedExtras.join(", "))
@@ -525,7 +517,7 @@ function buildCustomerEmailHtml(offer: NormalizedQuickOffer) {
 
     <p>Die genaue Offerte erfolgt nach Prüfung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details. Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.</p>
 
-    <p>Freundliche Gruesse<br />HEXA CLEAN</p>
+    <p>Freundliche Grüsse<br />HEXA CLEAN</p>
   `;
 }
 
@@ -534,7 +526,7 @@ function buildCustomerEmailPlainText(offer: NormalizedQuickOffer) {
     "Ihre Anfrage bei HEXA CLEAN ist eingegangen.",
     "",
     `Leistung: ${offer.service}`,
-    `Groesse: ${offer.size} m2`,
+    `Grösse: ${offer.size} m2`,
     `Zusatzleistungen: ${
       offer.selectedExtras.length > 0 ? offer.selectedExtras.join(", ") : "Keine"
     }`,
@@ -545,45 +537,135 @@ function buildCustomerEmailPlainText(offer: NormalizedQuickOffer) {
     "Die genaue Offerte erfolgt nach Prüfung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details.",
     "Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.",
     "",
-    "Freundliche Gruesse",
+    "Freundliche Grüsse",
     "HEXA CLEAN",
   ].join("\n");
 }
 
-function normalizeQuickOfferBody(body: QuickOfferBody): {
+function normalizeQuickOfferBody(
+  body: QuickOfferBody,
+  photoCount: number,
+): {
   offer: NormalizedQuickOffer | null;
   error: string | null;
 } {
-  const rawContact = cleanText(body.contact, 240);
-  const name = cleanText(body.name, 160);
-  const serviceData = normalizeService(body.service);
-  const size = normalizeSize(body.size);
-  const selectedExtras = normalizeExtras(body.selectedExtras);
-  const time = cleanText(body.time, 80) ?? "Flexibel";
-  const clientPrice = cleanText(body.price, 120);
+  const rawContact = cleanText(
+    body.contact,
+    240,
+  );
+
+  const name = cleanText(
+    body.name,
+    160,
+  );
+
+  const serviceData =
+    normalizeService(body.service);
+
+  const size =
+    normalizeSize(body.size);
+
+  const rooms = Math.min(
+    Math.max(
+      Number(body.rooms) || 3.5,
+      1,
+    ),
+    12,
+  );
+
+  const bathrooms = Math.min(
+    Math.max(
+      Math.round(
+        Number(body.bathrooms) || 1,
+      ),
+      1,
+    ),
+    8,
+  );
+
+  const condition =
+    cleanText(
+      body.condition,
+      30,
+    ) ?? "NORMAL";
+
+  const frequency =
+    cleanText(
+      body.frequency,
+      40,
+    ) ?? "EINMALIG";
+
+  const selectedExtras =
+    normalizeExtras(
+      body.selectedExtras,
+    );
+
+  const time =
+    cleanText(
+      body.time,
+      80,
+    ) ?? "Flexibel";
+
+  const clientPrice =
+    cleanText(
+      body.price,
+      120,
+    );
 
   if (!rawContact) {
     return {
       offer: null,
-      error: "Bitte geben Sie eine Telefonnummer oder E-Mail-Adresse ein.",
+      error:
+        "Bitte geben Sie eine Telefonnummer oder E-Mail-Adresse ein.",
     };
   }
 
-  const email = normalizeEmail(rawContact);
-  const phone = normalizePhone(rawContact);
+  const email =
+    normalizeEmail(rawContact);
+
+  const phone =
+    normalizePhone(rawContact);
 
   if (!email && !phone) {
     return {
       offer: null,
-      error: "Bitte geben Sie eine gueltige Telefonnummer oder E-Mail-Adresse ein.",
+      error:
+        "Bitte geben Sie eine gültige Telefonnummer oder E-Mail-Adresse ein.",
     };
   }
 
-  const calculatedPrice = calculateQuickOfferPrice(
-    serviceData.service,
-    size,
-    selectedExtras,
+  const safePhotoCount = Math.min(
+    Math.max(
+      Math.round(
+        Number(photoCount) || 0,
+      ),
+      0,
+    ),
+    QUICK_OFFER_MAX_PHOTOS,
   );
+
+  const calculatedPrice =
+    calculateQuickOfferPrice({
+      service: serviceData.service,
+      size,
+      rooms,
+      bathrooms,
+      condition,
+      frequency,
+      selectedExtras,
+      photoCount: safePhotoCount,
+    });
+
+  if (
+    calculatedPrice.requiresPhotoReview &&
+    safePhotoCount === 0
+  ) {
+    return {
+      offer: null,
+      error:
+        "Für diese Dienstleistung ist mindestens ein Foto für die visuelle Prüfung erforderlich.",
+    };
+  }
 
   return {
     offer: {
@@ -591,15 +673,34 @@ function normalizeQuickOfferBody(body: QuickOfferBody): {
       contact: rawContact,
       email,
       phone,
-      service: serviceData.service,
-      serviceType: serviceData.serviceType,
-      category: serviceData.category,
-      unit: serviceData.unit,
+      service:
+        serviceData.service,
+      serviceType:
+        serviceData.serviceType,
+      category:
+        serviceData.category,
+      unit:
+        serviceData.unit,
       size,
+      rooms,
+      bathrooms,
+      condition,
+      frequency,
       selectedExtras,
       time,
-      calculatedMinPrice: calculatedPrice.min,
-      calculatedMaxPrice: calculatedPrice.max,
+      photoCount:
+        safePhotoCount,
+      pricingConfidence:
+        safePhotoCount > 0
+          ? "MEDIUM"
+          : "LOW",
+      requiresPhotoReview:
+        calculatedPrice
+          .requiresPhotoReview,
+      calculatedMinPrice:
+        calculatedPrice.min,
+      calculatedMaxPrice:
+        calculatedPrice.max,
       clientPrice,
     },
     error: null,
@@ -787,7 +888,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { offer, error } = normalizeQuickOfferBody(body);
+    const { offer, error } = normalizeQuickOfferBody(body, photos.length);
 
     if (!offer) {
       logPublicSecurityEvent(request, {
@@ -887,7 +988,7 @@ export async function POST(request: NextRequest) {
           notesCustomer:
             "Danke für Ihre Anfrage. Die finale Offerte erfolgt nach Prüfung der Angaben.",
           notesInternal:
-            "Automatisch aus dem oeffentlichen QuickOffer Formular erstellt. Aktion erforderlich: Angaben prüfen, ggf. Fotos anfordern, finale Offerte erst nach Kontrolle senden.",
+            "Automatisch aus dem oeffentlichen QuickOffer Formular erstellt. Aktion erforderlich: Angaben prüfen, Fotos und visuellen Zustand prüfen, finale Offerte erst nach Kontrolle senden.",
         },
       });
 
@@ -917,7 +1018,7 @@ export async function POST(request: NextRequest) {
           notesCustomer:
             "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Prüfung durch HEXA CLEAN.",
           notesInternal:
-            "Public QuickOffer lead. Aktion erforderlich: Daten, Fotos, Adresse, Anfahrt, Material, Risiko und Preis prüfen.",
+            "Public QuickOffer lead. Aktion erforderlich: Daten, Fotos, visuellen Zustand, Adresse, Anfahrt, Material, Risiko und Preis prüfen.",
           items: {
             create: [
               {
@@ -1127,8 +1228,8 @@ export async function POST(request: NextRequest) {
 
     const photoSummary =
       crmResult.attachments.length > 0
-        ? `\nFotos für die Preispruefung: ${crmResult.attachments.length}`
-        : "\nFotos für die Preispruefung: Keine";
+        ? `\nFotos für die Preisprüfung: ${crmResult.attachments.length}`
+        : "\nFotos für die Preisprüfung: Keine";
 
     const ownerEmailHtml = buildOwnerEmailHtml(
       offer,

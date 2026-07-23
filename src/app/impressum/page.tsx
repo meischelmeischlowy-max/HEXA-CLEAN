@@ -1,4 +1,4 @@
-export default function ImpressumPage() {
+﻿export default function ImpressumPage() {
   return (
     <main className="min-h-screen bg-[#020711] px-6 py-24 text-white">
       <div className="mx-auto max-w-5xl">
@@ -23,7 +23,7 @@ export default function ImpressumPage() {
 
             <p>Michal Majewski</p>
             <p>Telefon: +41 76 258 19 48</p>
-            <p>E-Mail: meischel.meischlowy@gmail.com</p>
+            <p>E-Mail: info@hexaclean.ch</p>
           </section>
 
           <section>
@@ -41,11 +41,11 @@ export default function ImpressumPage() {
             </h2>
 
             <p className="leading-8 text-slate-300">
-              Die Inhalte dieser Website wurden mit größtmöglicher Sorgfalt
-              erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der
-              Inhalte übernehmen wir jedoch keine Gewähr. Für externe Links
-              übernehmen wir keine Haftung. Für den Inhalt der verlinkten Seiten
-              sind ausschließlich deren Betreiber verantwortlich.
+              Die Inhalte dieser Website wurden mit grĂ¶ĂźtmĂ¶glicher Sorgfalt
+              erstellt. FĂĽr die Richtigkeit, VollstĂ¤ndigkeit und AktualitĂ¤t der
+              Inhalte ĂĽbernehmen wir jedoch keine GewĂ¤hr. FĂĽr externe Links
+              ĂĽbernehmen wir keine Haftung. FĂĽr den Inhalt der verlinkten Seiten
+              sind ausschlieĂźlich deren Betreiber verantwortlich.
             </p>
           </section>
         </div>

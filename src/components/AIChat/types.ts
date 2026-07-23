@@ -1,4 +1,4 @@
-export type ServiceType =
+﻿export type ServiceType =
   | "reinigung"
   | "fenster"
   | "hauswartung"
@@ -39,42 +39,42 @@ export const SERVICES: ServiceCard[] = [
   {
     id: "reinigung",
     title: "Reinigung",
-    icon: "🧹",
+    icon: "đź§ą",
     basePrice: 120,
     question:
-      "Gerne. Wie groß ist die zu reinigende Fläche ungefähr in Quadratmetern?",
+      "Gerne. Wie groĂź ist die zu reinigende FlĂ¤che ungefĂ¤hr in Quadratmetern?",
   },
   {
     id: "fenster",
     title: "Fensterreinigung",
-    icon: "🪟",
+    icon: "đźŞź",
     basePrice: 90,
     question:
-      "Sehr gerne. Wie viele Fenster sollen ungefähr gereinigt werden?",
+      "Sehr gerne. Wie viele Fenster sollen ungefĂ¤hr gereinigt werden?",
   },
   {
     id: "hauswartung",
     title: "Hauswartung",
-    icon: "🏠",
+    icon: "đźŹ ",
     basePrice: 150,
     question:
-      "Gerne. Geht es um eine regelmäßige Hauswartung oder um einen einmaligen Einsatz?",
+      "Gerne. Geht es um eine regelmĂ¤Ăźige Hauswartung oder um einen einmaligen Einsatz?",
   },
   {
     id: "umzug",
     title: "Umzugsreinigung",
-    icon: "🚚",
+    icon: "đźšš",
     basePrice: 280,
     question:
-      "Gerne. Wie groß ist die Wohnung ungefähr in Quadratmetern?",
+      "Gerne. Wie groĂź ist die Wohnung ungefĂ¤hr in Quadratmetern?",
   },
   {
     id: "kleinreparaturen",
     title: "Kleinreparaturen",
-    icon: "🛠️",
+    icon: "đź› ď¸Ź",
     basePrice: 80,
     question:
-      "Gerne. Beschreiben Sie bitte kurz, welche Reparatur benötigt wird.",
+      "Gerne. Beschreiben Sie bitte kurz, welche Reparatur benĂ¶tigt wird.",
   },
 ];
 
@@ -83,7 +83,7 @@ export const START_MESSAGES: ChatMessage[] = [
     id: "1",
     sender: "assistant",
     text:
-      "👋 Willkommen bei HEXA CLEAN!\n\nWir sind Michal & Monika und helfen Ihnen gerne weiter.\n\nWählen Sie bitte eine Dienstleistung oder schreiben Sie uns direkt Ihre Anfrage.",
+      "Willkommen bei HEXA CLEAN!\n\nIch helfe Ihnen, die passende Dienstleistung und eine erste unverbindliche Preisspanne zu bestimmen.\n\nWählen Sie eine Dienstleistung oder beschreiben Sie direkt Ihre Anfrage.",
     time: "Jetzt",
   },
 ];

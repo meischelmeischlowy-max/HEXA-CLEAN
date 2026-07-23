@@ -1,65 +1,78 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
-import { SendHorizontal, Mic, Paperclip } from "lucide-react";
+import {
+  useState,
+} from "react";
+import {
+  SendHorizontal,
+} from "lucide-react";
 
 interface ChatInputProps {
-  onSendMessage: (text: string) => void;
+  onSendMessage: (
+    text: string,
+  ) => void;
+  disabled?: boolean;
 }
 
-export default function ChatInput({ onSendMessage }: ChatInputProps) {
-  const [value, setValue] = useState("");
+export default function ChatInput({
+  onSendMessage,
+  disabled = false,
+}: ChatInputProps) {
+  const [value, setValue] =
+    useState("");
 
   function handleSubmit() {
     const trimmed = value.trim();
 
-    if (!trimmed) return;
+    if (!trimmed || disabled) {
+      return;
+    }
 
     onSendMessage(trimmed);
     setValue("");
   }
 
   return (
-   <div className="mt-3 border-t border-white/10 bg-[#07111d] px-3 pt-4 pb-3">
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-        <button
-          type="button"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-cyan-300"
-        >
-          <Paperclip size={17} />
-        </button>
-
-        <input
-          type="text"
+    <div className="shrink-0 border-t border-white/10 bg-[#07111d] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-4">
+      <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+        <textarea
+          rows={1}
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          disabled={disabled}
+          onChange={(event) =>
+            setValue(event.target.value)
+          }
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey
+            ) {
+              event.preventDefault();
               handleSubmit();
             }
           }}
-          placeholder="Nachricht eingeben..."
-          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+          placeholder="Ihre Nachricht..."
+          aria-label="Nachricht"
+          className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-base text-white outline-none placeholder:text-slate-500 disabled:opacity-50 sm:text-sm"
         />
 
         <button
           type="button"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-cyan-300"
-        >
-          <Mic size={17} />
-        </button>
-
-        <button
-          type="button"
           onClick={handleSubmit}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400 text-black transition hover:bg-cyan-300"
+          disabled={
+            disabled ||
+            !value.trim()
+          }
+          aria-label="Nachricht senden"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-300 text-black transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <SendHorizontal size={17} />
+          <SendHorizontal size={19} />
         </button>
       </div>
 
       <p className="mt-2 text-center text-[10px] text-slate-500">
-        Finale Angebote werden persönlich bestätigt.
+        Die endgültige Offerte wird
+        persönlich geprüft.
       </p>
     </div>
   );

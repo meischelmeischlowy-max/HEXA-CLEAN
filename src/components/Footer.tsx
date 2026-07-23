@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Phone,
@@ -42,11 +42,11 @@ export default function Footer() {
             </a>
 
             <a
-              href="mailto:meischel.meischlowy@gmail.com"
+              href="mailto:info@hexaclean.ch"
               className="flex items-center gap-3 break-all text-slate-400 transition hover:text-cyan-300"
             >
               <Mail className="h-5 w-5 flex-shrink-0 text-cyan-300" />
-              meischel.meischlowy@gmail.com
+              info@hexaclean.ch
             </a>
 
             <a
@@ -61,26 +61,26 @@ export default function Footer() {
 
             <div className="flex items-center gap-3 text-slate-400">
               <MapPin className="h-5 w-5 text-cyan-300" />
-              Pieterlen • Biel/Bienne
+              Pieterlen â€˘ Biel/Bienne
             </div>
 
           </div>
         </div>
 
-        {/* Öffnungszeiten */}
+        {/* Ă–ffnungszeiten */}
         <div>
           <h3 className="mb-5 text-lg font-semibold">
-            Öffnungszeiten
+            Ă–ffnungszeiten
           </h3>
 
           <div className="space-y-3 text-sm text-slate-400">
 
             <div className="flex items-center gap-3">
               <Clock className="h-5 w-5 text-cyan-300" />
-              Montag – Freitag
+              Montag â€“ Freitag
             </div>
 
-            <p>08:00 – 18:00</p>
+            <p>08:00 â€“ 18:00</p>
 
             <p>Samstag nach Vereinbarung</p>
 
@@ -124,7 +124,7 @@ export default function Footer() {
 
       <div className="mx-auto mt-12 max-w-7xl border-t border-white/10 pt-8 text-center text-sm text-slate-500">
 
-        <p>© 2026 HEXA CLEAN • Alle Rechte vorbehalten.</p>
+        <p>Â© 2026 HEXA CLEAN â€˘ Alle Rechte vorbehalten.</p>
 
         <a
           href="#"

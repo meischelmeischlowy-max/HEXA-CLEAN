@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   CheckCircle2,
@@ -29,8 +29,8 @@ export default function ProgressPanel({ progress }: ProgressPanelProps) {
       done: Boolean(progress.serviceLabel),
     },
     {
-      label: "Wohnfläche",
-      value: progress.area ? `${progress.area} m²` : "Noch offen",
+      label: "WohnflĂ¤che",
+      value: progress.area ? `${progress.area} mÂ˛` : "Noch offen",
       done: Boolean(progress.area),
     },
     {
@@ -125,8 +125,8 @@ function FinalOfferPanel({ progress }: { progress: ProgressState }) {
       show: Boolean(progress.serviceLabel),
     },
     {
-      label: "Wohnfläche",
-      value: progress.area ? `${progress.area} m²` : undefined,
+      label: "WohnflĂ¤che",
+      value: progress.area ? `${progress.area} mÂ˛` : undefined,
       show: Boolean(progress.area),
     },
     {
@@ -172,7 +172,7 @@ function FinalOfferPanel({ progress }: { progress: ProgressState }) {
           </h3>
 
           <p className="mt-2 text-sm text-slate-400">
-            Unverbindliche Ersteinschätzung auf Basis Ihrer Angaben.
+            Unverbindliche ErsteinschĂ¤tzung auf Basis Ihrer Angaben.
           </p>
         </div>
 
@@ -202,7 +202,7 @@ function FinalOfferPanel({ progress }: { progress: ProgressState }) {
           </div>
 
           <p className="mt-3 text-sm text-slate-500">
-            Der finale Preis wird nach kurzer Prüfung verbindlich bestätigt.
+            Der finale Preis wird nach kurzer PrĂĽfung verbindlich bestĂ¤tigt.
           </p>
         </div>
 
@@ -221,7 +221,7 @@ function FinalOfferPanel({ progress }: { progress: ProgressState }) {
           <Benefit text="Unverbindliche Offerte" />
           <Benefit text="Flexible Termine" />
           <Benefit text="Transparente Richtpreise" />
-          <Benefit text="Persönliche Rückmeldung" />
+          <Benefit text="PersĂ¶nliche RĂĽckmeldung" />
         </div>
       </div>
 
@@ -236,10 +236,10 @@ function PricePanel({ progress }: { progress: ProgressState }) {
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-bold uppercase tracking-wide text-white">
-          Vorläufiger Preis
+          VorlĂ¤ufiger Preis
         </h3>
 
-        <span className="text-sm text-slate-500">Geschätzt</span>
+        <span className="text-sm text-slate-500">GeschĂ¤tzt</span>
       </div>
 
       <div className="text-5xl font-black text-white">
@@ -280,7 +280,7 @@ function QuickAccess() {
         </a>
 
         <a
-          href="mailto:meischel.meischlowy@gmail.com"
+          href="mailto:info@hexaclean.ch"
           className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center text-sm text-slate-300 transition hover:border-cyan-400/40 hover:text-cyan-300"
         >
           <Mail className="mb-3 h-8 w-8" />

@@ -1,7 +1,13 @@
-"use client";
+﻿"use client";
 
-import { ChatMessage } from "./types";
-import { User, Bot } from "lucide-react";
+import {
+  Bot,
+  User,
+} from "lucide-react";
+
+import {
+  ChatMessage,
+} from "./types";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -13,46 +19,60 @@ export default function ChatMessages({
   isThinking = false,
 }: ChatMessagesProps) {
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-4 p-3 sm:p-5">
       {messages.map((message) => {
-        const assistant = message.sender === "assistant";
+        const assistant =
+          message.sender ===
+          "assistant";
 
         return (
           <div
             key={message.id}
-            className={`flex ${assistant ? "justify-start" : "justify-end"}`}
+            className={`flex ${
+              assistant
+                ? "justify-start"
+                : "justify-end"
+            }`}
           >
             <div
-              className={`flex max-w-[82%] gap-4 ${
-                assistant ? "" : "flex-row-reverse"
+              className={`flex max-w-[94%] items-end gap-2 sm:max-w-[84%] ${
+                assistant
+                  ? ""
+                  : "flex-row-reverse"
               }`}
             >
               <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border sm:h-10 sm:w-10 ${
                   assistant
                     ? "border-cyan-400/30 bg-cyan-400/10"
                     : "border-white/10 bg-white/5"
                 }`}
               >
                 {assistant ? (
-                  <Bot size={22} className="text-cyan-300" />
+                  <Bot
+                    size={18}
+                    className="text-cyan-300"
+                  />
                 ) : (
-                  <User size={22} className="text-white" />
+                  <User
+                    size={18}
+                    className="text-white"
+                  />
                 )}
               </div>
 
               <div
-                className={`rounded-3xl border px-6 py-5 ${
+                className={`rounded-2xl border px-4 py-3 ${
                   assistant
                     ? "border-white/10 bg-white/[0.05]"
                     : "border-cyan-400/20 bg-cyan-500/10"
                 }`}
               >
-                <p className="whitespace-pre-line leading-8 text-slate-200">
+                <p className="whitespace-pre-line text-sm leading-6 text-slate-200 sm:text-base">
                   {message.text}
                 </p>
 
-                <div className="mt-3 text-right text-xs text-slate-500">
+                <div className="mt-1 text-right text-[10px] text-slate-500">
                   {message.time}
                 </div>
               </div>
@@ -61,27 +81,33 @@ export default function ChatMessages({
         );
       })}
 
-      {isThinking && (
+      {isThinking ? (
         <div className="flex justify-start">
-          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-            <span className="text-slate-400">
-              Analysiere Anfrage...
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <span className="text-sm text-slate-400">
+              Antwort wird erstellt...
             </span>
 
-            <div className="flex gap-2">
-              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-300" />
+            <div className="flex gap-1.5">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-cyan-300" />
               <span
-                className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-300"
-                style={{ animationDelay: "150ms" }}
+                className="h-2 w-2 animate-bounce rounded-full bg-cyan-300"
+                style={{
+                  animationDelay:
+                    "150ms",
+                }}
               />
               <span
-                className="h-2.5 w-2.5 animate-bounce rounded-full bg-cyan-300"
-                style={{ animationDelay: "300ms" }}
+                className="h-2 w-2 animate-bounce rounded-full bg-cyan-300"
+                style={{
+                  animationDelay:
+                    "300ms",
+                }}
               />
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
