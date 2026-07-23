@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import EstimatePrimaryAction from "../../../../components/dashboard/EstimatePrimaryAction";
+import EstimateReviewModal from "../../../../components/dashboard/EstimateReviewModal";
 import {
   RecordWorkspace,
   RecordWorkspacePanel,
@@ -696,6 +697,87 @@ export default async function DashboardEstimateDetailsPage({
           estimateId={estimate.id}
           currentStatus={String(estimate.status)}
         />
+
+                <div className="flex justify-end">
+          <EstimateReviewModal
+            estimateId={estimate.id}
+            estimateNumber={estimate.estimateNumber}
+            currency={estimate.currency}
+            customer={{
+              firstName:
+                estimate.customer.firstName ?? "",
+              lastName:
+                estimate.customer.lastName ?? "",
+              companyName:
+                estimate.customer.companyName ?? "",
+              email:
+                estimate.customer.email ?? "",
+              phone:
+                estimate.customer.phone ?? "",
+              street:
+                estimate.customer.street ?? "",
+              zipCode:
+                estimate.customer.zipCode ?? "",
+              city:
+                estimate.customer.city ?? "",
+              country:
+                estimate.customer.country ?? "CH",
+            }}
+            estimate={{
+              title:
+                estimate.title ?? "",
+              description:
+                estimate.description ?? "",
+              serviceStreet:
+                estimate.serviceStreet ?? "",
+              serviceZipCode:
+                estimate.serviceZipCode ?? "",
+              serviceCity:
+                estimate.serviceCity ?? "",
+              serviceCountry:
+                estimate.serviceCountry ?? "CH",
+              preferredDate:
+                estimate.preferredDate
+                  ? estimate.preferredDate
+                      .toISOString()
+                      .slice(0, 16)
+                  : "",
+              travelFee:
+                decimalToNumber(
+                  estimate.travelFee,
+                ).toFixed(2),
+              materialFee:
+                decimalToNumber(
+                  estimate.materialFee,
+                ).toFixed(2),
+              discountAmount:
+                decimalToNumber(
+                  estimate.discountAmount,
+                ).toFixed(2),
+              notesCustomer:
+                estimate.notesCustomer ?? "",
+              notesInternal:
+                estimate.notesInternal ?? "",
+            }}
+            items={estimate.items.map(
+              (item) => ({
+                id: item.id,
+                name: item.name,
+                description:
+                  item.description ?? "",
+                unit: String(item.unit),
+                quantity:
+                  decimalToNumber(
+                    item.quantity,
+                  ).toString(),
+                unitPrice:
+                  decimalToNumber(
+                    item.unitPrice,
+                  ).toFixed(2),
+              }),
+            )}
+          />
+        </div>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <InfoLine label="Kunde" value={customerName(estimate.customer)} />

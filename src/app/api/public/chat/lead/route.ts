@@ -50,15 +50,47 @@ type ChatMessagePayload = {
 type ChatAnswersPayload = {
   service?: unknown;
   serviceLabel?: unknown;
+  objectType?: unknown;
+  location?: unknown;
   area?: unknown;
+  rooms?: unknown;
+  bathrooms?: unknown;
   windows?: unknown;
   floor?: unknown;
   elevator?: unknown;
+  parkingAccess?: unknown;
+  condition?: unknown;
+  frequency?: unknown;
+  extras?: unknown;
+  preferredDate?: unknown;
+  flexibleDate?: unknown;
+  photoRequired?: unknown;
   oven?: unknown;
   balcony?: unknown;
-  frequency?: unknown;
   description?: unknown;
   date?: unknown;
+};
+
+type ChatLeadPayload = {
+  service?: unknown;
+  objectType?: unknown;
+  location?: unknown;
+  areaM2?: unknown;
+  rooms?: unknown;
+  bathrooms?: unknown;
+  windows?: unknown;
+  floor?: unknown;
+  elevator?: unknown;
+  parkingAccess?: unknown;
+  condition?: unknown;
+  frequency?: unknown;
+  extras?: unknown;
+  preferredDate?: unknown;
+  flexibleDate?: unknown;
+  photoRequired?: unknown;
+  customerName?: unknown;
+  email?: unknown;
+  phone?: unknown;
 };
 
 type ChatSessionPayload = {
@@ -72,6 +104,7 @@ type ChatSessionPayload = {
 type ChatLeadBody = {
   name?: unknown;
   contact?: unknown;
+  lead?: ChatLeadPayload;
   session?: ChatSessionPayload;
   messages?: unknown;
   pageUrl?: unknown;
@@ -102,13 +135,23 @@ type NormalizedChatLead = {
   answers: {
     service: string | null;
     serviceLabel: string | null;
+    objectType: string | null;
+    location: string | null;
     area: number | null;
+    rooms: number | null;
+    bathrooms: number | null;
     windows: number | null;
     floor: string | null;
     elevator: boolean | null;
+    parkingAccess: string | null;
+    condition: string | null;
+    frequency: string | null;
+    extras: string[];
+    preferredDate: string | null;
+    flexibleDate: boolean | null;
+    photoRequired: boolean | null;
     oven: boolean | null;
     balcony: boolean | null;
-    frequency: string | null;
     description: string | null;
     date: string | null;
   };
@@ -243,6 +286,187 @@ function normalizePositiveInteger(value: unknown) {
   }
 
   return Math.round(parsed);
+}
+
+
+function normalizePositiveNumber(
+  value: unknown,
+) {
+  const parsed =
+    cleanNumber(value, 0);
+
+  if (
+    !Number.isFinite(parsed) ||
+    parsed <= 0
+  ) {
+    return null;
+  }
+
+  return Math.round(
+    (parsed + Number.EPSILON) *
+      100,
+  ) / 100;
+}
+
+function normalizeStringArray(
+  value: unknown,
+) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map(
+      (item) =>
+        cleanText(item, 120),
+    )
+    .filter(
+      (item): item is string =>
+        Boolean(item),
+    )
+    .slice(0, 20);
+}
+
+function parseServiceLocation(
+  value: string | null,
+) {
+  if (!value) {
+    return {
+      street: null,
+      zipCode: null,
+      city: null,
+      country: "CH",
+    };
+  }
+
+  const normalized =
+    value
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const fullAddress =
+    normalized.match(
+      /^(.*?\d+[A-Za-z]?)\s*,?\s*(\d{4,5})\s+(.+)$/,
+    );
+
+  if (fullAddress) {
+    return {
+      street:
+        cleanText(
+          fullAddress[1],
+          240,
+        ),
+      zipCode:
+        cleanText(
+          fullAddress[2],
+          40,
+        ),
+      city:
+        cleanText(
+          fullAddress[3],
+          160,
+        ),
+      country: "CH",
+    };
+  }
+
+  const zipCity =
+    normalized.match(
+      /^(\d{4,5})\s+(.+)$/,
+    );
+
+  if (zipCity) {
+    return {
+      street: null,
+      zipCode:
+        cleanText(
+          zipCity[1],
+          40,
+        ),
+      city:
+        cleanText(
+          zipCity[2],
+          160,
+        ),
+      country: "CH",
+    };
+  }
+
+  return {
+    street:
+      cleanText(
+        normalized,
+        240,
+      ),
+    zipCode: null,
+    city: null,
+    country: "CH",
+  };
+}
+
+function buildChatDetailLines(
+  lead: NormalizedChatLead,
+) {
+  return [
+    `Leistung: ${lead.serviceLabel}`,
+    `Objekt: ${
+      lead.answers.objectType ?? "-"
+    }`,
+    `Einsatzort: ${
+      lead.answers.location ?? "-"
+    }`,
+    `Fläche: ${
+      lead.answers.area !== null
+        ? `${lead.answers.area} m²`
+        : "-"
+    }`,
+    `Zimmer: ${
+      lead.answers.rooms ?? "-"
+    }`,
+    `Badezimmer: ${
+      lead.answers.bathrooms ?? "-"
+    }`,
+    `Fenster: ${
+      lead.answers.windows ?? "-"
+    }`,
+    `Etage: ${
+      lead.answers.floor ?? "-"
+    }`,
+    `Lift: ${
+      lead.answers.elevator === null
+        ? "-"
+        : lead.answers.elevator
+          ? "Ja"
+          : "Nein"
+    }`,
+    `Zugang/Parkplatz: ${
+      lead.answers.parkingAccess ?? "-"
+    }`,
+    `Verschmutzung: ${
+      lead.answers.condition ?? "-"
+    }`,
+    `Rhythmus: ${
+      lead.answers.frequency ?? "-"
+    }`,
+    `Zusatzleistungen: ${
+      lead.answers.extras.length > 0
+        ? lead.answers.extras.join(", ")
+        : "Keine"
+    }`,
+    `Wunschtermin: ${
+      lead.answers.date ?? "-"
+    }`,
+    `Fotos erforderlich: ${
+      lead.answers.photoRequired === null
+        ? "-"
+        : lead.answers.photoRequired
+          ? "Ja"
+          : "Nein"
+    }`,
+    `Beschreibung: ${
+      lead.answers.description ?? "-"
+    }`,
+  ];
 }
 
 function parsePriceRange(priceRange: string | null, estimatedPrice: number) {
@@ -424,9 +648,38 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
   lead: NormalizedChatLead | null;
   error: string | null;
 } {
-  const rawContact = cleanText(body.contact, 240);
-  const name = cleanText(body.name, 160);
-  const pageUrl = cleanText(body.pageUrl, 500);
+  const explicitLead =
+    body.lead ?? {};
+
+  const rawContact =
+    cleanText(
+      body.contact,
+      240,
+    ) ??
+    cleanText(
+      explicitLead.email,
+      320,
+    ) ??
+    cleanText(
+      explicitLead.phone,
+      100,
+    );
+
+  const name =
+    cleanText(
+      body.name,
+      160,
+    ) ??
+    cleanText(
+      explicitLead.customerName,
+      160,
+    );
+
+  const pageUrl =
+    cleanText(
+      body.pageUrl,
+      500,
+    );
 
   if (!rawContact) {
     return {
@@ -445,17 +698,186 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
     };
   }
 
-  const answers = body.session?.answers ?? {};
-  const rawService = cleanText(answers.service, 80);
-  const rawServiceLabel = cleanText(answers.serviceLabel, 120);
-  const serviceData = mapService(rawService, rawServiceLabel);
+  const answers =
+    body.session?.answers ?? {};
 
-  const area = normalizePositiveInteger(answers.area);
-  const windows = normalizePositiveInteger(answers.windows);
-  const floor = cleanText(answers.floor, 120);
-  const frequency = cleanText(answers.frequency, 300);
-  const description = cleanMultilineText(answers.description, 1200);
-  const date = cleanText(answers.date, 200);
+  const rawService =
+    cleanText(
+      answers.service,
+      80,
+    );
+
+  const rawServiceLabel =
+    cleanText(
+      explicitLead.service,
+      120,
+    ) ??
+    cleanText(
+      answers.serviceLabel,
+      120,
+    );
+
+  const serviceData =
+    mapService(
+      rawService,
+      rawServiceLabel,
+    );
+
+  const objectType =
+    cleanText(
+      explicitLead.objectType,
+      120,
+    ) ??
+    cleanText(
+      answers.objectType,
+      120,
+    );
+
+  const location =
+    cleanText(
+      explicitLead.location,
+      300,
+    ) ??
+    cleanText(
+      answers.location,
+      300,
+    );
+
+  const area =
+    normalizePositiveNumber(
+      explicitLead.areaM2,
+    ) ??
+    normalizePositiveNumber(
+      answers.area,
+    );
+
+  const rooms =
+    normalizePositiveNumber(
+      explicitLead.rooms,
+    ) ??
+    normalizePositiveNumber(
+      answers.rooms,
+    );
+
+  const bathrooms =
+    normalizePositiveNumber(
+      explicitLead.bathrooms,
+    ) ??
+    normalizePositiveNumber(
+      answers.bathrooms,
+    );
+
+  const windows =
+    normalizePositiveInteger(
+      explicitLead.windows,
+    ) ??
+    normalizePositiveInteger(
+      answers.windows,
+    );
+
+  const floor =
+    cleanText(
+      explicitLead.floor,
+      120,
+    ) ??
+    cleanText(
+      answers.floor,
+      120,
+    );
+
+  const elevator =
+    normalizeBoolean(
+      explicitLead.elevator,
+    ) ??
+    normalizeBoolean(
+      answers.elevator,
+    );
+
+  const parkingAccess =
+    cleanText(
+      explicitLead.parkingAccess,
+      300,
+    ) ??
+    cleanText(
+      answers.parkingAccess,
+      300,
+    );
+
+  const condition =
+    cleanText(
+      explicitLead.condition,
+      100,
+    ) ??
+    cleanText(
+      answers.condition,
+      100,
+    );
+
+  const frequency =
+    cleanText(
+      explicitLead.frequency,
+      300,
+    ) ??
+    cleanText(
+      answers.frequency,
+      300,
+    );
+
+  const extrasFromLead =
+    normalizeStringArray(
+      explicitLead.extras,
+    );
+
+  const extras =
+    extrasFromLead.length > 0
+      ? extrasFromLead
+      : normalizeStringArray(
+          answers.extras,
+        );
+
+  const preferredDate =
+    cleanText(
+      explicitLead.preferredDate,
+      200,
+    ) ??
+    cleanText(
+      answers.preferredDate,
+      200,
+    );
+
+  const flexibleDate =
+    normalizeBoolean(
+      explicitLead.flexibleDate,
+    ) ??
+    normalizeBoolean(
+      answers.flexibleDate,
+    );
+
+  const photoRequired =
+    normalizeBoolean(
+      explicitLead.photoRequired,
+    ) ??
+    normalizeBoolean(
+      answers.photoRequired,
+    );
+
+  const description =
+    cleanMultilineText(
+      answers.description,
+      2000,
+    );
+
+  const date =
+    preferredDate ??
+    cleanText(
+      answers.date,
+      200,
+    ) ??
+    (
+      flexibleDate === true
+        ? "Flexibel"
+        : null
+    );
 
   const estimatedPrice = clampMoney(cleanNumber(body.session?.estimatedPrice, 0));
   const priceRange = cleanText(body.session?.priceRange, 120) ?? "Wird geprüft";
@@ -495,15 +917,53 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
       aiMinTotal: range.min,
       aiMaxTotal: range.max,
       answers: {
-        service: rawService,
-        serviceLabel: rawServiceLabel,
+        service:
+          rawService,
+        serviceLabel:
+          rawServiceLabel,
+        objectType,
+        location,
         area,
+        rooms,
+        bathrooms,
         windows,
         floor,
-        elevator: normalizeBoolean(answers.elevator),
-        oven: normalizeBoolean(answers.oven),
-        balcony: normalizeBoolean(answers.balcony),
+        elevator,
+        parkingAccess,
+        condition,
         frequency,
+        extras,
+        preferredDate,
+        flexibleDate,
+        photoRequired,
+        oven:
+          normalizeBoolean(
+            answers.oven,
+          ) ??
+          extras.some(
+            (extra) =>
+              extra
+                .toLocaleLowerCase(
+                  "de-CH",
+                )
+                .includes(
+                  "backofen",
+                ),
+          ),
+        balcony:
+          normalizeBoolean(
+            answers.balcony,
+          ) ??
+          extras.some(
+            (extra) =>
+              extra
+                .toLocaleLowerCase(
+                  "de-CH",
+                )
+                .includes(
+                  "balkon",
+                ),
+          ),
         description,
         date,
       },
@@ -513,7 +973,9 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
   };
 }
 
-function buildPlainMessage(lead: NormalizedChatLead) {
+function buildPlainMessage(
+  lead: NormalizedChatLead,
+) {
   return [
     "Neue KI-Chatbox Anfrage von der Website.",
     "",
@@ -521,40 +983,28 @@ function buildPlainMessage(lead: NormalizedChatLead) {
     `Kontakt: ${lead.contact}`,
     `E-Mail: ${lead.email ?? "-"}`,
     `Telefon: ${lead.phone ?? "-"}`,
-    `Leistung: ${lead.serviceLabel}`,
-    `Fläche: ${lead.answers.area ? `${lead.answers.area} m²` : "-"}`,
-    `Fenster: ${lead.answers.windows ?? "-"}`,
-    `Etage: ${lead.answers.floor ?? "-"}`,
-    `Lift: ${
-      lead.answers.elevator === null
-        ? "-"
-        : lead.answers.elevator
-          ? "Ja"
-          : "Nein"
-    }`,
-    `Backofen: ${
-      lead.answers.oven === null ? "-" : lead.answers.oven ? "Ja" : "Nein"
-    }`,
-    `Balkon/Terrasse: ${
-      lead.answers.balcony === null
-        ? "-"
-        : lead.answers.balcony
-          ? "Ja"
-          : "Nein"
-    }`,
-    `Rhythmus: ${lead.answers.frequency ?? "-"}`,
-    `Beschreibung: ${lead.answers.description ?? "-"}`,
-    `Wunschtermin: ${lead.answers.date ?? "-"}`,
+    "",
+    ...buildChatDetailLines(lead),
+    "",
     `Geschätzter Preis: ${lead.priceRange}`,
     `Seite: ${lead.pageUrl ?? "-"}`,
     "",
     "Chatverlauf:",
-    ...lead.messages.map((message) => {
-      const role = message.sender === "user" ? "Kunde" : "Assistent";
-      const time = message.time ? ` (${message.time})` : "";
+    ...lead.messages.map(
+      (message) => {
+        const role =
+          message.sender === "user"
+            ? "Kunde"
+            : "Assistent";
 
-      return `${role}${time}: ${message.text}`;
-    }),
+        const time =
+          message.time
+            ? ` (${message.time})`
+            : "";
+
+        return `${role}${time}: ${message.text}`;
+      },
+    ),
   ].join("\n");
 }
 
@@ -569,42 +1019,52 @@ function buildOwnerEmailHtml(
     estimateNumber: string;
   },
 ) {
-  const chatHtml = lead.messages
-    .map((message) => {
-      const role = message.sender === "user" ? "Kunde" : "Assistent";
-      const time = message.time ? ` (${escapeHtml(message.time)})` : "";
+  const details =
+    buildChatDetailLines(lead)
+      .map(
+        (line) =>
+          `<li>${escapeHtml(line)}</li>`,
+      )
+      .join("");
 
-      return `<p><strong>${role}${time}:</strong><br />${escapeHtml(
-        message.text,
-      ).replaceAll("\n", "<br />")}</p>`;
-    })
-    .join("");
+  const chatHtml =
+    lead.messages
+      .map(
+        (message) => {
+          const role =
+            message.sender === "user"
+              ? "Kunde"
+              : "Assistent";
+
+          const time =
+            message.time
+              ? ` (${escapeHtml(
+                  message.time,
+                )})`
+              : "";
+
+          return `<p><strong>${role}${time}:</strong><br />${escapeHtml(
+            message.text,
+          ).replaceAll("\n",
+            "<br />",
+          )}</p>`;
+        },
+      )
+      .join("");
 
   return `
     <h2>Neue KI-Chatbox Anfrage von HEXA CLEAN</h2>
 
+    <h3>Kunde</h3>
     <p><strong>Name:</strong> ${escapeHtml(lead.name || "-")}</p>
     <p><strong>Kontakt:</strong> ${escapeHtml(lead.contact)}</p>
     <p><strong>E-Mail:</strong> ${escapeHtml(lead.email || "-")}</p>
     <p><strong>Telefon:</strong> ${escapeHtml(lead.phone || "-")}</p>
-    <p><strong>Leistung:</strong> ${escapeHtml(lead.serviceLabel)}</p>
+
+    <h3>Vollständiger Auftragsumfang</h3>
+    <ul>${details}</ul>
+
     <p><strong>Geschätzter Preis:</strong> ${escapeHtml(lead.priceRange)}</p>
-
-    <hr />
-
-    <h3>Angaben</h3>
-    <p><strong>Fläche:</strong> ${
-      lead.answers.area ? `${escapeHtml(lead.answers.area)} m²` : "-"
-    }</p>
-    <p><strong>Fenster:</strong> ${escapeHtml(lead.answers.windows ?? "-")}</p>
-    <p><strong>Etage:</strong> ${escapeHtml(lead.answers.floor ?? "-")}</p>
-    <p><strong>Rhythmus:</strong> ${escapeHtml(
-      lead.answers.frequency ?? "-",
-    )}</p>
-    <p><strong>Beschreibung:</strong><br />${escapeHtml(
-      lead.answers.description ?? "-",
-    ).replaceAll("\n", "<br />")}</p>
-    <p><strong>Wunschtermin:</strong> ${escapeHtml(lead.answers.date ?? "-")}</p>
     <p><strong>Seite:</strong> ${escapeHtml(lead.pageUrl ?? "-")}</p>
 
     <hr />
@@ -615,14 +1075,8 @@ function buildOwnerEmailHtml(
     <hr />
 
     <h3>CRM</h3>
-    <p><strong>Customer ID:</strong> ${escapeHtml(crm.customerId)}</p>
-    <p><strong>Session ID:</strong> ${escapeHtml(crm.sessionId)}</p>
-    <p><strong>Order:</strong> ${escapeHtml(crm.orderNumber)} / ${escapeHtml(
-      crm.orderId,
-    )}</p>
-    <p><strong>Estimate:</strong> ${escapeHtml(
-      crm.estimateNumber,
-    )} / ${escapeHtml(crm.estimateId)}</p>
+    <p><strong>Order:</strong> ${escapeHtml(crm.orderNumber)}</p>
+    <p><strong>Estimate:</strong> ${escapeHtml(crm.estimateNumber)}</p>
   `;
 }
 
@@ -638,20 +1092,70 @@ async function findOrCreateChatCustomer(
     });
 
     if (existingCustomer) {
-      return existingCustomer;
+      const nameParts =
+        splitName(lead.name);
+
+      const address =
+        parseServiceLocation(
+          lead.answers.location,
+        );
+
+      return prisma.customer.update({
+        where: {
+          id:
+            existingCustomer.id,
+        },
+        data: {
+          firstName:
+            nameParts.firstName ??
+            existingCustomer.firstName,
+          lastName:
+            nameParts.lastName ??
+            existingCustomer.lastName,
+          phone:
+            lead.phone ??
+            existingCustomer.phone,
+          street:
+            address.street ??
+            existingCustomer.street,
+          zipCode:
+            address.zipCode ??
+            existingCustomer.zipCode,
+          city:
+            address.city ??
+            existingCustomer.city,
+          country:
+            address.country,
+        },
+      });
     }
   }
 
-const nameParts = splitName(lead.name);
+  const nameParts =
+    splitName(lead.name);
+
+  const address =
+    parseServiceLocation(
+      lead.answers.location,
+    );
 
   return prisma.customer.create({
     data: {
       type: CustomerType.PRIVATE,
       firstName: nameParts.firstName,
       lastName: nameParts.lastName,
-      email: lead.email,
-      phone: lead.phone,
-      country: "CH",
+      email:
+        lead.email,
+      phone:
+        lead.phone,
+      street:
+        address.street,
+      zipCode:
+        address.zipCode,
+      city:
+        address.city,
+      country:
+        address.country,
       notes: [
         "Created from public KI-Chatbox.",
         `Original contact field: ${lead.contact}`,
@@ -778,8 +1282,17 @@ export async function POST(request: NextRequest) {
 
     const unitPrice =
       lead.quantity > 0
-        ? lead.estimatedPrice / Math.max(lead.quantity, 1)
+        ? lead.estimatedPrice /
+          Math.max(
+            lead.quantity,
+            1,
+          )
         : lead.estimatedPrice;
+
+    const serviceAddress =
+      parseServiceLocation(
+        lead.answers.location,
+      );
 
     const crmResult = await prisma.$transaction(async (tx) => {
       const customer = await findOrCreateChatCustomer(tx, lead);
@@ -847,8 +1360,18 @@ export async function POST(request: NextRequest) {
           sessionId: session.id,
           status: EstimateStatus.AI_REVIEW,
           source: "CHATBOT",
-          title: `KI-Chatbox Anfrage: ${lead.serviceLabel}`,
-          description: plainMessage,
+          title:
+            `KI-Chatbox Anfrage: ${lead.serviceLabel}`,
+          description:
+            plainMessage,
+          serviceStreet:
+            serviceAddress.street,
+          serviceZipCode:
+            serviceAddress.zipCode,
+          serviceCity:
+            serviceAddress.city,
+          serviceCountry:
+            serviceAddress.country,
           subtotal: money(lead.estimatedPrice),
           riskMultiplier: "1.00",
           riskAmount: "0.00",
@@ -868,26 +1391,89 @@ export async function POST(request: NextRequest) {
           items: {
             create: [
               {
-                name: `KI-Chatbox: ${lead.serviceLabel}`,
+                name:
+                  lead.serviceLabel,
                 description:
-                  lead.answers.description ??
-                  "Automatisch aus der KI-Chatbox erstellt.",
-                category: lead.category,
-                unit: lead.unit,
-                quantity: money(lead.quantity),
-                unitPrice: money(unitPrice),
-                subtotal: money(lead.estimatedPrice),
-                riskMultiplier: "1.00",
-                riskAmount: "0.00",
-                discountAmount: "0.00",
-                total: money(lead.estimatedPrice),
-                sortOrder: 10,
+                  buildChatDetailLines(
+                    lead,
+                  ).join(" | "),
+                category:
+                  lead.category,
+                unit:
+                  lead.unit,
+                quantity:
+                  money(
+                    lead.quantity,
+                  ),
+                unitPrice:
+                  money(unitPrice),
+                subtotal:
+                  money(
+                    lead.estimatedPrice,
+                  ),
+                riskMultiplier:
+                  "1.00",
+                riskAmount:
+                  "0.00",
+                discountAmount:
+                  "0.00",
+                total:
+                  money(
+                    lead.estimatedPrice,
+                  ),
+                sortOrder:
+                  10,
                 metadata: {
-                  source: "ai_chat",
-                  answers: lead.answers,
-                  priceRange: lead.priceRange,
+                  source:
+                    "ai_chat",
+                  lineType:
+                    "BASE_SERVICE",
+                  answers:
+                    lead.answers,
+                  priceRange:
+                    lead.priceRange,
                 },
               },
+              ...lead.answers.extras.map(
+                (extra, index) => ({
+                  name:
+                    `Zusatzleistung: ${extra}`,
+                  description:
+                    "Vom Kunden im Chat genannt. Preis und Umfang vor der verbindlichen Offerte prüfen.",
+                  category:
+                    lead.category,
+                  unit:
+                    ServiceCatalogUnit.FLAT,
+                  quantity:
+                    "1.00",
+                  unitPrice:
+                    "0.00",
+                  subtotal:
+                    "0.00",
+                  riskMultiplier:
+                    "1.00",
+                  riskAmount:
+                    "0.00",
+                  discountAmount:
+                    "0.00",
+                  total:
+                    "0.00",
+                  sortOrder:
+                    20 + index,
+                  metadata: {
+                    source:
+                      "ai_chat",
+                    lineType:
+                      "SELECTED_EXTRA",
+                    selectedByCustomer:
+                      true,
+                    includedInOrientation:
+                      true,
+                    actionRequired:
+                      true,
+                  },
+                }),
+              ),
             ],
           },
         },

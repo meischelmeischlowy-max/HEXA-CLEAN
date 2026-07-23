@@ -21,10 +21,6 @@ import {
 } from "lucide-react";
 
 import QuickOfferPhotoUpload from "./QuickOfferPhotoUpload";
-import {
-  calculateQuickOfferPrice,
-} from "@/lib/quick-offer-pricing";
-
 const services = [
   "Unterhaltsreinigung",
   "Grundreinigung",
@@ -54,6 +50,22 @@ type SentStatus =
   | "success"
   | "partial"
   | "error";
+
+type CentralPricingResult = {
+  min: number;
+  max: number;
+  estimatedPrice: number;
+  priceRange: string;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+  requiresPhotoReview: boolean;
+  explanation: string[];
+};
+
+type CentralPricingApiResponse = {
+  success?: boolean;
+  pricing?: CentralPricingResult;
+  error?: string;
+};
 
 type QuickOfferApiResponse = {
   success?: boolean;
@@ -119,7 +131,22 @@ export default function QuickOffer() {
   const [name, setName] =
     useState("");
 
-  const [contact, setContact] =
+  const [email, setEmail] =
+    useState("");
+
+  const [phone, setPhone] =
+    useState("");
+
+  const [street, setStreet] =
+    useState("");
+
+  const [zipCode, setZipCode] =
+    useState("");
+
+  const [city, setCity] =
+    useState("");
+
+  const [notes, setNotes] =
     useState("");
 
   const [photos, setPhotos] =
@@ -146,34 +173,125 @@ export default function QuickOffer() {
       QuickOfferApiResponse["crm"] | null
     >(null);
 
-  const calculation = useMemo(
-    () =>
-      calculateQuickOfferPrice({
-        service,
-        size,
-        rooms,
-        bathrooms,
-        condition,
-        frequency,
-        selectedExtras,
-        photoCount: photos.length,
-      }),
-    [
-      service,
-      size,
-      rooms,
-      bathrooms,
-      condition,
-      frequency,
-      selectedExtras,
-      photos.length,
-    ],
+  const [
+    calculation,
+    setCalculation,
+  ] = useState<CentralPricingResult | null>(
+    null,
   );
 
+  const [
+    pricingError,
+    setPricingError,
+  ] = useState<string | null>(null);
+
   const price =
-    `CHF ${calculation.min}–${calculation.max}`;
+    calculation?.priceRange ??
+    "Wird berechnet";
 
   useEffect(() => {
+    const controller =
+      new AbortController();
+
+    const timer =
+      window.setTimeout(
+        async () => {
+          setAnalyzing(true);
+          setPricingError(null);
+
+          try {
+            const response =
+              await fetch(
+                "/api/public/pricing",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+                  cache: "no-store",
+                  signal:
+                    controller.signal,
+                  body: JSON.stringify({
+                    service,
+                    areaM2: size,
+                    rooms,
+                    bathrooms,
+                    condition,
+                    frequency,
+                    extras:
+                      selectedExtras,
+                    photoCount:
+                      photos.length,
+                  }),
+                },
+              );
+
+            const payload =
+              (await response
+                .json()
+                .catch(() => null)) as
+                | CentralPricingApiResponse
+                | null;
+
+            if (
+              !response.ok ||
+              !payload?.success ||
+              !payload.pricing
+            ) {
+              throw new Error(
+                payload?.error ??
+                  "Die Preisorientierung konnte nicht berechnet werden.",
+              );
+            }
+
+            setCalculation(
+              payload.pricing,
+            );
+          } catch (error) {
+            if (
+              error instanceof DOMException &&
+              error.name ===
+                "AbortError"
+            ) {
+              return;
+            }
+
+            setCalculation(null);
+
+            setPricingError(
+              error instanceof Error
+                ? error.message
+                : "Die Preisorientierung konnte nicht berechnet werden.",
+            );
+          } finally {
+            if (
+              !controller.signal
+                .aborted
+            ) {
+              setAnalyzing(false);
+            }
+          }
+        },
+        250,
+      );
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    service,
+    size,
+    rooms,
+    bathrooms,
+    condition,
+    frequency,
+    selectedExtras,
+    photos.length,
+  ]);
+
+useEffect(() => {
     const startTimer =
       window.setTimeout(
         () => setAnalyzing(true),
@@ -240,8 +358,17 @@ Fotos: ${photos.length}
 Termin: ${time}
 Orientierende Preisspanne: ${price}
 
+                  {pricingError ? (
+                    <p className="mt-2 text-xs text-red-200">
+                      {pricingError}
+                    </p>
+                  ) : null}
+
 Name: ${name || "-"}
-Kontakt: ${contact || "-"}`;
+E-Mail: ${email || "-"}
+Telefon: ${phone || "-"}
+Adresse: ${street || "-"}, ${zipCode || "-"} ${city || "-"}
+Bemerkungen: ${notes || "-"}`;
   }
 
   function sendWhatsApp() {
@@ -254,16 +381,36 @@ Kontakt: ${contact || "-"}`;
   }
 
   async function sendQuickOfferToCrm() {
-    if (!contact.trim()) {
+    if (!name.trim()) {
       setSentStatus("error");
       setStatusMessage(
-        "Bitte geben Sie eine Telefonnummer oder E-Mail-Adresse ein.",
+        "Bitte geben Sie Ihren Vor- und Nachnamen ein.",
+      );
+      return;
+    }
+
+    if (!email.trim()) {
+      setSentStatus("error");
+      setStatusMessage(
+        "Bitte geben Sie Ihre E-Mail-Adresse ein.",
       );
       return;
     }
 
     if (
-      calculation.requiresPhotoReview &&
+      !street.trim() ||
+      !zipCode.trim() ||
+      !city.trim()
+    ) {
+      setSentStatus("error");
+      setStatusMessage(
+        "Bitte geben Sie die vollständige Einsatzadresse ein.",
+      );
+      return;
+    }
+
+    if (
+      (calculation?.requiresPhotoReview ?? false) &&
       photos.length === 0
     ) {
       setSentStatus("error");
@@ -286,7 +433,13 @@ Kontakt: ${contact || "-"}`;
         "payload",
         JSON.stringify({
           name,
-          contact,
+          email,
+          phone,
+          street,
+          zipCode,
+          city,
+          country: "CH",
+          notes,
           service,
           size,
           rooms,
@@ -297,13 +450,13 @@ Kontakt: ${contact || "-"}`;
           time,
           price,
           calculatedMinPrice:
-            calculation.min,
+            calculation?.min ?? 0,
           calculatedMaxPrice:
-            calculation.max,
+            calculation?.max ?? 0,
           pricingConfidence:
-            calculation.confidence,
+            calculation?.confidence ?? "LOW",
           requiresPhotoReview:
-            calculation.requiresPhotoReview,
+            calculation?.requiresPhotoReview ?? false,
         }),
       );
 
@@ -674,8 +827,7 @@ Kontakt: ${contact || "-"}`;
 
                     <p className="mt-2 text-xs text-slate-400">
                       Schätzsicherheit:{" "}
-                      {calculation.confidence ===
-                      "MEDIUM"
+                      {(calculation?.confidence ?? "LOW") === "MEDIUM"
                         ? "mit Fotos verbessert"
                         : "vorläufig"}
                     </p>
@@ -685,7 +837,7 @@ Kontakt: ${contact || "-"}`;
             </div>
 
             <ul className="mt-4 space-y-2 text-xs leading-5 text-slate-400">
-              {calculation.explanation.map(
+              {calculation?.explanation ?? [].map(
                 (line) => (
                   <li
                     key={line}
@@ -702,7 +854,10 @@ Kontakt: ${contact || "-"}`;
 
             <div className="mt-5 grid gap-2">
               <input
-                placeholder="Name"
+                placeholder="Vor- und Nachname *"
+                type="text"
+                autoComplete="name"
+                required
                 value={name}
                 onChange={(event) =>
                   setName(
@@ -713,10 +868,91 @@ Kontakt: ${contact || "-"}`;
               />
 
               <input
-                placeholder="Telefon oder E-Mail"
-                value={contact}
+                placeholder="E-Mail *"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
                 onChange={(event) =>
-                  setContact(
+                  setEmail(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none focus:border-cyan-300/60"
+              />
+
+              <input
+                placeholder="Telefon"
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(event) =>
+                  setPhone(
+                    event.target.value,
+                  )
+                }
+                className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none focus:border-cyan-300/60"
+              />
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                  Einsatzadresse
+                </p>
+
+                <div className="grid gap-2">
+                  <input
+                    placeholder="Strasse und Hausnummer *"
+                    type="text"
+                    autoComplete="street-address"
+                    required
+                    value={street}
+                    onChange={(event) =>
+                      setStreet(
+                        event.target.value,
+                      )
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none focus:border-cyan-300/60"
+                  />
+
+                  <div className="grid gap-2 sm:grid-cols-[0.7fr_1.3fr]">
+                    <input
+                      placeholder="PLZ *"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      required
+                      value={zipCode}
+                      onChange={(event) =>
+                        setZipCode(
+                          event.target.value,
+                        )
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none focus:border-cyan-300/60"
+                    />
+
+                    <input
+                      placeholder="Ort *"
+                      type="text"
+                      autoComplete="address-level2"
+                      required
+                      value={city}
+                      onChange={(event) =>
+                        setCity(
+                          event.target.value,
+                        )
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none focus:border-cyan-300/60"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <textarea
+                placeholder="Bemerkungen zum Auftrag"
+                rows={4}
+                value={notes}
+                onChange={(event) =>
+                  setNotes(
                     event.target.value,
                   )
                 }
@@ -729,7 +965,7 @@ Kontakt: ${contact || "-"}`;
                 onChange={setPhotos}
               />
 
-              {calculation.requiresPhotoReview &&
+              {(calculation?.requiresPhotoReview ?? false) &&
               photos.length === 0 ? (
                 <p className="rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">
                   Für diese Leistung ist

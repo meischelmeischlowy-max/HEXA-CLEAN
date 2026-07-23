@@ -18,7 +18,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { NextRequest, NextResponse } from "next/server";
 
 import { emailConfiguration, resend } from "@/lib/email-config";
-import { calculateQuickOfferPrice } from "@/lib/quick-offer-pricing";
+import { calculateServerPrice } from "@/lib/pricing/server";
 import {
   checkPublicRateLimit,
   createPublicRateLimitResponse,
@@ -51,7 +51,13 @@ const globalForPrisma = globalThis as unknown as {
 
 type QuickOfferBody = {
   name?: unknown;
-  contact?: unknown;
+  email?: unknown;
+  phone?: unknown;
+  street?: unknown;
+  zipCode?: unknown;
+  city?: unknown;
+  country?: unknown;
+  notes?: unknown;
   service?: unknown;
   size?: unknown;
   rooms?: unknown;
@@ -68,10 +74,15 @@ type QuickOfferBody = {
 };
 
 type NormalizedQuickOffer = {
-  name: string | null;
+  name: string;
   contact: string;
-  email: string | null;
+  email: string;
   phone: string | null;
+  street: string;
+  zipCode: string;
+  city: string;
+  country: string;
+  notes: string | null;
   service: string;
   serviceType: ServiceType;
   category: ServiceCatalogCategory;
@@ -233,15 +244,55 @@ function normalizePhone(value: string | null) {
 }
 
 function normalizeService(value: unknown) {
-  const service = cleanText(value, 80) ?? "Wohnung";
+  const service =
+    cleanText(value, 80) ??
+    "Grundreinigung";
 
   switch (service) {
-    case "Haus":
+    case "Unterhaltsreinigung":
       return {
         service,
-        serviceType: ServiceType.REINIGUNG,
-        category: ServiceCatalogCategory.REINIGUNG,
-        unit: ServiceCatalogUnit.M2,
+        serviceType:
+          ServiceType.REINIGUNG,
+        category:
+          ServiceCatalogCategory.REINIGUNG,
+        unit:
+          ServiceCatalogUnit.M2,
+      };
+
+    case "Grundreinigung":
+      return {
+        service,
+        serviceType:
+          ServiceType.REINIGUNG,
+        category:
+          ServiceCatalogCategory.REINIGUNG,
+        unit:
+          ServiceCatalogUnit.M2,
+      };
+
+    case "Umzugsreinigung":
+      return {
+        service,
+        serviceType:
+          ServiceType.UMZUGSREINIGUNG,
+        category:
+          ServiceCatalogCategory.UMZUGSREINIGUNG,
+        unit:
+          ServiceCatalogUnit.M2,
+      };
+
+    case "Hausreinigung":
+    case "Haus":
+    case "Wohnung":
+      return {
+        service,
+        serviceType:
+          ServiceType.REINIGUNG,
+        category:
+          ServiceCatalogCategory.REINIGUNG,
+        unit:
+          ServiceCatalogUnit.M2,
       };
 
     case "Buero":
@@ -249,42 +300,56 @@ function normalizeService(value: unknown) {
     case "Büro":
       return {
         service: "Buero",
-        serviceType: ServiceType.REINIGUNG,
-        category: ServiceCatalogCategory.REINIGUNG,
-        unit: ServiceCatalogUnit.M2,
+        serviceType:
+          ServiceType.REINIGUNG,
+        category:
+          ServiceCatalogCategory.REINIGUNG,
+        unit:
+          ServiceCatalogUnit.M2,
       };
 
     case "Fenster":
       return {
         service,
-        serviceType: ServiceType.FENSTERREINIGUNG,
-        category: ServiceCatalogCategory.FENSTERREINIGUNG,
-        unit: ServiceCatalogUnit.FLAT,
+        serviceType:
+          ServiceType.FENSTERREINIGUNG,
+        category:
+          ServiceCatalogCategory.FENSTERREINIGUNG,
+        unit:
+          ServiceCatalogUnit.FLAT,
       };
 
     case "Garten":
       return {
         service,
-        serviceType: ServiceType.HAUSWARTUNG,
-        category: ServiceCatalogCategory.HAUSWARTUNG,
-        unit: ServiceCatalogUnit.FLAT,
+        serviceType:
+          ServiceType.HAUSWARTUNG,
+        category:
+          ServiceCatalogCategory.HAUSWARTUNG,
+        unit:
+          ServiceCatalogUnit.FLAT,
       };
 
     case "Kleine Reparaturen":
       return {
         service,
-        serviceType: ServiceType.KLEINREPARATUREN,
-        category: ServiceCatalogCategory.KLEINREPARATUREN,
-        unit: ServiceCatalogUnit.FLAT,
+        serviceType:
+          ServiceType.KLEINREPARATUREN,
+        category:
+          ServiceCatalogCategory.KLEINREPARATUREN,
+        unit:
+          ServiceCatalogUnit.FLAT,
       };
 
-    case "Wohnung":
     default:
       return {
-        service: "Wohnung",
-        serviceType: ServiceType.REINIGUNG,
-        category: ServiceCatalogCategory.REINIGUNG,
-        unit: ServiceCatalogUnit.M2,
+        service,
+        serviceType:
+          ServiceType.REINIGUNG,
+        category:
+          ServiceCatalogCategory.REINIGUNG,
+        unit:
+          ServiceCatalogUnit.M2,
       };
   }
 }
@@ -401,22 +466,70 @@ function getAppUrl(request: NextRequest) {
   ).replace(/\/$/, "");
 }
 
-function buildPlainMessage(offer: NormalizedQuickOffer) {
+
+function conditionLabel(value: string) {
+  switch (value) {
+    case "LEICHT":
+      return "Leicht";
+    case "STARK":
+      return "Stark";
+    default:
+      return "Normal";
+  }
+}
+
+function frequencyLabel(value: string) {
+  switch (value) {
+    case "WOECHENTLICH":
+      return "Wöchentlich";
+    case "ZWEIWOECHENTLICH":
+      return "Alle zwei Wochen";
+    case "MONATLICH":
+      return "Monatlich";
+    default:
+      return "Einmalig";
+  }
+}
+
+function buildOfferDetailLines(
+  offer: NormalizedQuickOffer,
+) {
+  return [
+    `Leistung: ${offer.service}`,
+    `Fläche: ${offer.size} m²`,
+    `Zimmer: ${offer.rooms}`,
+    `Badezimmer: ${offer.bathrooms}`,
+    `Verschmutzung: ${conditionLabel(
+      offer.condition,
+    )}`,
+    `Rhythmus: ${frequencyLabel(
+      offer.frequency,
+    )}`,
+    `Gewünschter Zeitraum: ${offer.time}`,
+    `Zusatzleistungen: ${
+      offer.selectedExtras.length > 0
+        ? offer.selectedExtras.join(", ")
+        : "Keine"
+    }`,
+    `Fotos: ${offer.photoCount}`,
+    `Bemerkungen: ${offer.notes ?? "-"}`,
+  ];
+}
+
+function buildPlainMessage(
+  offer: NormalizedQuickOffer,
+) {
   return [
     "Neue QuickOffer Anfrage von der Website.",
     "",
-    `Name: ${offer.name ?? "-"}`,
-    `Kontakt: ${offer.contact}`,
-    `E-Mail: ${offer.email ?? "-"}`,
+    `Name: ${offer.name}`,
+    `E-Mail: ${offer.email}`,
     `Telefon: ${offer.phone ?? "-"}`,
-    `Leistung: ${offer.service}`,
-    `Grösse: ${offer.size} m2`,
-    `Zusatzleistungen: ${
-      offer.selectedExtras.length > 0 ? offer.selectedExtras.join(", ") : "Keine"
-    }`,
-    `Termin: ${offer.time}`,
-    `Preisspanne Website: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
-    `Client price payload: ${offer.clientPrice ?? "-"}`,
+    `Adresse: ${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
+    "",
+    ...buildOfferDetailLines(offer),
+    "",
+    `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     "",
     "Status: Aktion erforderlich. Interne Prüfung vor finaler Offerte.",
   ].join("\n");
@@ -434,130 +547,201 @@ function buildOwnerEmailHtml(
   },
   appUrl: string,
 ) {
-  const estimateUrl = `${appUrl}/dashboard/estimates/${crm.estimateId}`;
-  const customerUrl = `${appUrl}/dashboard/customers/${crm.customerId}`;
+  const estimateUrl =
+    `${appUrl}/dashboard/estimates/${crm.estimateId}`;
+
+  const customerUrl =
+    `${appUrl}/dashboard/customers/${crm.customerId}`;
+
+  const details =
+    buildOfferDetailLines(offer)
+      .map(
+        (line) =>
+          `<li>${escapeHtml(line)}</li>`,
+      )
+      .join("");
 
   return `
     <h2>Neue QuickOffer Anfrage - Aktion erforderlich</h2>
 
-    <p><strong>Quelle:</strong> Schnell Offerte / QuickOffer</p>
     <p><strong>Status:</strong> Interne Prüfung erforderlich</p>
 
-    <hr />
-
-    <h3>Kunde</h3>
-    <p><strong>Name:</strong> ${escapeHtml(offer.name || "-")}</p>
-    <p><strong>Kontakt:</strong> ${escapeHtml(offer.contact)}</p>
-    <p><strong>E-Mail:</strong> ${escapeHtml(offer.email || "-")}</p>
+    <h3>Kunde und Einsatzort</h3>
+    <p><strong>Name:</strong> ${escapeHtml(offer.name)}</p>
+    <p><strong>E-Mail:</strong> ${escapeHtml(offer.email)}</p>
     <p><strong>Telefon:</strong> ${escapeHtml(offer.phone || "-")}</p>
-
-    <h3>Anfrage</h3>
-    <p><strong>Leistung:</strong> ${escapeHtml(offer.service)}</p>
-    <p><strong>Grösse:</strong> ${escapeHtml(String(offer.size))} m2</p>
-    <p><strong>Zusatzleistungen:</strong> ${
-      offer.selectedExtras.length > 0
-        ? escapeHtml(offer.selectedExtras.join(", "))
-        : "Keine"
-    }</p>
-    <p><strong>Termin:</strong> ${escapeHtml(offer.time)}</p>
-    <p><strong>Orientierende Preisspanne:</strong> CHF ${escapeHtml(
-      String(offer.calculatedMinPrice),
-    )}-${escapeHtml(String(offer.calculatedMaxPrice))}</p>
-
-    <hr />
-
-    <h3>Naechste Aktion</h3>
-    <p>Bitte Kalkulation prüfen: Umfang, Fotos, Adresse, Anfahrt, Material, Risiko, MwSt. und Preis. Erst danach finale Offerte senden.</p>
-
-    <p>
-      <a href="${escapeHtml(estimateUrl)}">Kalkulation im CRM öffnen</a>
-    </p>
-    <p>
-      <a href="${escapeHtml(customerUrl)}">Kundenprofil öffnen</a>
-    </p>
-
-    <hr />
-
-    <h3>CRM</h3>
-    <p><strong>Customer ID:</strong> ${escapeHtml(crm.customerId)}</p>
-    <p><strong>Session ID:</strong> ${escapeHtml(crm.sessionId)}</p>
-    <p><strong>Order:</strong> ${escapeHtml(crm.orderNumber)} / ${escapeHtml(
-      crm.orderId,
+    <p><strong>Adresse:</strong> ${escapeHtml(
+      `${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
     )}</p>
-    <p><strong>Estimate:</strong> ${escapeHtml(
-      crm.estimateNumber,
-    )} / ${escapeHtml(crm.estimateId)}</p>
+
+    <h3>Vollständiger Auftragsumfang</h3>
+    <ul>${details}</ul>
+
+    <p><strong>Orientierende Preisspanne:</strong>
+      CHF ${escapeHtml(
+        String(offer.calculatedMinPrice),
+      )}-${escapeHtml(
+        String(offer.calculatedMaxPrice),
+      )}
+    </p>
+
+    <hr />
+
+    <p>
+      <a href="${escapeHtml(estimateUrl)}">
+        Kalkulation im CRM öffnen
+      </a>
+    </p>
+
+    <p>
+      <a href="${escapeHtml(customerUrl)}">
+        Kundenprofil öffnen
+      </a>
+    </p>
+
+    <p><strong>Order:</strong> ${escapeHtml(crm.orderNumber)}</p>
+    <p><strong>Estimate:</strong> ${escapeHtml(crm.estimateNumber)}</p>
   `;
 }
 
-function buildCustomerEmailHtml(offer: NormalizedQuickOffer) {
+function buildCustomerEmailHtml(
+  offer: NormalizedQuickOffer,
+) {
+  const details =
+    buildOfferDetailLines(offer)
+      .map(
+        (line) =>
+          `<li>${escapeHtml(line)}</li>`,
+      )
+      .join("");
+
   return `
     <h2>Ihre Anfrage bei HEXA CLEAN ist eingegangen</h2>
 
-    <p>Guten Tag${offer.name ? ` ${escapeHtml(offer.name)}` : ""}</p>
+    <p>Guten Tag ${escapeHtml(offer.name)}</p>
 
-    <p>Vielen Dank für Ihre Anfrage. Wir haben Ihre Angaben erhalten und im System gespeichert.</p>
+    <p>
+      Wir haben Ihre Angaben und Fotos im CRM gespeichert.
+      Bitte kontrollieren Sie die folgende Zusammenfassung.
+    </p>
 
-    <h3>Ihre Angaben</h3>
-    <p><strong>Leistung:</strong> ${escapeHtml(offer.service)}</p>
-    <p><strong>Grösse:</strong> ${escapeHtml(String(offer.size))} m2</p>
-    <p><strong>Zusatzleistungen:</strong> ${
-      offer.selectedExtras.length > 0
-        ? escapeHtml(offer.selectedExtras.join(", "))
-        : "Keine"
-    }</p>
-    <p><strong>Termin:</strong> ${escapeHtml(offer.time)}</p>
-    <p><strong>Orientierende Preisspanne:</strong> CHF ${escapeHtml(
-      String(offer.calculatedMinPrice),
-    )}-${escapeHtml(String(offer.calculatedMaxPrice))}</p>
+    <h3>Kontakt und Einsatzort</h3>
+    <p><strong>E-Mail:</strong> ${escapeHtml(offer.email)}</p>
+    <p><strong>Telefon:</strong> ${escapeHtml(offer.phone || "-")}</p>
+    <p><strong>Adresse:</strong> ${escapeHtml(
+      `${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
+    )}</p>
+
+    <h3>Auftragsumfang</h3>
+    <ul>${details}</ul>
+
+    <p><strong>Orientierende Preisspanne:</strong>
+      CHF ${escapeHtml(
+        String(offer.calculatedMinPrice),
+      )}-${escapeHtml(
+        String(offer.calculatedMaxPrice),
+      )}
+    </p>
 
     <hr />
 
-    <p><strong>Wichtig:</strong> Das ist noch keine verbindliche finale Offerte.</p>
+    <p>
+      <strong>Wichtig:</strong>
+      Das ist noch keine verbindliche finale Offerte.
+    </p>
 
-    <p>Die genaue Offerte erfolgt nach Prüfung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details. Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.</p>
+    <p>
+      HEXA CLEAN prüft den Arbeitsumfang, die Fotos,
+      die Anfahrt, das Material und die Positionen.
+      Erst danach wird die verbindliche Offerte erstellt.
+    </p>
 
     <p>Freundliche Grüsse<br />HEXA CLEAN</p>
   `;
 }
 
-function buildCustomerEmailPlainText(offer: NormalizedQuickOffer) {
+function buildCustomerEmailPlainText(
+  offer: NormalizedQuickOffer,
+) {
   return [
     "Ihre Anfrage bei HEXA CLEAN ist eingegangen.",
     "",
-    `Leistung: ${offer.service}`,
-    `Grösse: ${offer.size} m2`,
-    `Zusatzleistungen: ${
-      offer.selectedExtras.length > 0 ? offer.selectedExtras.join(", ") : "Keine"
-    }`,
-    `Termin: ${offer.time}`,
+    `Name: ${offer.name}`,
+    `E-Mail: ${offer.email}`,
+    `Telefon: ${offer.phone ?? "-"}`,
+    `Adresse: ${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
+    "",
+    ...buildOfferDetailLines(offer),
+    "",
     `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     "",
     "Wichtig: Das ist noch keine verbindliche finale Offerte.",
-    "Die genaue Offerte erfolgt nach Prüfung von Umfang, Bildern, Adresse, Anfahrt, Material, Risiko und weiteren Details.",
-    "Falls uns Informationen oder Fotos fehlen, melden wir uns bei Ihnen.",
+    "HEXA CLEAN prüft den Arbeitsumfang, die Fotos, die Anfahrt, das Material und die Positionen.",
     "",
     "Freundliche Grüsse",
     "HEXA CLEAN",
   ].join("\n");
 }
 
-function normalizeQuickOfferBody(
+async function normalizeQuickOfferBody(
+
   body: QuickOfferBody,
   photoCount: number,
-): {
+): Promise<{
   offer: NormalizedQuickOffer | null;
   error: string | null;
-} {
-  const rawContact = cleanText(
-    body.contact,
-    240,
-  );
+}> {
+  const name =
+    cleanText(
+      body.name,
+      160,
+    );
 
-  const name = cleanText(
-    body.name,
-    160,
-  );
+  const email =
+    normalizeEmail(
+      cleanText(
+        body.email,
+        320,
+      ),
+    );
+
+  const phone =
+    normalizePhone(
+      cleanText(
+        body.phone,
+        100,
+      ),
+    );
+
+  const street =
+    cleanText(
+      body.street,
+      240,
+    );
+
+  const zipCode =
+    cleanText(
+      body.zipCode,
+      40,
+    );
+
+  const city =
+    cleanText(
+      body.city,
+      160,
+    );
+
+  const country =
+    cleanText(
+      body.country,
+      10,
+    ) ?? "CH";
+
+  const notes =
+    cleanText(
+      body.notes,
+      2000,
+    );
 
   const serviceData =
     normalizeService(body.service);
@@ -612,27 +796,38 @@ function normalizeQuickOfferBody(
       120,
     );
 
-  if (!rawContact) {
+  if (!name) {
     return {
       offer: null,
       error:
-        "Bitte geben Sie eine Telefonnummer oder E-Mail-Adresse ein.",
+        "Bitte geben Sie Ihren Vor- und Nachnamen ein.",
     };
   }
 
-  const email =
-    normalizeEmail(rawContact);
-
-  const phone =
-    normalizePhone(rawContact);
-
-  if (!email && !phone) {
+  if (!email) {
     return {
       offer: null,
       error:
-        "Bitte geben Sie eine gültige Telefonnummer oder E-Mail-Adresse ein.",
+        "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
     };
   }
+
+  if (
+    !street ||
+    !zipCode ||
+    !city
+  ) {
+    return {
+      offer: null,
+      error:
+        "Bitte geben Sie die vollständige Einsatzadresse ein.",
+    };
+  }
+
+  const rawContact =
+    phone
+      ? `${email} / ${phone}`
+      : email;
 
   const safePhotoCount = Math.min(
     Math.max(
@@ -645,15 +840,18 @@ function normalizeQuickOfferBody(
   );
 
   const calculatedPrice =
-    calculateQuickOfferPrice({
-      service: serviceData.service,
-      size,
+    await calculateServerPrice({
+      service:
+        serviceData.service,
+      areaM2: size,
       rooms,
       bathrooms,
       condition,
       frequency,
-      selectedExtras,
-      photoCount: safePhotoCount,
+      extras:
+        selectedExtras,
+      photoCount:
+        safePhotoCount,
     });
 
   if (
@@ -673,6 +871,11 @@ function normalizeQuickOfferBody(
       contact: rawContact,
       email,
       phone,
+      street,
+      zipCode,
+      city,
+      country,
+      notes,
       service:
         serviceData.service,
       serviceType:
@@ -691,9 +894,7 @@ function normalizeQuickOfferBody(
       photoCount:
         safePhotoCount,
       pricingConfidence:
-        safePhotoCount > 0
-          ? "MEDIUM"
-          : "LOW",
+        calculatedPrice.confidence,
       requiresPhotoReview:
         calculatedPrice
           .requiresPhotoReview,
@@ -719,7 +920,31 @@ async function findOrCreateQuickOfferCustomer(
     });
 
     if (existingCustomer) {
-      return existingCustomer;
+      const nameParts =
+        splitName(offer.name);
+
+      return prisma.customer.update({
+        where: {
+          id: existingCustomer.id,
+        },
+        data: {
+          firstName:
+            nameParts.firstName,
+          lastName:
+            nameParts.lastName,
+          phone:
+            offer.phone ??
+            existingCustomer.phone,
+          street:
+            offer.street,
+          zipCode:
+            offer.zipCode,
+          city:
+            offer.city,
+          country:
+            offer.country,
+        },
+      });
     }
   }
 
@@ -732,7 +957,10 @@ const nameParts = splitName(offer.name);
       lastName: nameParts.lastName,
       email: offer.email,
       phone: offer.phone,
-      country: "CH",
+      street: offer.street,
+      zipCode: offer.zipCode,
+      city: offer.city,
+      country: offer.country,
       notes: [
         "Created from public QuickOffer form.",
         `Original contact field: ${offer.contact}`,
@@ -888,7 +1116,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { offer, error } = normalizeQuickOfferBody(body, photos.length);
+    const { offer, error } = await normalizeQuickOfferBody(body, photos.length);
 
     if (!offer) {
       logPublicSecurityEvent(request, {
@@ -948,7 +1176,17 @@ export async function POST(request: NextRequest) {
             component: "QuickOffer",
             service: offer.service,
             size: offer.size,
+            rooms: offer.rooms,
+            bathrooms: offer.bathrooms,
+            condition: offer.condition,
+            frequency: offer.frequency,
             selectedExtras: offer.selectedExtras,
+            street: offer.street,
+            zipCode: offer.zipCode,
+            city: offer.city,
+            country: offer.country,
+            notes: offer.notes,
+            photoCount: offer.photoCount,
             time: offer.time,
             calculatedMinPrice: offer.calculatedMinPrice,
             calculatedMaxPrice: offer.calculatedMaxPrice,
@@ -969,6 +1207,17 @@ export async function POST(request: NextRequest) {
             contact: offer.contact,
             email: offer.email,
             phone: offer.phone,
+            street: offer.street,
+            zipCode: offer.zipCode,
+            city: offer.city,
+            rooms: offer.rooms,
+            bathrooms: offer.bathrooms,
+            condition: offer.condition,
+            frequency: offer.frequency,
+            selectedExtras:
+              offer.selectedExtras,
+            photoCount:
+              offer.photoCount,
             actionRequired: true,
           },
         },
@@ -1003,6 +1252,14 @@ export async function POST(request: NextRequest) {
           source: "QUICK_OFFER",
           title: `QuickOffer Anfrage: ${offer.service}`,
           description: plainMessage,
+          serviceStreet:
+            offer.street,
+          serviceZipCode:
+            offer.zipCode,
+          serviceCity:
+            offer.city,
+          serviceCountry:
+            offer.country,
           subtotal: money(offer.calculatedMinPrice),
           riskMultiplier: "1.00",
           riskAmount: "0.00",
@@ -1022,31 +1279,105 @@ export async function POST(request: NextRequest) {
           items: {
             create: [
               {
-                name: `QuickOffer: ${offer.service}`,
-                description:
-                  offer.selectedExtras.length > 0
-                    ? `Zusatzleistungen: ${offer.selectedExtras.join(", ")}`
-                    : "Keine Zusatzleistungen ausgewaehlt.",
-                category: offer.category,
-                unit: offer.unit,
+                name:
+                  offer.service,
+                description: [
+                  `${offer.rooms} Zimmer`,
+                  `${offer.bathrooms} Badezimmer`,
+                  `Verschmutzung: ${conditionLabel(
+                    offer.condition,
+                  )}`,
+                  `Rhythmus: ${frequencyLabel(
+                    offer.frequency,
+                  )}`,
+                  `Termin: ${offer.time}`,
+                ].join(" | "),
+                category:
+                  offer.category,
+                unit:
+                  offer.unit,
                 quantity:
-                  offer.unit === ServiceCatalogUnit.M2
+                  offer.unit ===
+                  ServiceCatalogUnit.M2
                     ? money(offer.size)
                     : "1.00",
-                unitPrice: money(unitPrice),
-                subtotal: money(offer.calculatedMinPrice),
-                riskMultiplier: "1.00",
-                riskAmount: "0.00",
-                discountAmount: "0.00",
-                total: money(offer.calculatedMinPrice),
-                sortOrder: 10,
+                unitPrice:
+                  money(unitPrice),
+                subtotal:
+                  money(
+                    offer.calculatedMinPrice,
+                  ),
+                riskMultiplier:
+                  "1.00",
+                riskAmount:
+                  "0.00",
+                discountAmount:
+                  "0.00",
+                total:
+                  money(
+                    offer.calculatedMinPrice,
+                  ),
+                sortOrder:
+                  10,
                 metadata: {
-                  source: "quick_offer",
-                  selectedExtras: offer.selectedExtras,
-                  calculatedMaxPrice: offer.calculatedMaxPrice,
-                  actionRequired: true,
+                  source:
+                    "quick_offer",
+                  lineType:
+                    "BASE_SERVICE",
+                  rooms:
+                    offer.rooms,
+                  bathrooms:
+                    offer.bathrooms,
+                  condition:
+                    offer.condition,
+                  frequency:
+                    offer.frequency,
+                  calculatedMaxPrice:
+                    offer.calculatedMaxPrice,
+                  actionRequired:
+                    true,
                 },
               },
+              ...offer.selectedExtras.map(
+                (extra, index) => ({
+                  name:
+                    `Zusatzleistung: ${extra}`,
+                  description:
+                    "Vom Kunden im QuickOffer Formular ausgewählt. Vor der verbindlichen Offerte Preis und Umfang prüfen.",
+                  category:
+                    offer.category,
+                  unit:
+                    ServiceCatalogUnit.FLAT,
+                  quantity:
+                    "1.00",
+                  unitPrice:
+                    "0.00",
+                  subtotal:
+                    "0.00",
+                  riskMultiplier:
+                    "1.00",
+                  riskAmount:
+                    "0.00",
+                  discountAmount:
+                    "0.00",
+                  total:
+                    "0.00",
+                  sortOrder:
+                    20 + index,
+                  metadata: {
+                    source:
+                      "quick_offer",
+                    lineType:
+                      "SELECTED_EXTRA",
+                    selectedByCustomer:
+                      true,
+                    includedInOrientation:
+                      true,
+                    actionRequired:
+                      true,
+                  },
+                }),
+              ),
             ],
           },
         },

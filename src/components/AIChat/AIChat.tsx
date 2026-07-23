@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   type FormEvent,
@@ -18,20 +18,68 @@ import {
   START_MESSAGES,
 } from "./types";
 
-import {
-  createInitialSession,
-} from "@/lib/ai/conversation/flow";
-import {
-  processMessage,
-  selectService,
-} from "@/lib/ai/engine/AIEngine";
-
 type LeadSubmitStatus =
   | "idle"
   | "submitting"
   | "success"
   | "partial"
   | "error";
+
+type OnlineBeraterLead = {
+  service: string | null;
+  objectType: string | null;
+  location: string | null;
+  areaM2: number | null;
+  rooms: number | null;
+  bathrooms: number | null;
+  windows?: number | null;
+  floor: number | null;
+  elevator: boolean | null;
+  parkingAccess: string | null;
+  condition: string | null;
+  frequency: string | null;
+  extras: string[];
+  preferredDate: string | null;
+  flexibleDate: boolean | null;
+  photoRequired: boolean | null;
+  customerName: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+type OnlineBeraterResult = {
+  reply: string;
+  lead: OnlineBeraterLead;
+  missingFields: string[];
+  leadReady: boolean;
+  shouldCreateLead: boolean;
+  shouldAskForPhotos: boolean;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+};
+
+type OnlineBeraterApiResponse = {
+  success?: boolean;
+  result?: OnlineBeraterResult;
+  error?: string;
+};
+
+type ChatCentralPricing = {
+  min: number;
+  max: number;
+  estimatedPrice: number;
+  priceRange: string;
+  confidence:
+    | "LOW"
+    | "MEDIUM"
+    | "HIGH";
+  requiresPhotoReview: boolean;
+};
+
+type ChatPricingApiResponse = {
+  success?: boolean;
+  pricing?: ChatCentralPricing;
+  error?: string;
+};
 
 type ChatLeadApiResponse = {
   success?: boolean;
@@ -47,6 +95,57 @@ type ChatLeadApiResponse = {
     estimateNumber: string;
     notificationId: string;
   };
+};
+
+type CompatibleChatSession = {
+  lead: OnlineBeraterLead | null;
+  answers: {
+    service?: ServiceType;
+    serviceLabel?: string;
+    objectType?: string;
+    location?: string;
+    area?: number;
+    rooms?: number;
+    bathrooms?: number;
+    windows?: number;
+    floor?: string;
+    elevator?: boolean;
+    parkingAccess?: string;
+    condition?: string;
+    frequency?: string;
+    extras?: string[];
+    preferredDate?: string;
+    flexibleDate?: boolean;
+    photoRequired?: boolean;
+    oven?: boolean;
+    balcony?: boolean;
+    description?: string;
+    date?: string;
+  };
+  progress: number;
+  estimatedPrice: number;
+  priceRange: string;
+  completed: boolean;
+};
+
+const EMPTY_SESSION: CompatibleChatSession = {
+  lead: null,
+  answers: {},
+  progress: 0,
+  estimatedPrice: 0,
+  priceRange: "Wird nach Prüfung berechnet",
+  completed: false,
+};
+
+const SERVICE_LABELS: Record<
+  ServiceType,
+  string
+> = {
+  reinigung: "Reinigung",
+  fenster: "Fensterreinigung",
+  hauswartung: "Hauswartung",
+  umzug: "Umzugsreinigung",
+  kleinreparaturen: "Kleinreparaturen",
 };
 
 function getCurrentTime() {
@@ -81,6 +180,226 @@ function getLeadStatusText(
   return "";
 }
 
+function mapServiceType(
+  service: string | null,
+): ServiceType | undefined {
+  const normalized =
+    service?.toLocaleLowerCase("de-CH") ?? "";
+
+  if (
+    normalized.includes("umzug") ||
+    normalized.includes("abgabe")
+  ) {
+    return "umzug";
+  }
+
+  if (normalized.includes("fenster")) {
+    return "fenster";
+  }
+
+  if (
+    normalized.includes("hauswart") ||
+    normalized.includes("gebäude")
+  ) {
+    return "hauswartung";
+  }
+
+  if (
+    normalized.includes("reparatur") ||
+    normalized.includes("montage")
+  ) {
+    return "kleinreparaturen";
+  }
+
+  if (
+    normalized.includes("reinigung") ||
+    normalized.includes("wohnung") ||
+    normalized.includes("büro")
+  ) {
+    return "reinigung";
+  }
+
+  return undefined;
+}
+
+function buildDescription(
+  lead: OnlineBeraterLead,
+) {
+  const details = [
+    lead.objectType
+      ? `Objekt: ${lead.objectType}`
+      : null,
+    lead.location
+      ? `Ort: ${lead.location}`
+      : null,
+    lead.rooms !== null
+      ? `Zimmer: ${lead.rooms}`
+      : null,
+    lead.bathrooms !== null
+      ? `Badezimmer: ${lead.bathrooms}`
+      : null,
+    lead.parkingAccess
+      ? `Zugang/Parkplatz: ${lead.parkingAccess}`
+      : null,
+    lead.condition
+      ? `Zustand: ${lead.condition}`
+      : null,
+    lead.extras.length > 0
+      ? `Zusatzleistungen: ${lead.extras.join(", ")}`
+      : null,
+    lead.photoRequired === true
+      ? "Fotos erforderlich"
+      : null,
+  ].filter(
+    (value): value is string =>
+      Boolean(value),
+  );
+
+  return details.join("\n");
+}
+
+function calculateProgress(
+  result: OnlineBeraterResult,
+) {
+  if (result.leadReady) {
+    return 100;
+  }
+
+  const totalFields =
+    result.missingFields.length + 1;
+
+  const completedFields = Math.max(
+    1,
+    12 - result.missingFields.length,
+  );
+
+  return Math.min(
+    95,
+    Math.max(
+      10,
+      Math.round(
+        (completedFields /
+          Math.max(totalFields, 12)) *
+          100,
+      ),
+    ),
+  );
+}
+
+function createCompatibleSession(
+  result: OnlineBeraterResult,
+  pricing: ChatCentralPricing | null = null,
+): CompatibleChatSession {
+  const serviceType = mapServiceType(
+    result.lead.service,
+  );
+
+  const date =
+    result.lead.preferredDate ??
+    (result.lead.flexibleDate === true
+      ? "Flexibel"
+      : undefined);
+
+  return {
+    lead:
+      result.lead,
+    answers: {
+      service:
+        serviceType,
+      serviceLabel:
+        result.lead.service ??
+        (serviceType
+          ? SERVICE_LABELS[serviceType]
+          : undefined),
+      objectType:
+        result.lead.objectType ??
+        undefined,
+      location:
+        result.lead.location ??
+        undefined,
+      area:
+        result.lead.areaM2 ??
+        undefined,
+      rooms:
+        result.lead.rooms ??
+        undefined,
+      bathrooms:
+        result.lead.bathrooms ??
+        undefined,
+      windows:
+        result.lead.windows ??
+        undefined,
+      floor:
+        result.lead.floor !== null
+          ? String(
+              result.lead.floor,
+            )
+          : undefined,
+      elevator:
+        result.lead.elevator ??
+        undefined,
+      parkingAccess:
+        result.lead.parkingAccess ??
+        undefined,
+      condition:
+        result.lead.condition ??
+        undefined,
+      frequency:
+        result.lead.frequency ??
+        undefined,
+      extras:
+        result.lead.extras,
+      preferredDate:
+        result.lead.preferredDate ??
+        undefined,
+      flexibleDate:
+        result.lead.flexibleDate ??
+        undefined,
+      photoRequired:
+        result.lead.photoRequired ??
+        undefined,
+      oven:
+        result.lead.extras.some(
+          (extra) =>
+            extra.toLocaleLowerCase(
+              "de-CH",
+            ).includes("backofen"),
+        ),
+      balcony:
+        result.lead.extras.some(
+          (extra) =>
+            extra.toLocaleLowerCase(
+              "de-CH",
+            ).includes("balkon"),
+        ),
+      description:
+        buildDescription(
+          result.lead,
+        ) || undefined,
+      date,
+    },
+    progress: calculateProgress(result),
+    estimatedPrice:
+      pricing?.estimatedPrice ?? 0,
+    priceRange:
+      pricing?.priceRange ??
+      "Wird nach persönlicher Prüfung berechnet",
+    completed: result.leadReady,
+  };
+}
+
+function toApiMessages(
+  messages: ChatMessage[],
+) {
+  return messages.map((message) => ({
+    role:
+      message.sender === "user"
+        ? ("user" as const)
+        : ("assistant" as const),
+    content: message.text,
+  }));
+}
+
 export default function AIChat() {
   const [messages, setMessages] =
     useState<ChatMessage[]>(START_MESSAGES);
@@ -91,10 +410,15 @@ export default function AIChat() {
   ] = useState<ServiceType | undefined>();
 
   const [session, setSession] =
-    useState(createInitialSession());
+    useState<CompatibleChatSession>(
+      EMPTY_SESSION,
+    );
 
   const [isThinking, setIsThinking] =
     useState(false);
+
+  const [chatError, setChatError] =
+    useState<string | null>(null);
 
   const [leadName, setLeadName] =
     useState("");
@@ -104,6 +428,11 @@ export default function AIChat() {
 
   const [leadStatus, setLeadStatus] =
     useState<LeadSubmitStatus>("idle");
+
+  const [
+    shouldAutoCreateLead,
+    setShouldAutoCreateLead,
+  ] = useState(false);
 
   const [leadError, setLeadError] =
     useState<string | null>(null);
@@ -115,6 +444,9 @@ export default function AIChat() {
 
   const chatContainerRef =
     useRef<HTMLDivElement | null>(null);
+
+  const autoLeadFingerprintRef =
+    useRef<string | null>(null);
 
   useEffect(() => {
     const chatElement =
@@ -128,8 +460,154 @@ export default function AIChat() {
       chatElement.scrollHeight;
   }, [messages, isThinking]);
 
+  useEffect(() => {
+    const name =
+      leadName.trim();
+
+    const contact =
+      leadContact.trim();
+
+    if (
+      !shouldAutoCreateLead ||
+      !contact ||
+      leadStatus !== "idle" ||
+      messages.length < 2
+    ) {
+      return;
+    }
+
+    const fingerprint = [
+      contact.toLocaleLowerCase(
+        "de-CH",
+      ),
+      session.answers.serviceLabel ??
+        "",
+      String(
+        session.answers.area ?? "",
+      ),
+      session.answers.date ?? "",
+    ].join("|");
+
+    if (
+      autoLeadFingerprintRef.current ===
+      fingerprint
+    ) {
+      return;
+    }
+
+    autoLeadFingerprintRef.current =
+      fingerprint;
+
+    let cancelled = false;
+
+    async function saveAutomatically() {
+      setLeadStatus("submitting");
+      setLeadError(null);
+      setLeadCrm(null);
+
+      try {
+        const response =
+          await fetch(
+            "/api/public/chat/lead",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+              body: JSON.stringify({
+                name: name || null,
+                contact,
+                session,
+                lead:
+                  session.lead,
+                messages,
+                pageUrl:
+                  typeof window !==
+                  "undefined"
+                    ? window.location.href
+                    : null,
+              }),
+            },
+          );
+
+        const payload =
+          (await response
+            .json()
+            .catch(() => null)) as
+            | ChatLeadApiResponse
+            | null;
+
+        if (cancelled) {
+          return;
+        }
+
+        if (
+          !response.ok ||
+          !payload?.success
+        ) {
+          autoLeadFingerprintRef.current =
+            null;
+
+          setLeadStatus("error");
+
+          setLeadError(
+            payload?.error ??
+              "Die Anfrage konnte nicht automatisch gespeichert werden.",
+          );
+
+          return;
+        }
+
+        setLeadCrm(
+          payload.crm ?? null,
+        );
+
+        setShouldAutoCreateLead(
+          false,
+        );
+
+        setLeadStatus(
+          payload.emailSent
+            ? "success"
+            : "partial",
+        );
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        autoLeadFingerprintRef.current =
+          null;
+
+        setLeadStatus("error");
+
+        setLeadError(
+          "Die Anfrage konnte wegen eines Verbindungsfehlers nicht automatisch gespeichert werden.",
+        );
+      }
+    }
+
+    void saveAutomatically();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    leadContact,
+    leadName,
+    leadStatus,
+    messages,
+    session,
+    shouldAutoCreateLead,
+  ]);
+
   function resetLeadSubmitState() {
-    if (leadStatus === "submitting") {
+    if (
+      leadStatus === "submitting" ||
+      leadStatus === "success" ||
+      leadStatus === "partial"
+    ) {
       return;
     }
 
@@ -138,55 +616,227 @@ export default function AIChat() {
     setLeadCrm(null);
   }
 
-  function addUserMessage(text: string) {
-    setMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        sender: "user",
-        text,
-        time: getCurrentTime(),
-      },
-    ]);
+  function createMessage(
+    sender: "user" | "assistant",
+    text: string,
+  ): ChatMessage {
+    return {
+      id: crypto.randomUUID(),
+      sender,
+      text,
+      time: getCurrentTime(),
+    };
   }
 
-  function addAssistantMessage(
-    text: string,
+  async function requestCentralPricing(
+  result: OnlineBeraterResult,
+): Promise<ChatCentralPricing | null> {
+  const lead = result.lead;
+
+  const service =
+    lead.service ??
+    null;
+
+  if (!service) {
+    return null;
+  }
+
+  try {
+    const response =
+      await fetch(
+        "/api/public/pricing",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          cache: "no-store",
+          body: JSON.stringify({
+            service,
+            areaM2:
+              lead.areaM2 ??
+              null,
+            rooms:
+              lead.rooms ??
+              null,
+            bathrooms:
+              lead.bathrooms ??
+              null,
+            windows:
+              lead.windows ??
+              null,
+            condition:
+              lead.condition ??
+              null,
+            frequency:
+              lead.frequency ??
+              null,
+            extras:
+              lead.extras,
+            floor:
+              lead.floor ??
+              null,
+            elevator:
+              lead.elevator ??
+              null,
+            photoCount: 0,
+          }),
+        },
+      );
+
+    const payload =
+      (await response
+        .json()
+        .catch(() => null)) as
+        | ChatPricingApiResponse
+        | null;
+
+    if (
+      !response.ok ||
+      !payload?.success ||
+      !payload.pricing
+    ) {
+      return null;
+    }
+
+    return payload.pricing;
+  } catch {
+    return null;
+  }
+}
+
+async function requestOnlineBerater(
+    nextMessages: ChatMessage[],
   ) {
-    setMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        sender: "assistant",
-        text,
-        time: getCurrentTime(),
-      },
-    ]);
+    setIsThinking(true);
+    setChatError(null);
+
+    try {
+      const response = await fetch(
+        "/api/public/online-berater",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            messages:
+              toApiMessages(
+                nextMessages.slice(-24),
+              ),
+          }),
+        },
+      );
+
+      const payload = (await response
+        .json()
+        .catch(() => null)) as
+        | OnlineBeraterApiResponse
+        | null;
+
+      if (
+        !response.ok ||
+        !payload?.success ||
+        !payload.result
+      ) {
+        throw new Error(
+          payload?.error ??
+            "Der Online-Berater ist momentan nicht erreichbar.",
+        );
+      }
+
+      const result = payload.result;
+
+      const pricing =
+        await requestCentralPricing(
+          result,
+        );
+
+      setSession(
+        createCompatibleSession(
+          result,
+          pricing,
+        ),
+      );
+
+      setShouldAutoCreateLead(
+        result.shouldCreateLead,
+      );
+
+      if (
+        result.lead.customerName &&
+        !leadName.trim()
+      ) {
+        setLeadName(
+          result.lead.customerName,
+        );
+      }
+
+      const detectedContact =
+        result.lead.email ??
+        result.lead.phone;
+
+      if (
+        detectedContact &&
+        !leadContact.trim()
+      ) {
+        setLeadContact(detectedContact);
+      }
+
+      setMessages((current) => [
+        ...current,
+        createMessage(
+          "assistant",
+          result.reply,
+        ),
+      ]);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Der Online-Berater ist momentan nicht erreichbar.";
+
+      setChatError(message);
+
+      setMessages((current) => [
+        ...current,
+        createMessage(
+          "assistant",
+          "Entschuldigung, der Online-Berater konnte gerade keine Antwort erstellen. Bitte versuchen Sie es erneut.",
+        ),
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
   }
 
   function handleSelectService(
     service: ServiceType,
   ) {
+    if (isThinking) {
+      return;
+    }
+
     resetLeadSubmitState();
     setSelectedService(service);
 
-    const result = selectService(
-      service,
-      session,
+    const userMessage = createMessage(
+      "user",
+      SERVICE_LABELS[service],
     );
 
-    const serviceLabel =
-      result.session.answers
-        .serviceLabel ?? service;
+    const nextMessages = [
+      ...messages,
+      userMessage,
+    ];
 
-    addUserMessage(serviceLabel);
-    setSession(result.session);
-    setIsThinking(true);
+    setMessages(nextMessages);
 
-    window.setTimeout(() => {
-      addAssistantMessage(result.reply);
-      setIsThinking(false);
-    }, 350);
+    void requestOnlineBerater(
+      nextMessages,
+    );
   }
 
   function handleSendMessage(
@@ -199,19 +849,22 @@ export default function AIChat() {
     }
 
     resetLeadSubmitState();
-    addUserMessage(message);
-    setIsThinking(true);
 
-    window.setTimeout(() => {
-      const result = processMessage({
-        message,
-        session,
-      });
+    const userMessage = createMessage(
+      "user",
+      message,
+    );
 
-      setSession(result.session);
-      addAssistantMessage(result.reply);
-      setIsThinking(false);
-    }, 350);
+    const nextMessages = [
+      ...messages,
+      userMessage,
+    ];
+
+    setMessages(nextMessages);
+
+    void requestOnlineBerater(
+      nextMessages,
+    );
   }
 
   async function handleSubmitLead(
@@ -259,6 +912,8 @@ export default function AIChat() {
             name: name || null,
             contact,
             session,
+            lead:
+              session.lead,
             messages,
             pageUrl:
               typeof window !==
@@ -288,6 +943,7 @@ export default function AIChat() {
       }
 
       setLeadCrm(payload.crm ?? null);
+      setShouldAutoCreateLead(false);
       setLeadStatus(
         payload.emailSent
           ? "success"
@@ -334,6 +990,12 @@ export default function AIChat() {
                 handleSelectService
               }
             />
+
+            {chatError ? (
+              <p className="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-100">
+                {chatError}
+              </p>
+            ) : null}
 
             {session.completed ? (
               <form
@@ -441,9 +1103,10 @@ export default function AIChat() {
               </form>
             ) : (
               <p className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-slate-400">
-                Beantworten Sie die Fragen.
-                Danach können Sie die Anfrage
-                direkt an HEXA CLEAN senden.
+                Der Online-Berater sammelt die
+                noch benötigten Angaben. Danach
+                können Sie die Anfrage direkt an
+                HEXA CLEAN senden.
               </p>
             )}
           </div>
