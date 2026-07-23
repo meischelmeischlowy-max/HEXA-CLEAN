@@ -1,5 +1,6 @@
-const fs = require("fs");
+﻿const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const dotenv = require("dotenv");
@@ -9,15 +10,18 @@ dotenv.config({ path: ".env.local", quiet: true });
 dotenv.config({ path: ".env", quiet: true });
 
 const base = process.argv[2] || "https://www.hexaclean.ch";
-const secret = process.env.DASHBOARD_AUTH_TOKEN;
+const dashboardPassword = process.env.DASHBOARD_PASSWORD;
 const databaseUrl = process.env.DATABASE_URL;
 const testEmail = String(process.env.HEXA_TEST_CUSTOMER_EMAIL || "")
   .trim()
   .toLowerCase();
 
-if (!secret || secret.length < 32 || !databaseUrl || !testEmail) {
+const TEST_SLOT_NOTE = "E22 production workflow test";
+const TENANT_KEY = "hexa-clean";
+
+if (!dashboardPassword || !databaseUrl || !testEmail) {
   throw new Error(
-    "Brak DASHBOARD_AUTH_TOKEN, DATABASE_URL lub HEXA_TEST_CUSTOMER_EMAIL.",
+    "Brak DASHBOARD_PASSWORD, DATABASE_URL lub HEXA_TEST_CUSTOMER_EMAIL.",
   );
 }
 
@@ -25,6 +29,10 @@ const db = new PrismaClient({
   adapter: new PrismaPg({
     connectionString: databaseUrl,
   }),
+  transactionOptions: {
+    maxWait: 10000,
+    timeout: 60000,
+  },
 });
 
 const suffix =
@@ -32,12 +40,87 @@ const suffix =
   "-" +
   Math.random().toString(16).slice(2);
 
+let dashboardCookie = "";
 let customerId = null;
 let orderId = null;
 let slotId = null;
 
 function ids(rows) {
   return rows.map((row) => row.id).filter(Boolean);
+}
+
+function parseResponseBody(raw) {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { raw };
+  }
+}
+
+function extractSessionCookie(response) {
+  const setCookie =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [response.headers.get("set-cookie")].filter(Boolean);
+
+  const cookie = setCookie
+    .map((value) => String(value).split(";")[0])
+    .find((value) => value.includes("="));
+
+  if (!cookie) {
+    throw new Error("Dashboard login nie zwróci session cookie.");
+  }
+
+  return cookie;
+}
+
+async function loginDashboard() {
+  const response = await fetch(base + "/api/dashboard/login", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-forwarded-for": "198.51.100.77",
+      "user-agent": "Hexa-E22-Workflow-" + suffix,
+      "accept-language": "de-CH",
+    },
+    body: JSON.stringify({
+      password: dashboardPassword,
+    }),
+  });
+
+  const raw = await response.text();
+
+  console.log(
+    "DASHBOARD LOGIN -> HTTP " +
+      response.status,
+  );
+
+  if (response.status !== 200) {
+    throw new Error(
+      "Dashboard login failed: HTTP " +
+        response.status +
+        ": " +
+        raw.slice(0, 500),
+    );
+  }
+
+  const data = parseResponseBody(raw);
+
+  if (data?.authenticated !== true) {
+    throw new Error(
+      "Dashboard login nie potwierdzi authenticated=true.",
+    );
+  }
+
+  dashboardCookie = extractSessionCookie(response);
+
+  console.log(
+    "DASHBOARD SESSION -> COOKIE RECEIVED",
+  );
 }
 
 async function api(
@@ -47,54 +130,35 @@ async function api(
   body,
   auth = true,
 ) {
-  const response = await fetch(
-    base + endpoint,
-    {
-      method: "POST",
-      headers: {
-        ...(auth
-          ? {
-              authorization:
-                "Bearer " + secret,
-            }
-          : {}),
-        ...(body === undefined
-          ? {}
-          : {
-              "content-type":
-                "application/json",
-            }),
-        ...(!auth
-          ? {
-              "x-forwarded-for":
-                "198.51.100.88",
-              "user-agent":
-                "Hexa-E17-6BC-" +
-                suffix,
-              "accept-language":
-                "de-CH",
-            }
-          : {}),
-      },
-      body:
-        body === undefined
-          ? undefined
-          : JSON.stringify(body),
+  const response = await fetch(base + endpoint, {
+    method: "POST",
+    headers: {
+      ...(auth && dashboardCookie
+        ? {
+            cookie: dashboardCookie,
+          }
+        : {}),
+      ...(body === undefined
+        ? {}
+        : {
+            "content-type": "application/json",
+          }),
+      ...(!auth
+        ? {
+            "x-forwarded-for": "198.51.100.88",
+            "user-agent": "Hexa-E22-Public-" + suffix,
+            "accept-language": "de-CH",
+          }
+        : {}),
     },
-  );
+    body:
+      body === undefined
+        ? undefined
+        : JSON.stringify(body),
+  });
 
   const raw = await response.text();
-  let data = null;
-
-  if (raw) {
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      data = {
-        raw,
-      };
-    }
-  }
+  const data = parseResponseBody(raw);
 
   console.log(
     name +
@@ -102,9 +166,7 @@ async function api(
       response.status,
   );
 
-  if (
-    response.status !== expectedStatus
-  ) {
+  if (response.status !== expectedStatus) {
     throw new Error(
       name +
         ": oczekiwano " +
@@ -117,6 +179,26 @@ async function api(
   }
 
   return data;
+}
+
+async function removeOrphanTestSlots() {
+  const removed =
+    await db.availabilitySlot.deleteMany({
+      where: {
+        notes: {
+          in: [
+            TEST_SLOT_NOTE,
+            "E17.6B+C production test",
+          ],
+        },
+        orderId: null,
+      },
+    });
+
+  console.log(
+    "ORPHAN TEST SLOTS REMOVED -> " +
+      removed.count,
+  );
 }
 
 async function backupAndCleanPreviousTestData() {
@@ -146,6 +228,7 @@ async function backupAndCleanPreviousTestData() {
   }
 
   const customerIds = ids(customers);
+
   const orders =
     await db.order.findMany({
       where: {
@@ -154,6 +237,7 @@ async function backupAndCleanPreviousTestData() {
         },
       },
     });
+
   const orderIds = ids(orders);
 
   const sessions =
@@ -164,6 +248,7 @@ async function backupAndCleanPreviousTestData() {
         },
       },
     });
+
   const sessionIds = ids(sessions);
 
   const estimates =
@@ -174,6 +259,7 @@ async function backupAndCleanPreviousTestData() {
         },
       },
     });
+
   const estimateIds = ids(estimates);
 
   const quotes =
@@ -184,6 +270,7 @@ async function backupAndCleanPreviousTestData() {
         },
       },
     });
+
   const quoteIds = ids(quotes);
 
   const invoices =
@@ -194,6 +281,7 @@ async function backupAndCleanPreviousTestData() {
         },
       },
     });
+
   const invoiceIds = ids(invoices);
 
   const availabilitySlots =
@@ -217,7 +305,7 @@ async function backupAndCleanPreviousTestData() {
 
   const backupPath = path.join(
     backupDir,
-    "e17_6bc_previous_test_" +
+    "e22_previous_test_" +
       new Date()
         .toISOString()
         .replace(/[:.]/g, "-") +
@@ -228,8 +316,7 @@ async function backupAndCleanPreviousTestData() {
     backupPath,
     JSON.stringify(
       {
-        createdAt:
-          new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         testEmail,
         customers,
         orders,
@@ -245,159 +332,185 @@ async function backupAndCleanPreviousTestData() {
     "utf8",
   );
 
-  await db.$transaction(
-    async (tx) => {
-      await tx.availabilitySlot.deleteMany({
-        where: {
-          orderId: {
-            in: orderIds,
-          },
+  await db.$transaction(async (tx) => {
+    await tx.availabilitySlot.deleteMany({
+      where: {
+        orderId: {
+          in: orderIds,
         },
-      });
+      },
+    });
 
-      await tx.payment.deleteMany({
-        where: {
-          OR: [
-            {
-              invoiceId: {
-                in: invoiceIds,
-              },
+    await tx.payment.deleteMany({
+      where: {
+        OR: [
+          {
+            invoiceId: {
+              in: invoiceIds,
             },
-            {
-              orderId: {
-                in: orderIds,
-              },
+          },
+          {
+            orderId: {
+              in: orderIds,
             },
-          ],
-        },
-      });
-
-      await tx.publicOfferLink.deleteMany({
-        where: {
-          customerId: {
-            in: customerIds,
           },
-        },
-      });
+        ],
+      },
+    });
 
-      await tx.attachment.deleteMany({
-        where: {
-          customerId: {
-            in: customerIds,
+    await tx.publicOfferLink.deleteMany({
+      where: {
+        OR: [
+          {
+            customerId: {
+              in: customerIds,
+            },
           },
-        },
-      });
+          {
+            quoteId: {
+              in: quoteIds,
+            },
+          },
+        ],
+      },
+    });
 
-      await tx.notification.deleteMany({
-        where: {
-          customerId: {
-            in: customerIds,
-          },
+    await tx.attachment.deleteMany({
+      where: {
+        customerId: {
+          in: customerIds,
         },
-      });
+      },
+    });
 
-      await tx.auditLog.deleteMany({
-        where: {
-          customerId: {
-            in: customerIds,
-          },
+    await tx.notification.deleteMany({
+      where: {
+        customerId: {
+          in: customerIds,
         },
-      });
+      },
+    });
 
-      await tx.conversationMessage.deleteMany({
-        where: {
-          customerId: {
-            in: customerIds,
-          },
+    await tx.auditLog.deleteMany({
+      where: {
+        customerId: {
+          in: customerIds,
         },
-      });
+      },
+    });
 
-      await tx.invoiceItem.deleteMany({
-        where: {
-          invoiceId: {
-            in: invoiceIds,
-          },
+    await tx.conversationMessage.deleteMany({
+      where: {
+        customerId: {
+          in: customerIds,
         },
-      });
+      },
+    });
 
-      await tx.invoice.deleteMany({
-        where: {
-          id: {
-            in: invoiceIds,
-          },
+    await tx.invoiceItem.deleteMany({
+      where: {
+        invoiceId: {
+          in: invoiceIds,
         },
-      });
+      },
+    });
 
-      await tx.quote.deleteMany({
-        where: {
-          id: {
-            in: quoteIds,
-          },
+    await tx.invoice.deleteMany({
+      where: {
+        id: {
+          in: invoiceIds,
         },
-      });
+      },
+    });
 
-      await tx.estimateItem.deleteMany({
-        where: {
-          estimateId: {
-            in: estimateIds,
-          },
-        },
-      });
 
-      await tx.estimate.deleteMany({
-        where: {
-          id: {
-            in: estimateIds,
-          },
+    await tx.quote.deleteMany({
+      where: {
+        id: {
+          in: quoteIds,
         },
-      });
+      },
+    });
 
-      await tx.order.deleteMany({
-        where: {
-          id: {
-            in: orderIds,
-          },
+    await tx.estimateItem.deleteMany({
+      where: {
+        estimateId: {
+          in: estimateIds,
         },
-      });
+      },
+    });
 
-      await tx.session.deleteMany({
-        where: {
-          id: {
-            in: sessionIds,
-          },
+    await tx.estimate.deleteMany({
+      where: {
+        id: {
+          in: estimateIds,
         },
-      });
+      },
+    });
 
-      await tx.customer.deleteMany({
-        where: {
-          id: {
-            in: customerIds,
-          },
+    await tx.order.deleteMany({
+      where: {
+        id: {
+          in: orderIds,
         },
-      });
-    },
-  );
+      },
+    });
+
+    await tx.session.deleteMany({
+      where: {
+        id: {
+          in: sessionIds,
+        },
+      },
+    });
+
+    await tx.customer.deleteMany({
+      where: {
+        id: {
+          in: customerIds,
+        },
+      },
+    });
+  });
 
   console.log(
     "PREVIOUS TEST DATA CLEANUP -> OK",
   );
+
   console.log(
     "BACKUP -> " + backupPath,
   );
 }
 
+function buildUniqueSlotStart() {
+  const startAt = new Date(
+    Date.now() +
+      3 * 24 * 60 * 60 * 1000,
+  );
+
+  startAt.setUTCHours(
+    9,
+    new Date().getUTCMinutes(),
+    new Date().getUTCSeconds(),
+    0,
+  );
+
+  return startAt;
+}
+
 async function main() {
   await backupAndCleanPreviousTestData();
+  await removeOrphanTestSlots();
 
   const customer =
     await db.customer.create({
       data: {
         type: "PRIVATE",
-        firstName: "E17",
+        firstName: "E22",
         lastName: "Production Test",
         email: testEmail,
         notes:
-          "automated-e17-6bc-" +
+          "automated-e22-" +
           suffix,
       },
     });
@@ -408,12 +521,12 @@ async function main() {
     await db.order.create({
       data: {
         orderNumber:
-          "E17-" + suffix,
+          "E22-" + suffix,
         customerId,
         serviceType:
           "REINIGUNG",
         title:
-          "E17.6B+C Produktionsworkflow",
+          "E22 Produktionsworkflow",
         status: "NEW",
         estimatedPrice:
           "100.00",
@@ -425,16 +538,8 @@ async function main() {
 
   orderId = order.id;
 
-  const startAt = new Date(
-    Date.now() +
-      3 * 24 * 60 * 60 * 1000,
-  );
-  startAt.setUTCHours(
-    9,
-    0,
-    0,
-    0,
-  );
+  const startAt =
+    buildUniqueSlotStart();
 
   const endAt = new Date(
     startAt.getTime() +
@@ -445,13 +550,13 @@ async function main() {
     await db.availabilitySlot.create({
       data: {
         tenantKey:
-          "hexa-clean",
+          TENANT_KEY,
         startAt,
         endAt,
         status:
           "AVAILABLE",
         notes:
-          "E17.6B+C production test",
+          TEST_SLOT_NOTE,
       },
     });
 
@@ -460,10 +565,13 @@ async function main() {
   console.log(
     "TEST FIXTURE -> CREATED",
   );
+
   console.log(
     "SLOT -> " +
       slot.startAt.toISOString(),
   );
+
+  await loginDashboard();
 
   await api(
     "CREATE QUOTE",
@@ -502,8 +610,40 @@ async function main() {
       id: quote.id,
     },
     data: {
-      status: "SENT",
-      sentAt: new Date(),
+      subtotal: "100.00",
+      taxRate: "0.00",
+      taxAmount: "0.00",
+      total: "100.00",
+      items: [
+        {
+          name:
+            "Grundreinigung Testauftrag",
+          description:
+            "Automatisierte Produktionsprüfung E22",
+          quantity:
+            "1.00",
+          unitPrice:
+            "100.00",
+          subtotal:
+            "100.00",
+          taxRate:
+            "0.00",
+          taxAmount:
+            "0.00",
+          discountAmount:
+            "0.00",
+          total:
+            "100.00",
+          category:
+            "REINIGUNG",
+          unit:
+            "PAUSCHALE",
+          sortOrder:
+            0,
+        },
+      ],
+      status: "DRAFT",
+      sentAt: null,
       validUntil: new Date(
         Date.now() +
           7 * 24 * 60 * 60 * 1000,
@@ -511,7 +651,11 @@ async function main() {
     },
   });
 
-  const link = await api(
+  console.log(
+    "QUOTE TEST ITEM -> CREATED",
+  );
+
+  const linkResponse = await api(
     "CREATE PUBLIC LINK",
     "/api/dashboard/quotes/" +
       quote.id +
@@ -523,24 +667,48 @@ async function main() {
     },
   );
 
-  const token = new URL(
-    link.publicUrl,
-  )
-    .pathname
-    .split("/")
-    .filter(Boolean)
-    .at(-1);
+  const publicOfferLinkId =
+    linkResponse?.publicOfferLinkId;
 
-  if (!token) {
+  if (!publicOfferLinkId) {
     throw new Error(
-      "Brak tokenu oferty.",
+      "Endpoint nie zwróci publicOfferLinkId.",
     );
   }
+
+  const testToken =
+    crypto.randomBytes(32)
+      .toString("base64url");
+
+  const testTokenHash =
+    crypto.createHash("sha256")
+      .update(testToken, "utf8")
+      .digest("hex");
+
+  const testTokenPrefix =
+    testToken.slice(0, 8);
+
+  await db.publicOfferLink.update({
+    where: {
+      id:
+        publicOfferLinkId,
+    },
+    data: {
+      tokenHash:
+        testTokenHash,
+      tokenPrefix:
+        testTokenPrefix,
+    },
+  });
+
+  console.log(
+    "TEST TOKEN BRIDGE -> CREATED",
+  );
 
   await api(
     "ACCEPT OFFER WITH SLOT",
     "/api/public/offers/" +
-      encodeURIComponent(token) +
+      encodeURIComponent(testToken) +
       "/accept-with-slot",
     200,
     {
@@ -574,20 +742,16 @@ async function main() {
   ]);
 
   if (
-    acceptedQuote?.status !==
-      "ACCEPTED" ||
+    acceptedQuote?.status !== "ACCEPTED" ||
     !acceptedQuote.acceptedAt ||
-    scheduledOrder?.status !==
-      "SCHEDULED" ||
+    scheduledOrder?.status !== "SCHEDULED" ||
     !scheduledOrder.scheduledStart ||
     !scheduledOrder.scheduledEnd ||
-    bookedSlot?.status !==
-      "BOOKED" ||
-    bookedSlot.orderId !==
-      order.id
+    bookedSlot?.status !== "BOOKED" ||
+    bookedSlot.orderId !== order.id
   ) {
     throw new Error(
-      "Akceptacja i rezerwacja terminu nie przeszly.",
+      "Akceptacja i rezerwacja terminu nie przeszy.",
     );
   }
 
@@ -603,9 +767,7 @@ async function main() {
     200,
   );
 
-  if (
-    complete.updated !== true
-  ) {
+  if (complete.updated !== true) {
     throw new Error(
       "Order completion failed.",
     );
@@ -619,15 +781,13 @@ async function main() {
     200,
   );
 
-  if (
-    completeAgain.updated !== false
-  ) {
+  if (completeAgain.updated !== false) {
     throw new Error(
       "Order completion idempotency failed.",
     );
   }
 
-  let invoice =
+  const invoice =
     await db.invoice.findFirst({
       where: {
         quoteId: quote.id,
@@ -636,13 +796,33 @@ async function main() {
 
   if (!invoice) {
     throw new Error(
-      "Automatyczna faktura po zakonczeniu zlecenia nie powstala.",
+      "Automatyczna faktura nie powstaa.",
     );
   }
 
   console.log(
     "AUTO INVOICE -> OK",
   );
+
+  const invoiceItems =
+    await db.invoiceItem.findMany({
+      where: {
+        invoiceId:
+          invoice.id,
+      },
+    });
+
+  console.log(
+    "INVOICE ITEMS -> " +
+      invoiceItems.length,
+  );
+
+  if (invoiceItems.length !== 1) {
+    throw new Error(
+      "INVOICE_HAS_NO_ITEMS lub nieprawidowa liczba pozycji faktury: " +
+        invoiceItems.length,
+    );
+  }
 
   await api(
     "PARTIAL PAYMENT",
@@ -655,7 +835,7 @@ async function main() {
       method:
         "BANK_TRANSFER",
       externalRef:
-        "E17-P1-" + suffix,
+        "E22-P1-" + suffix,
     },
   );
 
@@ -670,7 +850,7 @@ async function main() {
       method:
         "BANK_TRANSFER",
       externalRef:
-        "E17-P2-" + suffix,
+        "E22-P2-" + suffix,
     },
   );
 
@@ -704,9 +884,10 @@ async function main() {
           invoice.id,
       },
     }),
-    db.publicOfferLink.findFirst({
+    db.publicOfferLink.findUnique({
       where: {
-        quoteId: quote.id,
+        id:
+          publicOfferLinkId,
       },
     }),
     db.notification.findMany({
@@ -740,22 +921,17 @@ async function main() {
     );
 
   if (
-    finalQuote?.status !==
-      "ACCEPTED" ||
-    finalOrder?.status !==
-      "COMPLETED" ||
-    finalInvoice?.status !==
-      "PAID" ||
-    Number(
-      finalInvoice.paidAmount,
-    ) !== 100 ||
+    finalQuote?.status !== "ACCEPTED" ||
+    finalOrder?.status !== "COMPLETED" ||
+    finalInvoice?.status !== "PAID" ||
+    Number(finalInvoice.paidAmount) !== 100 ||
     payments.length !== 2 ||
     paymentTotal !== 100 ||
     !publicLink?.acceptedAt ||
     auditCount < 5
   ) {
     throw new Error(
-      "Koncowa weryfikacja E17.6B+C nie przeszla.",
+      "Kocowa weryfikacja E22 nie przesza.",
     );
   }
 
@@ -763,7 +939,7 @@ async function main() {
     JSON.stringify(
       {
         result:
-          "E17.6B+C PRODUCTION WORKFLOW: SUCCESS",
+          "E22 PRODUCTION WORKFLOW: SUCCESS",
         base,
         testEmail,
         customerId,
@@ -782,12 +958,18 @@ async function main() {
           bookedSlot.status,
         invoiceStatus:
           finalInvoice.status,
+        invoiceItems:
+          invoiceItems.length,
         payments:
           payments.length,
         paidAmount:
           finalInvoice.paidAmount,
         auditCount,
         notifications,
+        rawTokenStored:
+          false,
+        fullPublicUrlStored:
+          false,
       },
       null,
       2,
@@ -803,3 +985,4 @@ main()
   .finally(async () => {
     await db.$disconnect();
   });
+
