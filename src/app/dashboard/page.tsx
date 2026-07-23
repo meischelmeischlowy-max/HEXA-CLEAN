@@ -280,6 +280,88 @@ function AlertCard({ alert }: { alert: AutomationAlert }) {
   );
 }
 
+function PrimaryAlertCard({
+  alert,
+  totalAlerts,
+}: {
+  alert: AutomationAlert;
+  totalAlerts: number;
+}) {
+  return (
+    <section
+      className={`rounded-[2rem] border p-5 shadow-2xl shadow-black/20 sm:p-7 ${toneCardClass(
+        alert.tone,
+      )}`}
+    >
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full border px-3 py-1 text-xs font-black ${priorityClass(
+                alert.priority,
+              )}`}
+            >
+              {alert.priority}
+            </span>
+
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-white">
+              Heute zuerst
+            </span>
+
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-white/75">
+              {totalAlerts} Aufgabe
+              {totalAlerts === 1 ? "" : "n"} offen
+            </span>
+          </div>
+
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-white/60">
+            {alert.type}
+          </p>
+
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+            {alert.title}
+          </h2>
+
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-white/75 sm:text-base">
+            {alert.description}
+          </p>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-bold text-white">
+              {alert.customer}
+            </span>
+
+            {alert.amount ? (
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-bold text-white">
+                {alert.amount}
+              </span>
+            ) : null}
+
+            {alert.meta.slice(0, 2).map((item) => (
+              <span
+                key={item}
+                className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-semibold text-white/70"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <Link
+          data-testid="dashboard-primary-action"
+          href={alert.href}
+          className={`w-full shrink-0 rounded-2xl border px-6 py-4 text-center text-sm font-black uppercase tracking-[0.13em] transition xl:w-auto ${toneButtonClass(
+            alert.tone,
+          )}`}
+        >
+          {alert.primaryLabel}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function EmptyInbox() {
   return (
     <section className="rounded-3xl border border-emerald-300/25 bg-emerald-300/10 p-8 text-emerald-100">
@@ -760,9 +842,15 @@ export default async function DashboardCockpitPage() {
     failedNotificationCount +
     overdueInvoiceCount;
 
+
+  const primaryAlert =
+    alerts[0] ?? null;
+
+  const remainingAlerts =
+    alerts.slice(1, 9);
   return (
     <main className="min-h-screen px-4 py-6 text-white sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-none flex-col gap-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
         <section
           className={`rounded-3xl border p-6 ${
             urgentActionCount > 0
@@ -824,6 +912,15 @@ export default async function DashboardCockpitPage() {
             </div>
           ) : null}
         </section>
+
+        {primaryAlert ? (
+          <PrimaryAlertCard
+            alert={primaryAlert}
+            totalAlerts={alerts.length}
+          />
+        ) : (
+          <EmptyInbox />
+        )}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
@@ -891,9 +988,7 @@ export default async function DashboardCockpitPage() {
           />
         </section>
 
-        {alerts.length === 0 ? <EmptyInbox /> : null}
-
-        {alerts.length > 0 ? (
+        {remainingAlerts.length > 0 ? (
           <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
               <div>
@@ -902,7 +997,7 @@ export default async function DashboardCockpitPage() {
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black text-white">
-                  Arbeitswarteschlange
+                  Weitere Aufgaben
                 </h2>
 
                 <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
@@ -912,12 +1007,12 @@ export default async function DashboardCockpitPage() {
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-zinc-300">
-                {alerts.length} Aufgaben sichtbar
+                {remainingAlerts.length} weitere Aufgaben
               </div>
             </div>
 
             <div className="grid gap-4">
-              {alerts.slice(0, 18).map((alert) => (
+              {remainingAlerts.map((alert) => (
                 <AlertCard key={alert.id} alert={alert} />
               ))}
             </div>
