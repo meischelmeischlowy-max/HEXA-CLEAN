@@ -50,7 +50,7 @@ describe("E20.1 compact operational orders list", () => {
     );
 
     expect(source).toContain(
-      "{formatAppointment(order.scheduledAt)}",
+      "{formatAppointment(order.scheduledStart)}",
     );
 
     expect(source).toContain(

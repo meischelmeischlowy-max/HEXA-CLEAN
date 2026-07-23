@@ -38,7 +38,7 @@ type Order = {
   estimatedTotal?: string | number | null;
   estimatedPrice?: string | number | null;
   finalPrice?: string | number | null;
-  scheduledAt?: string | null;
+  scheduledStart?: string | null;
   createdAt?: string | null;
 };
 
@@ -198,8 +198,18 @@ function getWorkflowLabel(order: Order) {
     getLatestEstimate(order)?.status,
   );
 
-  if (orderStatus === "SCHEDULED") {
+  if (
+    orderStatus === "SCHEDULED" &&
+    order.scheduledStart
+  ) {
     return "Geplant";
+  }
+
+  if (
+    orderStatus === "SCHEDULED" &&
+    !order.scheduledStart
+  ) {
+    return "Termin planen";
   }
 
   if (
@@ -261,7 +271,21 @@ function getOrderAction(order: Order): OrderAction {
     ? `/dashboard/estimates/${latestEstimate.id}`
     : orderHref;
 
-  if (orderStatus === "SCHEDULED") {
+  if (
+    orderStatus === "SCHEDULED" &&
+    !order.scheduledStart
+  ) {
+    return {
+      href: orderHref,
+      label: "Termin planen",
+      priority: 2,
+    };
+  }
+
+  if (
+    orderStatus === "SCHEDULED" &&
+    order.scheduledStart
+  ) {
     return {
       href: orderHref,
       label: "Auftrag abschliessen",
@@ -338,7 +362,7 @@ function getOrderAction(order: Order): OrderAction {
 
 function getOrderSortTimestamp(order: Order) {
   const value =
-    order.scheduledAt ??
+    order.scheduledStart ??
     order.createdAt;
 
   if (!value) {
@@ -404,7 +428,7 @@ function OrderQueueCard({
         </p>
 
         <p className="mt-0.5 truncate text-xs font-semibold text-white/65">
-          {formatAppointment(order.scheduledAt)}
+          {formatAppointment(order.scheduledStart)}
         </p>
       </div>
 
