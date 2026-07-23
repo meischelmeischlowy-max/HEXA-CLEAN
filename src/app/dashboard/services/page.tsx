@@ -1,16 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import DashboardPanel from "../../../components/dashboard/DashboardPanel";
-import DashboardTable, {
-  type DashboardTableColumn,
-} from "../../../components/dashboard/DashboardTable";
-import EmptyState from "../../../components/dashboard/EmptyState";
-import MetricCard from "../../../components/dashboard/MetricCard";
-import PageHeader from "../../../components/dashboard/PageHeader";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import PremiumButton from "../../../components/dashboard/PremiumButton";
-import StatusBadge from "../../../components/dashboard/StatusBadge";
 
 type ServiceCatalogItem = {
   id: string;
@@ -42,493 +39,603 @@ type DashboardServicesResponse = {
   };
 };
 
-function toNumber(value?: string | number | null) {
-  if (value === null || value === undefined || value === "") {
+function toNumber(
+  value?: string | number | null,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return null;
   }
 
-  if (typeof value === "number") {
-    return Number.isNaN(value) ? null : value;
+  if (
+    typeof value === "number"
+  ) {
+    return Number.isNaN(value)
+      ? null
+      : value;
   }
 
-  const parsed = Number(String(value).replace(",", "."));
+  const parsed = Number(
+    String(value).replace(
+      ",",
+      ".",
+    ),
+  );
 
-  return Number.isNaN(parsed) ? null : parsed;
+  return Number.isNaN(parsed)
+    ? null
+    : parsed;
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return "—";
+function formatMoney(
+  value?: string | number | null,
+) {
+  const numberValue =
+    toNumber(value);
+
+  if (
+    numberValue === null
+  ) {
+    return "Kein Preis";
+  }
+
+  return new Intl.NumberFormat(
+    "de-CH",
+    {
+      style: "currency",
+      currency: "CHF",
+      maximumFractionDigits: 2,
+    },
+  ).format(numberValue);
+}
+
+function formatDecimal(
+  value?: string | number | null,
+) {
+  const numberValue =
+    toNumber(value);
+
+  if (
+    numberValue === null
+  ) {
+    return "–";
+  }
+
+  return new Intl.NumberFormat(
+    "de-CH",
+    {
+      maximumFractionDigits: 2,
+    },
+  ).format(numberValue);
+}
+
+function formatDate(
+  value?: string | null,
+) {
+  if (!value) {
+    return "Kein Datum";
+  }
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return "Kein Datum";
   }
 
-  return date.toLocaleString("de-CH", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return new Intl.DateTimeFormat(
+    "de-CH",
+    {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone:
+        "Europe/Zurich",
+    },
+  ).format(date);
 }
 
-function formatMoney(value?: string | number | null, currency = "CHF") {
-  const numberValue = toNumber(value);
-
-  if (numberValue === null) {
-    return "—";
+function formatCategory(
+  category?: string | null,
+) {
+  if (!category) {
+    return "Keine Kategorie";
   }
 
-  return new Intl.NumberFormat("de-CH", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(numberValue);
-}
-
-function formatDecimal(value?: string | number | null) {
-  const numberValue = toNumber(value);
-
-  if (numberValue === null) {
-    return "—";
-  }
-
-  return new Intl.NumberFormat("de-CH", {
-    maximumFractionDigits: 2,
-  }).format(numberValue);
-}
-
-function formatCategory(category?: string | null) {
-  if (!category) return "—";
-
-  const labels: Record<string, string> = {
+  const labels: Record<
+    string,
+    string
+  > = {
     REINIGUNG: "Reinigung",
     HAUSWARTUNG: "Hauswartung",
-    KLEINREPARATUREN: "Kleinreparaturen",
-    UMZUGSREINIGUNG: "Umzugsreinigung",
-    FENSTERREINIGUNG: "Mycie okien",
-    WOHNUNGSABGABE: "Oddanie mieszkania",
-    SPEZIALREINIGUNG: "Czyszczenie specjalne",
-    OTHER: "Inne",
+    KLEINREPARATUREN:
+      "Kleinreparaturen",
+    UMZUGSREINIGUNG:
+      "Umzugsreinigung",
+    FENSTERREINIGUNG:
+      "Fensterreinigung",
+    WOHNUNGSABGABE:
+      "Wohnungsabgabe",
+    SPEZIALREINIGUNG:
+      "Spezialreinigung",
+    OTHER: "Sonstiges",
   };
 
-  return labels[category.toUpperCase()] ?? category;
-}
-
-function formatUnit(unit?: string | null) {
-  if (!unit) return "—";
-
-  const labels: Record<string, string> = {
-    FLAT: "Pauschal",
-    HOUR: "Godzina",
-    M2: "m²",
-    ROOM: "Zimmer",
-    WINDOW: "Okno",
-    PIECE: "Sztuka",
-    KM: "Kilometr",
-    CUSTOM: "Eigene Einheit",
-  };
-
-  return labels[unit.toUpperCase()] ?? unit;
-}
-
-function getServiceStatus(service: ServiceCatalogItem) {
-  return service.isActive ? "ACCEPTED" : "CANCELLED";
-}
-
-function ActionLink({
-  href,
-  children,
-  primary = false,
-}: {
-  href: string;
-  children: React.ReactNode;
-  primary?: boolean;
-}) {
   return (
-    <Link
-      href={href}
-      className={`rounded-full border px-3 py-1 text-xs font-bold transition ${
-        primary
-          ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-100 hover:border-cyan-300 hover:bg-cyan-500/20"
-          : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-cyan-500/60 hover:text-cyan-100"
-      }`}
-    >
-      {children}
-    </Link>
+    labels[
+      category.toUpperCase()
+    ] ?? category
   );
 }
 
-export default function DashboardServicesPage() {
-  const [services, setServices] = useState<ServiceCatalogItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+function formatUnit(
+  unit?: string | null,
+) {
+  if (!unit) {
+    return "Keine Einheit";
+  }
 
-  const loadServices = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const response = await fetch("/api/dashboard/services", {
-        method: "GET",
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Die Leistungsverzeichnis-API hat einen Fehler zurückgegeben.");
-      }
-
-      const json: DashboardServicesResponse = await response.json();
-
-      setServices(json.data.services ?? []);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Unknown services error"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const seedDemoServices = useCallback(async () => {
-    setSeeding(true);
-    setErrorMessage(null);
-
-    try {
-      const response = await fetch("/api/dashboard/services", {
-        method: "POST",
-        cache: "no-store",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Die Beispieldaten-API für Leistungen hat einen Fehler zurückgegeben.");
-      }
-
-      const json: DashboardServicesResponse = await response.json();
-
-      setServices(json.data.services ?? []);
-      await loadServices();
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unknown services seed error"
-      );
-    } finally {
-      setSeeding(false);
-    }
-  }, [loadServices]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadServices();
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [loadServices]);
-
-  const stats = useMemo(() => {
-    const active = services.filter((service) => service.isActive).length;
-    const inactive = services.length - active;
-
-    const averageBasePrice =
-      services.length > 0
-        ? services.reduce((sum, service) => {
-            const amount = toNumber(service.basePrice);
-            return amount === null ? sum : sum + amount;
-          }, 0) / services.length
-        : 0;
-
-    const highRisk = services.filter((service) => {
-      const risk = toNumber(service.riskMultiplier) ?? 1;
-      return risk > 1;
-    }).length;
-
-    return {
-      total: services.length,
-      active,
-      inactive,
-      averageBasePrice,
-      highRisk,
-    };
-  }, [services]);
-
-  const columns: DashboardTableColumn<ServiceCatalogItem>[] = [
-    {
-      key: "service",
-      header: "Leistung",
-      render: (service) => (
-        <div>
-          <Link
-            href={`/dashboard/services/${service.id}`}
-            className="font-black tracking-tight text-white transition hover:text-cyan-200"
-          >
-            {service.name}
-          </Link>
-
-          <p className="mt-1 text-xs text-zinc-500">Slug: {service.slug}</p>
-
-          {service.description ? (
-            <p className="mt-2 max-w-md text-sm leading-6 text-zinc-400">
-              {service.description}
-            </p>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      key: "category",
-      header: "Kategorie",
-      render: (service) => (
-        <div>
-          <p className="font-semibold text-zinc-200">
-            {formatCategory(service.category)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">{service.category}</p>
-        </div>
-      ),
-    },
-    {
-      key: "unit",
-      header: "Einheit",
-      render: (service) => (
-        <p className="font-semibold text-zinc-200">
-          {formatUnit(service.unit)}
-        </p>
-      ),
-    },
-    {
-      key: "prices",
-      header: "Preise",
-      render: (service) => (
-        <div>
-          <p className="font-black text-emerald-100">
-            {formatMoney(service.basePrice)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Min: {formatMoney(service.minPrice)} · Max:{" "}
-            {formatMoney(service.maxPrice)}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "risk",
-      header: "Risiko",
-      render: (service) => (
-        <div>
-          <p className="font-semibold text-zinc-200">
-            x{formatDecimal(service.riskMultiplier)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Standardmenge: {formatDecimal(service.defaultQuantity)}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (service) => (
-        <StatusBadge
-          status={getServiceStatus(service)}
-          label={service.isActive ? "Aktywna" : "Nieaktywna"}
-        />
-      ),
-    },
-    {
-      key: "updated",
-      header: "Aktualisierung",
-      render: (service) => (
-        <p className="text-sm font-medium text-zinc-400">
-          {formatDate(service.updatedAt ?? service.createdAt)}
-        </p>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Aktionen",
-      render: (service) => (
-        <div className="flex flex-wrap gap-2">
-          <ActionLink href={`/dashboard/services/${service.id}`} primary>
-            Details
-          </ActionLink>
-
-          <ActionLink href={`/dashboard/services/${service.id}/edit`}>
-            Bearbeiten
-          </ActionLink>
-        </div>
-      ),
-    },
-  ];
+  const labels: Record<
+    string,
+    string
+  > = {
+    FLAT: "Pauschal",
+    HOUR: "Stunde",
+    M2: "m²",
+    ROOM: "Zimmer",
+    WINDOW: "Fenster",
+    PIECE: "Stück",
+    KM: "Kilometer",
+    CUSTOM: "Eigene Einheit",
+  };
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-7xl flex-col gap-6">
-        <PageHeader
-          eyebrow="HEXA OS / Service Catalog"
-          title="Leistungsverzeichnis"
-          description="Grundlage für den Kalkulationsrechner, AI Concierge, Angebote und Rechnungen. Hier definieren wir, wie der Preis im System berechnet werden soll."
-        >
-          <PremiumButton href="/dashboard/services/new" variant="primary">
-            Leistung hinzufügen
-          </PremiumButton>
+    labels[
+      unit.toUpperCase()
+    ] ?? unit
+  );
+}
 
-          <PremiumButton
-            type="button"
-            variant="secondary"
-            onClick={seedDemoServices}
-            disabled={loading || seeding}
-          >
-            {seeding ? "Wird ergänzt..." : "Beispielkatalog hinzufügen"}
-          </PremiumButton>
+function statusLabel(
+  service: ServiceCatalogItem,
+) {
+  return service.isActive
+    ? "Aktiv"
+    : "Inaktiv";
+}
 
-          <PremiumButton
-            type="button"
-            variant="secondary"
-            onClick={loadServices}
-            disabled={loading || seeding}
-          >
-            Aktualisieren
-          </PremiumButton>
+function statusClasses(
+  service: ServiceCatalogItem,
+) {
+  return service.isActive
+    ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
+    : "border-zinc-600/40 bg-zinc-700/20 text-zinc-300";
+}
 
-          <PremiumButton href="/dashboard/estimates" variant="ghost">
-            Kalkulationen
-          </PremiumButton>
-        </PageHeader>
+function servicePriority(
+  service: ServiceCatalogItem,
+) {
+  return service.isActive
+    ? 0
+    : 1;
+}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            title="Alle Leistungen"
-            value={String(stats.total)}
-            description="Gesamtzahl der Positionen im Leistungsverzeichnis."
-            trend="Quelle: Leistungs-API"
-            tone="cyan"
-            icon={<span className="text-lg font-black">SVC</span>}
-          />
+function serviceTimestamp(
+  service: ServiceCatalogItem,
+) {
+  const value =
+    service.updatedAt ??
+    service.createdAt;
 
-          <MetricCard
-            title="Aktiv"
-            value={String(stats.active)}
-            description="Positionen, die für den Kalkulationsrechner verfügbar sind."
-            trend={`Inaktiv: ${stats.inactive}`}
-            tone="emerald"
-            icon={<span className="text-lg font-black">✓</span>}
-          />
+  if (!value) {
+    return 0;
+  }
 
-          <MetricCard
-            title="Durchschnittspreis"
-            value={formatMoney(stats.averageBasePrice)}
-            description="Durchschnittlicher Basispreis aus dem Leistungsverzeichnis."
-            trend="Kalkulationspreis"
-            tone="amber"
-            icon={<span className="text-lg font-black">CHF</span>}
-          />
+  const timestamp =
+    new Date(value).getTime();
 
-          <MetricCard
-            title="Risiko"
-            value={String(stats.highRisk)}
-            description="Leistungen mit einem Risikomultiplikator über x1.00."
-            trend="Zur Prüfung bei der Kalkulation"
-            tone="violet"
-            icon={<span className="text-lg font-black">AI</span>}
-          />
-        </section>
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
+}
 
-        {loading ? (
-          <DashboardPanel
-            title="Leistungsverzeichnis wird geladen"
-            description="HEXA OS lädt das aktuelle Leistungsverzeichnis."
-          >
-            <div className="grid gap-3">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]"
-                />
-              ))}
+export default function DashboardServicesPage() {
+  const [
+    services,
+    setServices,
+  ] = useState<
+    ServiceCatalogItem[]
+  >([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState<
+    string | null
+  >(null);
+
+  const loadServices =
+    useCallback(
+      async () => {
+        setLoading(true);
+        setErrorMessage(null);
+
+        try {
+          const response =
+            await fetch(
+              "/api/dashboard/services",
+              {
+                method: "GET",
+                cache: "no-store",
+                credentials:
+                  "include",
+              },
+            );
+
+          if (!response.ok) {
+            throw new Error(
+              "Das Leistungsverzeichnis konnte nicht geladen werden.",
+            );
+          }
+
+          const json =
+            (await response.json()) as DashboardServicesResponse;
+
+          setServices(
+            json.data
+              ?.services ??
+              [],
+          );
+        } catch (error) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "Das Leistungsverzeichnis konnte nicht geladen werden.",
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      [],
+    );
+
+  useEffect(() => {
+    const timeoutId =
+      window.setTimeout(() => {
+        void loadServices();
+      }, 0);
+
+    return () => {
+      window.clearTimeout(
+        timeoutId,
+      );
+    };
+  }, [loadServices]);
+
+  const sortedServices =
+    useMemo(() => {
+      return [
+        ...services,
+      ].sort(
+        (
+          left,
+          right,
+        ) => {
+          const priorityDifference =
+            servicePriority(
+              left,
+            ) -
+            servicePriority(
+              right,
+            );
+
+          if (
+            priorityDifference !==
+            0
+          ) {
+            return priorityDifference;
+          }
+
+          const sortDifference =
+            (left.sortOrder ?? 0) -
+            (right.sortOrder ?? 0);
+
+          if (
+            sortDifference !== 0
+          ) {
+            return sortDifference;
+          }
+
+          return (
+            serviceTimestamp(
+              right,
+            ) -
+            serviceTimestamp(
+              left,
+            )
+          );
+        },
+      );
+    }, [services]);
+
+  const stats =
+    useMemo(() => {
+      const active =
+        services.filter(
+          (service) =>
+            service.isActive,
+        ).length;
+
+      const inactive =
+        services.length -
+        active;
+
+      const highRisk =
+        services.filter(
+          (service) =>
+            (
+              toNumber(
+                service.riskMultiplier,
+              ) ?? 1
+            ) > 1,
+        ).length;
+
+      return {
+        active,
+        inactive,
+        highRisk,
+      };
+    }, [services]);
+
+  return (
+    <main className="min-h-screen px-3 py-3 text-white sm:px-4 lg:px-5">
+      <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-3">
+        <header className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 shadow-lg shadow-black/15">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300">
+                HEXA OS CRM / Leistungen
+              </p>
+
+              <div className="mt-1 flex min-w-0 items-center gap-3">
+                <h1 className="shrink-0 text-xl font-black tracking-tight text-white">
+                  Leistungsverzeichnis
+                </h1>
+
+                <p className="hidden truncate text-xs text-zinc-500 lg:block">
+                  Preise und Kalkulationsgrundlagen für Angebote und Rechnungen.
+                </p>
+              </div>
             </div>
-          </DashboardPanel>
-        ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <PremiumButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={
+                  loadServices
+                }
+                disabled={loading}
+              >
+                Aktualisieren
+              </PremiumButton>
+
+              <PremiumButton
+                href="/dashboard/services/new"
+                variant="primary"
+                size="sm"
+              >
+                Leistung hinzufügen
+              </PremiumButton>
+            </div>
+          </div>
+
+          <div
+            data-testid="services-summary-strip"
+            className="mt-3 flex flex-wrap gap-1.5 border-t border-white/10 pt-3"
+          >
+            <span className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {services.length} gesamt
+            </span>
+
+            <span className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-emerald-100">
+              {stats.active} aktiv
+            </span>
+
+            <span className="rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300">
+              {stats.inactive} inaktiv
+            </span>
+
+            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-amber-100">
+              {stats.highRisk} erhöhtes Risiko
+            </span>
+          </div>
+        </header>
 
         {errorMessage ? (
-          <DashboardPanel
-            title="Fehler im Leistungsmodul"
-            description="Das Leistungsverzeichnis konnte nicht aus der API geladen werden."
-          >
-            <div className="rounded-3xl border border-red-400/25 bg-red-400/10 p-5 text-red-100">
-              <p className="font-bold">Fehler: {errorMessage}</p>
-              <p className="mt-2 text-sm leading-6 text-red-100/70">
-                Prüfen Sie den Endpoint /api/dashboard/services, den Prisma Client sowie die Datenbankverbindung.
+          <section className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm font-bold text-red-100">
+            {errorMessage}
+          </section>
+        ) : null}
+
+        <section
+          data-testid="services-operational-list"
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                Leistungskatalog
+              </p>
+
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                Aktive Leistungen stehen zuerst.
               </p>
             </div>
-          </DashboardPanel>
-        ) : null}
 
-        {!loading && !errorMessage ? (
-          <DashboardPanel
-            title="Leistungsliste"
-            description={`Anzahl Datensätze: ${services.length}. Dieser Katalog wird vom Kalkulationsmodul und späteren Vision-AI-Funktionen verwendet.`}
-            action={
-              <StatusBadge
-                status={services.length > 0 ? "ACCEPTED" : "PENDING"}
-                label={services.length > 0 ? "Katalog aktiv" : "Keine Einträge"}
-              />
-            }
-          >
-            <DashboardTable
-              columns={columns}
-              rows={services}
-              getRowKey={(service) => service.id}
-              empty={
-                <EmptyState
-                  title="Keine Leistungen im Katalog"
-                  description="Erstellen Sie die erste Leistung manuell oder verwenden Sie einen Beispielkatalog."
-                  actionLabel="Leistung hinzufügen"
-                  actionHref="/dashboard/services/new"
-                />
-              }
-            />
-          </DashboardPanel>
-        ) : null}
+            <span className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              {sortedServices.length} Positionen
+            </span>
+          </div>
 
-        {!loading && !errorMessage ? (
-          <DashboardPanel
-            title="Rola Service Catalog"
-            description="Dieses Modul ist die Grundlage für die offizielle Kalkulationsengine: Die KI kann Vorschläge liefern, aber der Preis muss sich aus dem Katalog, den Regeln und der Freigabe durch einen Menschen ergeben."
-          >
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-cyan-400/20 bg-cyan-400/10 p-5">
-                <p className="text-sm font-black text-cyan-100">
-                  Ceny bazowe
-                </p>
-                <p className="mt-2 text-sm leading-6 text-cyan-100/70">
-                  Jede Leistung hat eine Einheit, einen Basispreis, ein Minimum und optional ein maximales Limit.
-                </p>
-              </div>
+          {loading ? (
+            <div className="space-y-2 p-3">
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+              <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+            </div>
+          ) : null}
 
-              <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-                <p className="text-sm font-black text-violet-100">
-                  Risiko und Fotos
-                </p>
-                <p className="mt-2 text-sm leading-6 text-violet-100/70">
-                  Später bewertet Vision AI die Bilder und schlägt einen Risikomultiplikator vor, ohne den Preis selbst zu genehmigen.
-                </p>
-              </div>
+          {!loading &&
+          !errorMessage &&
+          sortedServices.length ===
+            0 ? (
+            <div className="px-4 py-8 text-center">
+              <h2 className="text-lg font-black text-white">
+                Keine Leistungen vorhanden
+              </h2>
 
-              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                <p className="text-sm font-black text-emerald-100">
-                  MM Digital Core
-                </p>
-                <p className="mt-2 text-sm leading-6 text-emerald-100/70">
-                  Dieser Katalog ist für Mandanten vorbereitet, also für verschiedene Unternehmen mit eigenem Leistungsverzeichnis.
-                </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Erstellen Sie die erste Leistung für das Kalkulationssystem.
+              </p>
+
+              <div className="mt-4">
+                <PremiumButton
+                  href="/dashboard/services/new"
+                  variant="primary"
+                  size="sm"
+                >
+                  Leistung hinzufügen
+                </PremiumButton>
               </div>
             </div>
-          </DashboardPanel>
-        ) : null}
+          ) : null}
+
+          {!loading &&
+          !errorMessage &&
+          sortedServices.length >
+            0 ? (
+            <div className="divide-y divide-white/10">
+              {sortedServices.map(
+                (
+                  service,
+                ) => (
+                  <article
+                    key={service.id}
+                    className="grid gap-2 px-3 py-2.5 transition hover:bg-white/[0.03] xl:grid-cols-[minmax(240px,1.2fr)_150px_120px_minmax(210px,0.9fr)_120px_150px_auto] xl:items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-cyan-100">
+                        {service.name}
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        {service.description ||
+                          "Keine Beschreibung"}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Kategorie
+                      </p>
+
+                      <p className="mt-0.5 truncate text-xs font-bold text-zinc-200">
+                        {formatCategory(
+                          service.category,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Einheit
+                      </p>
+
+                      <p className="mt-0.5 truncate text-xs font-bold text-zinc-200">
+                        {formatUnit(
+                          service.unit,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Preis
+                      </p>
+
+                      <p className="mt-0.5 truncate text-xs font-black text-emerald-100">
+                        {formatMoney(
+                          service.basePrice,
+                        )}
+                      </p>
+
+                      <p className="mt-0.5 truncate text-[10px] text-zinc-600">
+                        Min. {formatMoney(
+                          service.minPrice,
+                        )} · Max. {formatMoney(
+                          service.maxPrice,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span
+                        className={`inline-flex max-w-full truncate rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${statusClasses(
+                          service,
+                        )}`}
+                      >
+                        {statusLabel(
+                          service,
+                        )}
+                      </span>
+
+                      <p className="mt-1 truncate text-[10px] text-zinc-600">
+                        Risiko x{formatDecimal(
+                          service.riskMultiplier,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                        Aktualisiert
+                      </p>
+
+                      <p className="mt-0.5 truncate text-xs font-bold text-zinc-300">
+                        {formatDate(
+                          service.updatedAt ??
+                            service.createdAt,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="xl:text-right">
+                      <PremiumButton
+                        href={`/dashboard/services/${service.id}`}
+                        variant="primary"
+                        size="sm"
+                      >
+                        Leistung öffnen
+                      </PremiumButton>
+                    </div>
+                  </article>
+                ),
+              )}
+            </div>
+          ) : null}
+        </section>
       </section>
     </main>
   );
