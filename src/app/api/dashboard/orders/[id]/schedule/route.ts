@@ -322,7 +322,7 @@ export async function POST(
                   null,
               },
               message:
-                `Termin f?r Auftrag ${updatedOrder.orderNumber} wurde geplant.`,
+                `Termin für Auftrag ${updatedOrder.orderNumber} wurde geplant.`,
               metadata: {
                 source:
                   "dashboard_order_scheduling",
@@ -342,7 +342,7 @@ export async function POST(
     );
 
     const subject =
-      `Terminbest?tigung f?r Auftrag ${order.orderNumber}`;
+      `Terminbestätigung für Auftrag ${order.orderNumber}`;
 
     const formattedStart =
       formatDateTime(scheduledStart);
@@ -363,7 +363,7 @@ export async function POST(
     const text = [
       `Guten Tag ${customerName(existingOrder.customer)}`,
       "",
-      `der Ausf?hrungstermin f?r Ihren Auftrag ${order.orderNumber} wurde best?tigt.`,
+      `der Ausführungstermin für Ihren Auftrag ${order.orderNumber} wurde best?tigt.`,
       "",
       `Beginn: ${formattedStart}`,
       formattedEnd
@@ -392,7 +392,7 @@ export async function POST(
           customerName(existingOrder.customer),
         )}</p>
         <p>
-          Der Ausf?hrungstermin f?r Ihren Auftrag
+          Der Ausführungstermin für Ihren Auftrag
           <strong>${escapeHtml(
             order.orderNumber,
           )}</strong>
@@ -496,7 +496,7 @@ export async function POST(
           actorType:
             "schedule_email_automation",
           message:
-            `Terminbest?tigung f?r Auftrag ${order.orderNumber} konnte nicht versendet werden: ung?ltige Kunden-E-Mail.`,
+            `Terminbestätigung für Auftrag ${order.orderNumber} konnte nicht versendet werden: ungültige Kunden-E-Mail.`,
           metadata: {
             source:
               "automatic_schedule_confirmation",
@@ -512,7 +512,7 @@ export async function POST(
       return NextResponse.json({
         status: "OK",
         message:
-          "Der Termin wurde gespeichert, aber die Best?tigung konnte nicht versendet werden.",
+          "Der Termin wurde gespeichert, aber die Bestätigung konnte nicht versendet werden.",
         data: {
           order,
           emailDelivery: {
@@ -681,7 +681,7 @@ export async function POST(
               actorType:
                 "schedule_email_automation",
               message:
-                `Terminbest?tigung f?r Auftrag ${order.orderNumber} konnte nicht versendet werden.`,
+                `Terminbestätigung für Auftrag ${order.orderNumber} konnte nicht versendet werden.`,
               metadata: {
                 source:
                   "automatic_schedule_confirmation",
@@ -698,7 +698,7 @@ export async function POST(
         return NextResponse.json({
           status: "OK",
           message:
-            "Der Termin wurde gespeichert, aber die Best?tigung konnte nicht versendet werden.",
+            "Der Termin wurde gespeichert, aber die Bestätigung konnte nicht versendet werden.",
           data: {
             order,
             emailDelivery: {
@@ -761,7 +761,7 @@ export async function POST(
             actorType:
               "schedule_email_automation",
             message:
-              `Terminbest?tigung f?r Auftrag ${order.orderNumber} wurde automatisch per E-Mail versendet.`,
+              `Terminbestätigung für Auftrag ${order.orderNumber} wurde automatisch per E-Mail versendet.`,
             metadata: {
               source:
                 "automatic_schedule_confirmation",
@@ -844,7 +844,7 @@ export async function POST(
             actorType:
               "schedule_email_automation",
             message:
-              `Terminbest?tigung f?r Auftrag ${order.orderNumber} ist unerwartet fehlgeschlagen.`,
+              `Terminbestätigung für Auftrag ${order.orderNumber} ist unerwartet fehlgeschlagen.`,
             metadata: {
               source:
                 "automatic_schedule_confirmation",
@@ -861,7 +861,7 @@ export async function POST(
       return NextResponse.json({
         status: "OK",
         message:
-          "Der Termin wurde gespeichert, aber die Best?tigung konnte nicht versendet werden.",
+          "Der Termin wurde gespeichert, aber die Bestätigung konnte nicht versendet werden.",
         data: {
           order,
           emailDelivery: {

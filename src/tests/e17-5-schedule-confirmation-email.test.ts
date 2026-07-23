@@ -67,7 +67,7 @@ describe(
         );
 
         expect(routeSource).toContain(
-          "Terminbest?tigung",
+          "Terminbestätigung",
         );
       },
     );
@@ -114,7 +114,7 @@ describe(
         );
 
         expect(routeSource).toContain(
-          "Der Termin wurde gespeichert, aber die Best?tigung konnte nicht versendet werden.",
+          "Der Termin wurde gespeichert, aber die Bestätigung konnte nicht versendet werden.",
         );
       },
     );
