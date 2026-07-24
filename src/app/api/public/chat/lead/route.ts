@@ -688,8 +688,23 @@ function normalizeChatLeadBody(body: ChatLeadBody): {
     };
   }
 
-  const email = normalizeEmail(rawContact);
-  const phone = normalizePhone(rawContact);
+  const email =
+    normalizeEmail(
+      cleanText(
+        explicitLead.email,
+        320,
+      ),
+    ) ??
+    normalizeEmail(rawContact);
+
+  const phone =
+    normalizePhone(
+      cleanText(
+        explicitLead.phone,
+        100,
+      ),
+    ) ??
+    normalizePhone(rawContact);
 
   if (!email && !phone) {
     return {

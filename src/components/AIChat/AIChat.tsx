@@ -286,87 +286,179 @@ function calculateProgress(
   );
 }
 
+
+function mergeOnlineBeraterLead(
+  previous: OnlineBeraterLead | null,
+  incoming: OnlineBeraterLead,
+): OnlineBeraterLead {
+  return {
+    service:
+      incoming.service ??
+      previous?.service ??
+      null,
+    objectType:
+      incoming.objectType ??
+      previous?.objectType ??
+      null,
+    location:
+      incoming.location ??
+      previous?.location ??
+      null,
+    areaM2:
+      incoming.areaM2 ??
+      previous?.areaM2 ??
+      null,
+    rooms:
+      incoming.rooms ??
+      previous?.rooms ??
+      null,
+    bathrooms:
+      incoming.bathrooms ??
+      previous?.bathrooms ??
+      null,
+    windows:
+      incoming.windows ??
+      previous?.windows ??
+      null,
+    floor:
+      incoming.floor ??
+      previous?.floor ??
+      null,
+    elevator:
+      incoming.elevator ??
+      previous?.elevator ??
+      null,
+    parkingAccess:
+      incoming.parkingAccess ??
+      previous?.parkingAccess ??
+      null,
+    condition:
+      incoming.condition ??
+      previous?.condition ??
+      null,
+    frequency:
+      incoming.frequency ??
+      previous?.frequency ??
+      null,
+    extras: Array.from(
+      new Set([
+        ...(previous?.extras ?? []),
+        ...incoming.extras,
+      ]),
+    ),
+    preferredDate:
+      incoming.preferredDate ??
+      previous?.preferredDate ??
+      null,
+    flexibleDate:
+      incoming.flexibleDate ??
+      previous?.flexibleDate ??
+      null,
+    photoRequired:
+      incoming.photoRequired ??
+      previous?.photoRequired ??
+      null,
+    customerName:
+      incoming.customerName ??
+      previous?.customerName ??
+      null,
+    email:
+      incoming.email ??
+      previous?.email ??
+      null,
+    phone:
+      incoming.phone ??
+      previous?.phone ??
+      null,
+  };
+}
+
 function createCompatibleSession(
   result: OnlineBeraterResult,
   pricing: ChatCentralPricing | null = null,
+  previousSession: CompatibleChatSession | null = null,
 ): CompatibleChatSession {
+  const lead = mergeOnlineBeraterLead(
+    previousSession?.lead ?? null,
+    result.lead,
+  );
   const serviceType = mapServiceType(
-    result.lead.service,
+    lead.service,
   );
 
   const date =
-    result.lead.preferredDate ??
-    (result.lead.flexibleDate === true
+    lead.preferredDate ??
+    (lead.flexibleDate === true
       ? "Flexibel"
       : undefined);
 
   return {
     lead:
-      result.lead,
+      lead,
     answers: {
       service:
         serviceType,
       serviceLabel:
-        result.lead.service ??
+        lead.service ??
         (serviceType
           ? SERVICE_LABELS[serviceType]
           : undefined),
       objectType:
-        result.lead.objectType ??
+        lead.objectType ??
         undefined,
       location:
-        result.lead.location ??
+        lead.location ??
         undefined,
       area:
-        result.lead.areaM2 ??
+        lead.areaM2 ??
         undefined,
       rooms:
-        result.lead.rooms ??
+        lead.rooms ??
         undefined,
       bathrooms:
-        result.lead.bathrooms ??
+        lead.bathrooms ??
         undefined,
       windows:
-        result.lead.windows ??
+        lead.windows ??
         undefined,
       floor:
-        result.lead.floor !== null
+        lead.floor !== null
           ? String(
-              result.lead.floor,
+              lead.floor,
             )
           : undefined,
       elevator:
-        result.lead.elevator ??
+        lead.elevator ??
         undefined,
       parkingAccess:
-        result.lead.parkingAccess ??
+        lead.parkingAccess ??
         undefined,
       condition:
-        result.lead.condition ??
+        lead.condition ??
         undefined,
       frequency:
-        result.lead.frequency ??
+        lead.frequency ??
         undefined,
       extras:
-        result.lead.extras,
+        lead.extras,
       preferredDate:
-        result.lead.preferredDate ??
+        lead.preferredDate ??
         undefined,
       flexibleDate:
-        result.lead.flexibleDate ??
+        lead.flexibleDate ??
         undefined,
       photoRequired:
-        result.lead.photoRequired ??
+        lead.photoRequired ??
         undefined,
       oven:
-        result.lead.extras.some(
+        lead.extras.some(
           (extra) =>
             extra.toLocaleLowerCase(
               "de-CH",
             ).includes("backofen"),
         ),
       balcony:
-        result.lead.extras.some(
+        lead.extras.some(
           (extra) =>
             extra.toLocaleLowerCase(
               "de-CH",
@@ -374,7 +466,7 @@ function createCompatibleSession(
         ),
       description:
         buildDescription(
-          result.lead,
+          lead,
         ) || undefined,
       date,
     },
@@ -754,10 +846,11 @@ async function requestOnlineBerater(
           result,
         );
 
-      setSession(
+      setSession((current) =>
         createCompatibleSession(
           result,
           pricing,
+          current,
         ),
       );
 

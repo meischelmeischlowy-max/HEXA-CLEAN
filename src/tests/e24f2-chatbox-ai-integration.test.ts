@@ -98,11 +98,11 @@ describe(
         );
 
         expect(source).toContain(
-          "result.lead.areaM2",
+          "lead.areaM2",
         );
 
         expect(source).toContain(
-          "result.lead.elevator",
+          "lead.elevator",
         );
 
         expect(source).toContain(
