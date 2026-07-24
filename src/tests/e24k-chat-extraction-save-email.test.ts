@@ -106,22 +106,22 @@ describe(
     );
 
     it(
-      "prevents endless saving state in the browser",
+      "does not retain the removed chat CRM save flow",
       () => {
         const source = read(
           "src/components/AIChat/AIChat.tsx",
         );
 
-        expect(source).toContain(
-          "AbortController",
+        expect(source).not.toContain(
+          "/api/public/chat/lead",
         );
 
-        expect(source).toContain(
-          "25_000",
-        );
-
-        expect(source).toContain(
+        expect(source).not.toContain(
           "fetchChatLead",
+        );
+
+        expect(source).not.toContain(
+          "Wird gespeichert",
         );
       },
     );

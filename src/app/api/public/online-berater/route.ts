@@ -428,32 +428,9 @@ function buildLocalFallback(
     missingFields.push("service");
   }
 
-  if (!lead.location) {
-    missingFields.push("location");
+  if (!lead.areaM2 && !lead.rooms) {
+    missingFields.push("scope");
   }
-
-  if (!lead.areaM2) {
-    missingFields.push("areaM2");
-  }
-
-  if (!lead.customerName) {
-    missingFields.push(
-      "customerName",
-    );
-  }
-
-  if (
-    !lead.email &&
-    !lead.phone
-  ) {
-    missingFields.push("contact");
-  }
-
-  const hasContact =
-    Boolean(
-      lead.email ||
-      lead.phone,
-    );
 
   const capturedDetails = [
     lead.service,
@@ -474,26 +451,20 @@ function buildLocalFallback(
   ).length;
 
   let reply =
-    "Vielen Dank. Ich habe Ihre bisherigen Angaben gesichert.";
+    "Gerne helfe ich Ihnen mit einer unverbindlichen Preisorientierung.";
 
   if (!lead.service) {
     reply =
-      "Welche Dienstleistung benötigen Sie genau, zum Beispiel Grundreinigung, Umzugsreinigung, Fensterreinigung oder Kleinreparaturen?";
-  } else if (!lead.location) {
+      "Welche Dienstleistung interessiert Sie, zum Beispiel Wohnungsreinigung, Umzugsreinigung, Fensterreinigung, Hauswartung oder Kleinreparaturen?";
+  } else if (
+    !lead.areaM2 &&
+    !lead.rooms
+  ) {
     reply =
-      "Bitte nennen Sie die vollständige Einsatzadresse mit Strasse, Hausnummer, PLZ und Ort.";
-  } else if (!lead.areaM2) {
-    reply =
-      "Wie gross ist das Objekt ungefähr in Quadratmetern?";
-  } else if (!lead.customerName) {
-    reply =
-      "Wie lautet Ihr Vor- und Nachname?";
-  } else if (!hasContact) {
-    reply =
-      "Unter welcher E-Mail-Adresse oder Telefonnummer dürfen wir Sie kontaktieren?";
+      "Wie gross ist das Objekt ungef?hr oder wie viele Zimmer hat es? Damit kann ich die unverbindliche Preisspanne genauer einordnen.";
   } else {
     reply =
-      "Vielen Dank. Ihre Anfrage und alle bisher genannten Angaben werden jetzt sicher im CRM gespeichert. HEXA CLEAN prüft den Umfang persönlich und meldet sich bei Ihnen.";
+      "Die angezeigte Preisspanne ist eine unverbindliche Orientierung. F?r eine pers?nliche und verbindliche Offerte nutzen Sie bitte unsere Schnelle Offerte. Dort k?nnen Sie den genauen Umfang, Ihre Kontaktdaten und bei Bedarf Fotos ?bermitteln.";
   }
 
   return {
@@ -501,11 +472,9 @@ function buildLocalFallback(
     lead,
     missingFields,
     leadReady:
-      hasContact &&
       missingFields.length === 0,
     shouldCreateLead:
-      hasContact &&
-      capturedDetails >= 1,
+      false,
     shouldAskForPhotos:
       lead.condition === "STARK" ||
       lead.service ===
@@ -632,8 +601,7 @@ function mergeAiAndDeterministicResult(
     missingFields,
     leadReady,
     shouldCreateLead:
-      leadReady &&
-      hasContact,
+      false,
   };
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
+
 import {
-  type FormEvent,
   useEffect,
   useRef,
   useState,
@@ -18,13 +19,6 @@ import {
   START_MESSAGES,
 } from "./types";
 
-type LeadSubmitStatus =
-  | "idle"
-  | "submitting"
-  | "success"
-  | "partial"
-  | "error";
-
 type OnlineBeraterLead = {
   service: string | null;
   objectType: string | null;
@@ -32,7 +26,7 @@ type OnlineBeraterLead = {
   areaM2: number | null;
   rooms: number | null;
   bathrooms: number | null;
-  windows?: number | null;
+  windows: number | null;
   floor: number | null;
   elevator: boolean | null;
   parkingAccess: string | null;
@@ -54,7 +48,10 @@ type OnlineBeraterResult = {
   leadReady: boolean;
   shouldCreateLead: boolean;
   shouldAskForPhotos: boolean;
-  confidence: "HIGH" | "MEDIUM" | "LOW";
+  confidence:
+    | "HIGH"
+    | "MEDIUM"
+    | "LOW";
 };
 
 type OnlineBeraterApiResponse = {
@@ -81,23 +78,6 @@ type ChatPricingApiResponse = {
   error?: string;
 };
 
-type ChatLeadApiResponse = {
-  success?: boolean;
-  message?: string;
-  error?: string;
-  emailSent?: boolean;
-  customerEmailSent?: boolean;
-  crm?: {
-    customerId: string;
-    sessionId: string;
-    orderId: string;
-    orderNumber: string;
-    estimateId: string;
-    estimateNumber: string;
-    notificationId: string;
-  };
-};
-
 type CompatibleChatSession = {
   lead: OnlineBeraterLead | null;
   answers: {
@@ -118,15 +98,12 @@ type CompatibleChatSession = {
     preferredDate?: string;
     flexibleDate?: boolean;
     photoRequired?: boolean;
-    oven?: boolean;
-    balcony?: boolean;
     description?: string;
     date?: string;
   };
   progress: number;
   estimatedPrice: number;
   priceRange: string;
-  completed: boolean;
 };
 
 const EMPTY_SESSION: CompatibleChatSession = {
@@ -134,8 +111,8 @@ const EMPTY_SESSION: CompatibleChatSession = {
   answers: {},
   progress: 0,
   estimatedPrice: 0,
-  priceRange: "Wird nach Prüfung berechnet",
-  completed: false,
+  priceRange:
+    "Preis wird nach Ihren Angaben berechnet",
 };
 
 const SERVICE_LABELS: Record<
@@ -159,33 +136,14 @@ function getCurrentTime() {
   );
 }
 
-function getLeadStatusText(
-  status: LeadSubmitStatus,
-) {
-  if (status === "submitting") {
-    return "Anfrage wird sicher im CRM gespeichert...";
-  }
-
-  if (status === "success") {
-    return "Anfrage wurde gespeichert. HEXA CLEAN meldet sich persönlich.";
-  }
-
-  if (status === "partial") {
-    return "Anfrage wurde gespeichert. Die E-Mail-Benachrichtigung muss geprüft werden.";
-  }
-
-  if (status === "error") {
-    return "Anfrage konnte nicht gespeichert werden.";
-  }
-
-  return "";
-}
-
 function mapServiceType(
   service: string | null,
 ): ServiceType | undefined {
   const normalized =
-    service?.toLocaleLowerCase("de-CH") ?? "";
+    service
+      ?.toLocaleLowerCase(
+        "de-CH",
+      ) ?? "";
 
   if (
     normalized.includes("umzug") ||
@@ -194,7 +152,9 @@ function mapServiceType(
     return "umzug";
   }
 
-  if (normalized.includes("fenster")) {
+  if (
+    normalized.includes("fenster")
+  ) {
     return "fenster";
   }
 
@@ -223,72 +183,7 @@ function mapServiceType(
   return undefined;
 }
 
-function buildDescription(
-  lead: OnlineBeraterLead,
-) {
-  const details = [
-    lead.objectType
-      ? `Objekt: ${lead.objectType}`
-      : null,
-    lead.location
-      ? `Ort: ${lead.location}`
-      : null,
-    lead.rooms !== null
-      ? `Zimmer: ${lead.rooms}`
-      : null,
-    lead.bathrooms !== null
-      ? `Badezimmer: ${lead.bathrooms}`
-      : null,
-    lead.parkingAccess
-      ? `Zugang/Parkplatz: ${lead.parkingAccess}`
-      : null,
-    lead.condition
-      ? `Zustand: ${lead.condition}`
-      : null,
-    lead.extras.length > 0
-      ? `Zusatzleistungen: ${lead.extras.join(", ")}`
-      : null,
-    lead.photoRequired === true
-      ? "Fotos erforderlich"
-      : null,
-  ].filter(
-    (value): value is string =>
-      Boolean(value),
-  );
-
-  return details.join("\n");
-}
-
-function calculateProgress(
-  result: OnlineBeraterResult,
-) {
-  if (result.leadReady) {
-    return 100;
-  }
-
-  const totalFields =
-    result.missingFields.length + 1;
-
-  const completedFields = Math.max(
-    1,
-    12 - result.missingFields.length,
-  );
-
-  return Math.min(
-    95,
-    Math.max(
-      10,
-      Math.round(
-        (completedFields /
-          Math.max(totalFields, 12)) *
-          100,
-      ),
-    ),
-  );
-}
-
-
-function mergeOnlineBeraterLead(
+function mergeLead(
   previous: OnlineBeraterLead | null,
   incoming: OnlineBeraterLead,
 ): OnlineBeraterLead {
@@ -359,51 +254,110 @@ function mergeOnlineBeraterLead(
       incoming.photoRequired ??
       previous?.photoRequired ??
       null,
-    customerName:
-      incoming.customerName ??
-      previous?.customerName ??
-      null,
-    email:
-      incoming.email ??
-      previous?.email ??
-      null,
-    phone:
-      incoming.phone ??
-      previous?.phone ??
-      null,
+    customerName: null,
+    email: null,
+    phone: null,
   };
 }
 
-function createCompatibleSession(
-  result: OnlineBeraterResult,
-  pricing: ChatCentralPricing | null = null,
-  previousSession: CompatibleChatSession | null = null,
+function calculateProgress(
+  lead: OnlineBeraterLead,
+) {
+  const checks = [
+    Boolean(lead.service),
+    Boolean(
+      lead.areaM2 ||
+      lead.rooms,
+    ),
+    Boolean(lead.location),
+    Boolean(lead.condition),
+    Boolean(lead.frequency),
+    Boolean(
+      lead.preferredDate ||
+      lead.flexibleDate,
+    ),
+  ];
+
+  const completed =
+    checks.filter(Boolean).length;
+
+  return Math.round(
+    (
+      completed /
+      checks.length
+    ) * 100,
+  );
+}
+
+function buildDescription(
+  lead: OnlineBeraterLead,
+) {
+  return [
+    lead.objectType
+      ? `Objekt: ${lead.objectType}`
+      : null,
+    lead.location
+      ? `Ort: ${lead.location}`
+      : null,
+    lead.rooms !== null
+      ? `Zimmer: ${lead.rooms}`
+      : null,
+    lead.bathrooms !== null
+      ? `Badezimmer: ${lead.bathrooms}`
+      : null,
+    lead.windows !== null
+      ? `Fenster: ${lead.windows}`
+      : null,
+    lead.condition
+      ? `Zustand: ${lead.condition}`
+      : null,
+    lead.frequency
+      ? `Rhythmus: ${lead.frequency}`
+      : null,
+    lead.extras.length > 0
+      ? `Zusatzleistungen: ${lead.extras.join(", ")}`
+      : null,
+  ]
+    .filter(
+      (
+        value,
+      ): value is string =>
+        Boolean(value),
+    )
+    .join("\n");
+}
+
+function createSession(
+  lead: OnlineBeraterLead,
+  pricing: ChatCentralPricing | null,
 ): CompatibleChatSession {
-  const lead = mergeOnlineBeraterLead(
-    previousSession?.lead ?? null,
-    result.lead,
-  );
-  const serviceType = mapServiceType(
-    lead.service,
-  );
+  const serviceType =
+    mapServiceType(
+      lead.service,
+    );
 
   const date =
     lead.preferredDate ??
-    (lead.flexibleDate === true
-      ? "Flexibel"
-      : undefined);
+    (
+      lead.flexibleDate === true
+        ? "Flexibel"
+        : undefined
+    );
 
   return {
-    lead:
-      lead,
+    lead,
     answers: {
       service:
         serviceType,
       serviceLabel:
         lead.service ??
-        (serviceType
-          ? SERVICE_LABELS[serviceType]
-          : undefined),
+        (
+          serviceType
+            ? SERVICE_LABELS[
+                serviceType
+              ]
+            : undefined
+        ),
       objectType:
         lead.objectType ??
         undefined,
@@ -424,9 +378,7 @@ function createCompatibleSession(
         undefined,
       floor:
         lead.floor !== null
-          ? String(
-              lead.floor,
-            )
+          ? String(lead.floor)
           : undefined,
       elevator:
         lead.elevator ??
@@ -451,405 +403,216 @@ function createCompatibleSession(
       photoRequired:
         lead.photoRequired ??
         undefined,
-      oven:
-        lead.extras.some(
-          (extra) =>
-            extra.toLocaleLowerCase(
-              "de-CH",
-            ).includes("backofen"),
-        ),
-      balcony:
-        lead.extras.some(
-          (extra) =>
-            extra.toLocaleLowerCase(
-              "de-CH",
-            ).includes("balkon"),
-        ),
       description:
         buildDescription(
           lead,
         ) || undefined,
       date,
     },
-    progress: calculateProgress(result),
+    progress:
+      calculateProgress(
+        lead,
+      ),
     estimatedPrice:
       pricing?.estimatedPrice ?? 0,
     priceRange:
       pricing?.priceRange ??
-      "Wird nach persönlicher Prüfung berechnet",
-    completed: result.leadReady,
+      "Preis wird nach Ihren Angaben berechnet",
   };
 }
 
 function toApiMessages(
   messages: ChatMessage[],
 ) {
-  return messages.map((message) => ({
-    role:
-      message.sender === "user"
-        ? ("user" as const)
-        : ("assistant" as const),
-    content: message.text,
-  }));
-}
-
-async function fetchChatLead(
-  body: Record<string, unknown>,
-) {
-  const controller =
-    new AbortController();
-
-  const timeout =
-    window.setTimeout(
-      () => controller.abort(),
-      25_000,
-    );
-
-  try {
-    return await fetch(
-      "/api/public/chat/lead",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body:
-          JSON.stringify(body),
-        signal:
-          controller.signal,
-      },
-    );
-  } finally {
-    window.clearTimeout(
-      timeout,
-    );
-  }
+  return messages.map(
+    (message) => ({
+      role:
+        message.sender === "user"
+          ? ("user" as const)
+          : ("assistant" as const),
+      content:
+        message.text,
+    }),
+  );
 }
 
 export default function AIChat() {
-  const [messages, setMessages] =
-    useState<ChatMessage[]>(START_MESSAGES);
+  const [
+    messages,
+    setMessages,
+  ] = useState<ChatMessage[]>(
+    START_MESSAGES,
+  );
 
   const [
     selectedService,
     setSelectedService,
-  ] = useState<ServiceType | undefined>();
-
-  const [session, setSession] =
-    useState<CompatibleChatSession>(
-      EMPTY_SESSION,
-    );
-
-  const [isThinking, setIsThinking] =
-    useState(false);
-
-  const [chatError, setChatError] =
-    useState<string | null>(null);
-
-  const [leadName, setLeadName] =
-    useState("");
-
-  const [leadContact, setLeadContact] =
-    useState("");
-
-  const [leadStatus, setLeadStatus] =
-    useState<LeadSubmitStatus>("idle");
+  ] = useState<
+    ServiceType | undefined
+  >();
 
   const [
-    shouldAutoCreateLead,
-    setShouldAutoCreateLead,
+    session,
+    setSession,
+  ] = useState<
+    CompatibleChatSession
+  >(EMPTY_SESSION);
+
+  const [
+    isThinking,
+    setIsThinking,
   ] = useState(false);
 
-  const [leadError, setLeadError] =
-    useState<string | null>(null);
-
-  const [leadCrm, setLeadCrm] =
-    useState<
-      ChatLeadApiResponse["crm"] | null
-    >(null);
+  const [
+    chatError,
+    setChatError,
+  ] = useState<
+    string | null
+  >(null);
 
   const chatContainerRef =
-    useRef<HTMLDivElement | null>(null);
-
-  const autoLeadFingerprintRef =
-    useRef<string | null>(null);
+    useRef<
+      HTMLDivElement | null
+    >(null);
 
   useEffect(() => {
-    const chatElement =
+    const element =
       chatContainerRef.current;
 
-    if (!chatElement) {
+    if (!element) {
       return;
     }
 
-    chatElement.scrollTop =
-      chatElement.scrollHeight;
-  }, [messages, isThinking]);
-
-  useEffect(() => {
-    const name =
-      leadName.trim();
-
-    const contact =
-      leadContact.trim();
-
-    if (
-      !shouldAutoCreateLead ||
-      !contact ||
-      leadStatus !== "idle" ||
-      messages.length < 2
-    ) {
-      return;
-    }
-
-    const fingerprint = [
-      contact.toLocaleLowerCase(
-        "de-CH",
-      ),
-      session.answers.serviceLabel ??
-        "",
-      String(
-        session.answers.area ?? "",
-      ),
-      session.answers.date ?? "",
-    ].join("|");
-
-    if (
-      autoLeadFingerprintRef.current ===
-      fingerprint
-    ) {
-      return;
-    }
-
-    autoLeadFingerprintRef.current =
-      fingerprint;
-
-    let cancelled = false;
-
-    async function saveAutomatically() {
-      setLeadStatus("submitting");
-      setLeadError(null);
-      setLeadCrm(null);
-
-      try {
-        const response =
-          await fetchChatLead({
-                name: name || null,
-                contact,
-                session,
-                lead:
-                  session.lead,
-                messages,
-                pageUrl:
-                  typeof window !==
-                  "undefined"
-                    ? window.location.href
-                    : null,              });
-
-        const payload =
-          (await response
-            .json()
-            .catch(() => null)) as
-            | ChatLeadApiResponse
-            | null;
-
-        if (cancelled) {
-          return;
-        }
-
-        if (
-          !response.ok ||
-          !payload?.success
-        ) {
-          autoLeadFingerprintRef.current =
-            null;
-
-          setLeadStatus("error");
-
-          setLeadError(
-            payload?.error ??
-              "Die Anfrage konnte nicht automatisch gespeichert werden.",
-          );
-
-          return;
-        }
-
-        setLeadCrm(
-          payload.crm ?? null,
-        );
-
-        setShouldAutoCreateLead(
-          false,
-        );
-
-        setLeadStatus(
-          payload.emailSent
-            ? "success"
-            : "partial",
-        );
-      } catch {
-        if (cancelled) {
-          return;
-        }
-
-        autoLeadFingerprintRef.current =
-          null;
-
-        setLeadStatus("error");
-
-        setLeadError(
-          "Die Anfrage konnte nicht best?tigt werden. Bitte versuchen Sie es erneut oder kontaktieren Sie HEXA CLEAN direkt.",
-        );
-      }
-    }
-
-    void saveAutomatically();
-
-    return () => {
-      cancelled = true;
-    };
+    element.scrollTop =
+      element.scrollHeight;
   }, [
-    leadContact,
-    leadName,
-    leadStatus,
     messages,
-    session,
-    shouldAutoCreateLead,
+    isThinking,
   ]);
 
-  function resetLeadSubmitState() {
-    if (
-      leadStatus === "submitting" ||
-      leadStatus === "success" ||
-      leadStatus === "partial"
-    ) {
-      return;
-    }
-
-    setLeadStatus("idle");
-    setLeadError(null);
-    setLeadCrm(null);
-  }
-
   function createMessage(
-    sender: "user" | "assistant",
+    sender:
+      | "user"
+      | "assistant",
     text: string,
   ): ChatMessage {
     return {
-      id: crypto.randomUUID(),
+      id:
+        crypto.randomUUID(),
       sender,
       text,
-      time: getCurrentTime(),
+      time:
+        getCurrentTime(),
     };
   }
 
-  async function requestCentralPricing(
-  lead: OnlineBeraterLead,
-): Promise<ChatCentralPricing | null> {
-
-  const service =
-    lead.service ??
-    null;
-
-  if (!service) {
-    return null;
-  }
-
-  try {
-    const response =
-      await fetch(
-        "/api/public/pricing",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          cache: "no-store",
-          body: JSON.stringify({
-            service,
-            areaM2:
-              lead.areaM2 ??
-              null,
-            rooms:
-              lead.rooms ??
-              null,
-            bathrooms:
-              lead.bathrooms ??
-              null,
-            windows:
-              lead.windows ??
-              null,
-            condition:
-              lead.condition ??
-              null,
-            frequency:
-              lead.frequency ??
-              null,
-            extras:
-              lead.extras,
-            floor:
-              lead.floor ??
-              null,
-            elevator:
-              lead.elevator ??
-              null,
-            photoCount: 0,
-          }),
-        },
-      );
-
-    const payload =
-      (await response
-        .json()
-        .catch(() => null)) as
-        | ChatPricingApiResponse
-        | null;
-
-    if (
-      !response.ok ||
-      !payload?.success ||
-      !payload.pricing
-    ) {
+  async function requestPricing(
+    lead: OnlineBeraterLead,
+  ): Promise<
+    ChatCentralPricing | null
+  > {
+    if (!lead.service) {
       return null;
     }
 
-    return payload.pricing;
-  } catch {
-    return null;
-  }
-}
+    try {
+      const response =
+        await fetch(
+          "/api/public/pricing",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            cache: "no-store",
+            body:
+              JSON.stringify({
+                service:
+                  lead.service,
+                areaM2:
+                  lead.areaM2,
+                rooms:
+                  lead.rooms,
+                bathrooms:
+                  lead.bathrooms,
+                windows:
+                  lead.windows,
+                condition:
+                  lead.condition,
+                frequency:
+                  lead.frequency,
+                extras:
+                  lead.extras,
+                floor:
+                  lead.floor,
+                elevator:
+                  lead.elevator,
+                photoCount: 0,
+              }),
+          },
+        );
 
-async function requestOnlineBerater(
-    nextMessages: ChatMessage[],
+      const payload =
+        (await response
+          .json()
+          .catch(
+            () => null,
+          )) as
+          | ChatPricingApiResponse
+          | null;
+
+      if (
+        !response.ok ||
+        !payload?.success ||
+        !payload.pricing
+      ) {
+        return null;
+      }
+
+      return payload.pricing;
+    } catch {
+      return null;
+    }
+  }
+
+  async function requestOnlineBerater(
+    nextMessages:
+      ChatMessage[],
   ) {
     setIsThinking(true);
     setChatError(null);
 
     try {
-      const response = await fetch(
-        "/api/public/online-berater",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
+      const response =
+        await fetch(
+          "/api/public/online-berater",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body:
+              JSON.stringify({
+                messages:
+                  toApiMessages(
+                    nextMessages.slice(
+                      -24,
+                    ),
+                  ),
+              }),
           },
-          body: JSON.stringify({
-            messages:
-              toApiMessages(
-                nextMessages.slice(-24),
-              ),
-          }),
-        },
-      );
+        );
 
-      const payload = (await response
-        .json()
-        .catch(() => null)) as
-        | OnlineBeraterApiResponse
-        | null;
+      const payload =
+        (await response
+          .json()
+          .catch(
+            () => null,
+          )) as
+          | OnlineBeraterApiResponse
+          | null;
 
       if (
         !response.ok ||
@@ -858,65 +621,40 @@ async function requestOnlineBerater(
       ) {
         throw new Error(
           payload?.error ??
-            "Der Online-Berater ist momentan nicht erreichbar.",
+          "Der Online-Berater ist momentan nicht erreichbar.",
         );
       }
 
-      const result = payload.result;
+      const result =
+        payload.result;
 
       const completeLead =
-        mergeOnlineBeraterLead(
+        mergeLead(
           session.lead,
           result.lead,
         );
 
       const pricing =
-        await requestCentralPricing(
+        await requestPricing(
           completeLead,
         );
 
-      setSession((current) =>
-        createCompatibleSession(
-          {
-            ...result,
-            lead: completeLead,
-          },
+      setSession(
+        createSession(
+          completeLead,
           pricing,
-          current,
         ),
       );
 
-      setShouldAutoCreateLead(
-        result.shouldCreateLead,
+      setMessages(
+        (current) => [
+          ...current,
+          createMessage(
+            "assistant",
+            result.reply,
+          ),
+        ],
       );
-
-      if (
-        result.lead.customerName &&
-        !leadName.trim()
-      ) {
-        setLeadName(
-          result.lead.customerName,
-        );
-      }
-
-      const detectedContact =
-        result.lead.email ??
-        result.lead.phone;
-
-      if (
-        detectedContact &&
-        !leadContact.trim()
-      ) {
-        setLeadContact(detectedContact);
-      }
-
-      setMessages((current) => [
-        ...current,
-        createMessage(
-          "assistant",
-          result.reply,
-        ),
-      ]);
     } catch (error) {
       const message =
         error instanceof Error
@@ -925,13 +663,15 @@ async function requestOnlineBerater(
 
       setChatError(message);
 
-      setMessages((current) => [
-        ...current,
-        createMessage(
-          "assistant",
-          "Entschuldigung, der Online-Berater konnte gerade keine Antwort erstellen. Bitte versuchen Sie es erneut.",
-        ),
-      ]);
+      setMessages(
+        (current) => [
+          ...current,
+          createMessage(
+            "assistant",
+            "Entschuldigung, die Preisberatung ist momentan nicht erreichbar. Für eine persönliche Offerte nutzen Sie bitte unsere Schnelle Offerte.",
+          ),
+        ],
+      );
     } finally {
       setIsThinking(false);
     }
@@ -944,20 +684,26 @@ async function requestOnlineBerater(
       return;
     }
 
-    resetLeadSubmitState();
-    setSelectedService(service);
-
-    const userMessage = createMessage(
-      "user",
-      SERVICE_LABELS[service],
+    setSelectedService(
+      service,
     );
+
+    const userMessage =
+      createMessage(
+        "user",
+        SERVICE_LABELS[
+          service
+        ],
+      );
 
     const nextMessages = [
       ...messages,
       userMessage,
     ];
 
-    setMessages(nextMessages);
+    setMessages(
+      nextMessages,
+    );
 
     void requestOnlineBerater(
       nextMessages,
@@ -967,115 +713,35 @@ async function requestOnlineBerater(
   function handleSendMessage(
     text: string,
   ) {
-    const message = text.trim();
+    const message =
+      text.trim();
 
-    if (!message || isThinking) {
+    if (
+      !message ||
+      isThinking
+    ) {
       return;
     }
 
-    resetLeadSubmitState();
-
-    const userMessage = createMessage(
-      "user",
-      message,
-    );
+    const userMessage =
+      createMessage(
+        "user",
+        message,
+      );
 
     const nextMessages = [
       ...messages,
       userMessage,
     ];
 
-    setMessages(nextMessages);
+    setMessages(
+      nextMessages,
+    );
 
     void requestOnlineBerater(
       nextMessages,
     );
   }
-
-  async function handleSubmitLead(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
-
-    if (leadStatus === "submitting") {
-      return;
-    }
-
-    const name = leadName.trim();
-    const contact = leadContact.trim();
-
-    if (!session.completed) {
-      setLeadStatus("error");
-      setLeadError(
-        "Bitte schliessen Sie die Anfrage im Chat zuerst ab.",
-      );
-      return;
-    }
-
-    if (!contact) {
-      setLeadStatus("error");
-      setLeadError(
-        "Bitte geben Sie eine Telefonnummer oder E-Mail-Adresse ein.",
-      );
-      return;
-    }
-
-    setLeadStatus("submitting");
-    setLeadError(null);
-    setLeadCrm(null);
-
-    try {
-      const response =
-        await fetchChatLead({
-            name: name || null,
-            contact,
-            session,
-            lead:
-              session.lead,
-            messages,
-            pageUrl:
-              typeof window !==
-              "undefined"
-                ? window.location.href
-                : null,          });
-
-      const payload = (await response
-        .json()
-        .catch(() => null)) as
-        | ChatLeadApiResponse
-        | null;
-
-      if (
-        !response.ok ||
-        !payload?.success
-      ) {
-        setLeadStatus("error");
-        setLeadError(
-          payload?.error ??
-            "Die Anfrage konnte nicht gespeichert werden.",
-        );
-        return;
-      }
-
-      setLeadCrm(payload.crm ?? null);
-      setShouldAutoCreateLead(false);
-      setLeadStatus(
-        payload.emailSent
-          ? "success"
-          : "partial",
-      );
-    } catch {
-      setLeadStatus("error");
-      setLeadError(
-        "Die Anfrage konnte nicht best?tigt werden. Bitte versuchen Sie es erneut oder kontaktieren Sie HEXA CLEAN direkt.",
-      );
-    }
-  }
-
-  const leadSubmitDisabled =
-    leadStatus === "submitting" ||
-    leadStatus === "success" ||
-    leadStatus === "partial";
 
   return (
     <section
@@ -1087,12 +753,18 @@ async function requestOnlineBerater(
           <ChatHeader />
 
           <div
-            ref={chatContainerRef}
+            ref={
+              chatContainerRef
+            }
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
           >
             <ChatMessages
-              messages={messages}
-              isThinking={isThinking}
+              messages={
+                messages
+              }
+              isThinking={
+                isThinking
+              }
             />
           </div>
 
@@ -1112,125 +784,31 @@ async function requestOnlineBerater(
               </p>
             ) : null}
 
-            {session.completed ? (
-              <form
-                onSubmit={
-                  handleSubmitLead
-                }
-                className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-3"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                  Anfrage senden
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-slate-300">
-                  Die Angaben werden im CRM
-                  gespeichert. Die endgültige
-                  Offerte wird persönlich geprüft.
-                </p>
-
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <input
-                    value={leadName}
-                    onChange={(event) =>
-                      setLeadName(
-                        event.target.value,
-                      )
-                    }
-                    disabled={
-                      leadSubmitDisabled
-                    }
-                    maxLength={160}
-                    placeholder="Name, optional"
-                    autoComplete="name"
-                    className="h-11 rounded-xl border border-white/10 bg-black/35 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-cyan-300/60 disabled:opacity-60"
-                  />
-
-                  <input
-                    value={leadContact}
-                    onChange={(event) =>
-                      setLeadContact(
-                        event.target.value,
-                      )
-                    }
-                    disabled={
-                      leadSubmitDisabled
-                    }
-                    maxLength={240}
-                    placeholder="Telefon oder E-Mail"
-                    autoComplete="email"
-                    className="h-11 rounded-xl border border-white/10 bg-black/35 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-cyan-300/60 disabled:opacity-60"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={
-                    leadSubmitDisabled
-                  }
-                  className="mt-2 h-11 w-full rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {leadStatus ===
-                  "submitting"
-                    ? "Wird gespeichert..."
-                    : leadStatus ===
-                          "success" ||
-                        leadStatus ===
-                          "partial"
-                      ? "Gespeichert"
-                      : "Anfrage senden"}
-                </button>
-
-                {leadStatus !== "idle" ? (
-                  <div
-                    className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${
-                      leadStatus ===
-                      "error"
-                        ? "border-red-400/30 bg-red-500/10 text-red-100"
-                        : leadStatus ===
-                            "partial"
-                          ? "border-amber-300/30 bg-amber-400/10 text-amber-100"
-                          : "border-emerald-300/30 bg-emerald-400/10 text-emerald-100"
-                    }`}
-                  >
-                    <p>
-                      {getLeadStatusText(
-                        leadStatus,
-                      )}
-                    </p>
-
-                    {leadError ? (
-                      <p className="mt-1">
-                        {leadError}
-                      </p>
-                    ) : null}
-
-                    {leadCrm ? (
-                      <p className="mt-1 text-white/70">
-                        Anfrage:{" "}
-                        {
-                          leadCrm.orderNumber
-                        }
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-              </form>
-            ) : (
-              <p className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-5 text-slate-400">
-                Der Online-Berater sammelt die
-                noch benötigten Angaben. Danach
-                können Sie die Anfrage direkt an
-                HEXA CLEAN senden.
+            <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                Persönliche Offerte
               </p>
-            )}
+
+              <p className="mt-2 text-xs leading-5 text-slate-300">
+                Die angezeigte Preisspanne ist eine unverbindliche Orientierung. Für eine genaue Offerte übermitteln Sie den vollständigen Umfang, Ihre Kontaktdaten und bei Bedarf Fotos ?ber unsere Schnelle Offerte.
+              </p>
+
+              <Link
+                href="/#quick-offer"
+                className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
+              >
+                Schnelle Offerte öffnen
+              </Link>
+            </div>
           </div>
 
           <ChatInput
             onSendMessage={
               handleSendMessage
             }
-            disabled={isThinking}
+            disabled={
+              isThinking
+            }
           />
         </div>
 
@@ -1240,8 +818,7 @@ async function requestOnlineBerater(
               service:
                 session.answers.service,
               serviceLabel:
-                session.answers
-                  .serviceLabel,
+                session.answers.serviceLabel,
               area:
                 session.answers.area,
               windows:
@@ -1249,8 +826,7 @@ async function requestOnlineBerater(
               floor:
                 session.answers.floor,
               elevator:
-                session.answers
-                  .elevator,
+                session.answers.elevator,
               date:
                 session.answers.date,
               estimatedPrice:
