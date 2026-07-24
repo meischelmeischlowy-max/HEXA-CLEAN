@@ -436,205 +436,630 @@ function toApiMessages(
 }
 
 function playWitchLaugh() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const AudioContextClass =
-    window.AudioContext;
-
-  if (!AudioContextClass) {
+  if (
+    typeof window === "undefined" ||
+    !("speechSynthesis" in window)
+  ) {
     return;
   }
 
   try {
-    const context =
-      new AudioContextClass();
+    const utterance = new SpeechSynthesisUtterance(
+      "Hihihihihihi!",
+    );
 
-    const notes = [
-      {
-        time: 0,
-        frequency: 420,
-        duration: 0.11,
-      },
-      {
-        time: 0.12,
-        frequency: 540,
-        duration: 0.1,
-      },
-      {
-        time: 0.27,
-        frequency: 470,
-        duration: 0.12,
-      },
-      {
-        time: 0.43,
-        frequency: 620,
-        duration: 0.11,
-      },
-      {
-        time: 0.6,
-        frequency: 510,
-        duration: 0.15,
-      },
-    ];
+    utterance.lang = "de-DE";
+    utterance.rate = 0.78;
+    utterance.pitch = 1.55;
+    utterance.volume = 0.9;
 
-    for (const note of notes) {
-      const oscillator =
-        context.createOscillator();
+    const voices =
+      window.speechSynthesis.getVoices();
 
-      const gain =
-        context.createGain();
+    const germanVoices = voices.filter(
+      (voice) =>
+        voice.lang
+          .toLocaleLowerCase("de-CH")
+          .startsWith("de"),
+    );
 
-      oscillator.type =
-        "triangle";
-      oscillator.frequency.setValueAtTime(
-        note.frequency,
-        context.currentTime +
-          note.time,
-      );
+    const preferredVoice =
+      germanVoices.find((voice) =>
+        /katja|anna|hedda|helena|female|weiblich|natural/i.test(
+          voice.name,
+        ),
+      ) ??
+      germanVoices[0] ??
+      voices[0];
 
-      gain.gain.setValueAtTime(
-        0.0001,
-        context.currentTime +
-          note.time,
-      );
-      gain.gain.exponentialRampToValueAtTime(
-        0.04,
-        context.currentTime +
-          note.time +
-          0.02,
-      );
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        context.currentTime +
-          note.time +
-          note.duration,
-      );
-
-      oscillator.connect(gain);
-      gain.connect(
-        context.destination,
-      );
-
-      oscillator.start(
-        context.currentTime +
-          note.time,
-      );
-      oscillator.stop(
-        context.currentTime +
-          note.time +
-          note.duration,
-      );
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
     }
 
-    window.setTimeout(() => {
-      void context.close();
-    }, 1400);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   } catch {
-    // ignore
+    // Brak dwiku nie moe zatrzyma rozmowy.
   }
 }
 
 function WitchIcon({
   className = "",
+  pose = "flying",
 }: {
   className?: string;
+  pose?: "flying" | "sweeping";
 }) {
+  const isSweeping = pose === "sweeping";
+
   return (
     <div
-      className={`relative h-16 w-24 select-none ${className}`}
+      className={`relative select-none ${
+        isSweeping
+          ? "h-36 w-36"
+          : "h-28 w-48"
+      } ${className}`}
+      style={{
+        animationDuration: isSweeping
+          ? "2.8s"
+          : "28s",
+        transitionDuration: "2800ms",
+      }}
       aria-hidden="true"
     >
       <svg
-        viewBox="0 0 160 90"
-        className="h-full w-full overflow-visible"
+        viewBox="0 0 360 220"
+        className="h-full w-full overflow-visible drop-shadow-[0_12px_18px_rgba(124,58,237,0.45)]"
         fill="none"
       >
         <defs>
           <linearGradient
-            id="witchGlow"
+            id="witchDress"
             x1="0"
-            x2="1"
             y1="0"
+            x2="1"
             y2="1"
           >
             <stop
               offset="0%"
-              stopColor="#6ee7f9"
+              stopColor="#31205f"
+            />
+            <stop
+              offset="55%"
+              stopColor="#5b21b6"
             />
             <stop
               offset="100%"
-              stopColor="#7c3aed"
+              stopColor="#17112f"
             />
           </linearGradient>
+
+          <linearGradient
+            id="witchHat"
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="1"
+          >
+            <stop
+              offset="0%"
+              stopColor="#7038c8"
+            />
+            <stop
+              offset="100%"
+              stopColor="#21133f"
+            />
+          </linearGradient>
+
+          <linearGradient
+            id="witchBroom"
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="0"
+          >
+            <stop
+              offset="0%"
+              stopColor="#6b3c1c"
+            />
+            <stop
+              offset="100%"
+              stopColor="#d18b3c"
+            />
+          </linearGradient>
+
+          <radialGradient id="witchSkin">
+            <stop
+              offset="0%"
+              stopColor="#f5c79d"
+            />
+            <stop
+              offset="100%"
+              stopColor="#c98058"
+            />
+          </radialGradient>
+
+          <filter
+            id="witchGlow"
+            x="-40%"
+            y="-40%"
+            width="180%"
+            height="180%"
+          >
+            <feGaussianBlur
+              stdDeviation="5"
+              result="blur"
+            />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
 
-        <ellipse
-          cx="48"
-          cy="28"
-          rx="10"
-          ry="10"
-          fill="#08111d"
-          stroke="url(#witchGlow)"
-          strokeWidth="2"
-        />
-        <path
-          d="M41 22 L51 6 L60 22 Z"
-          fill="#0b1320"
-          stroke="url(#witchGlow)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M33 39 C43 28 61 28 70 39 L78 47 L58 50 L36 48 Z"
-          fill="#08111d"
-          stroke="url(#witchGlow)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M70 43 L106 52"
-          stroke="#6ee7f9"
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-        <path
-          d="M106 52 L128 46 L128 58 Z"
-          fill="#d97706"
-          stroke="#fbbf24"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M83 45 L75 59"
-          stroke="#6ee7f9"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <path
-          d="M61 45 L56 57"
-          stroke="#6ee7f9"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        <circle
-          cx="52"
-          cy="29"
-          r="1.7"
-          fill="#6ee7f9"
-        />
-        <path
-          d="M44 33 C47 36 52 37 56 34"
-          stroke="#6ee7f9"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        <path
-          d="M23 34 C14 37 11 44 17 49 C26 46 30 40 23 34 Z"
-          fill="#7c3aed"
-          opacity="0.7"
-        />
+        {isSweeping ? (
+          <g>
+            <ellipse
+              cx="185"
+              cy="202"
+              rx="76"
+              ry="10"
+              fill="#0f172a"
+              opacity="0.35"
+            />
+
+            <g>
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                values="-5 205 150;7 205 150;-5 205 150"
+                dur="0.75s"
+                repeatCount="indefinite"
+              />
+
+              <path
+                d="M198 90 L294 202"
+                stroke="url(#witchBroom)"
+                strokeWidth="10"
+                strokeLinecap="round"
+              />
+
+              <path
+                d="M274 178 C309 168 337 178 352 203 C324 216 293 214 278 200 Z"
+                fill="#bb772d"
+                stroke="#efb255"
+                strokeWidth="4"
+                strokeLinejoin="round"
+              />
+
+              <path
+                d="M286 183 L343 204 M295 178 L349 197 M281 191 L332 212"
+                stroke="#704019"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+            </g>
+
+            <path
+              d="M130 103 C112 129 105 166 111 196 L209 196 C214 160 207 126 187 103 Z"
+              fill="url(#witchDress)"
+              stroke="#9f7aea"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="M116 192 C135 179 155 185 164 198 C144 207 125 207 109 200 Z"
+              fill="#19122f"
+              stroke="#6d4ab0"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M163 192 C184 178 205 186 215 199 C194 208 174 207 157 201 Z"
+              fill="#19122f"
+              stroke="#6d4ab0"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M155 111 C174 126 186 142 198 159"
+              stroke="#4c1d95"
+              strokeWidth="14"
+              strokeLinecap="round"
+            />
+
+            <circle
+              cx="201"
+              cy="161"
+              r="8"
+              fill="url(#witchSkin)"
+              stroke="#7c402d"
+              strokeWidth="2"
+            />
+
+            <path
+              d="M118 113 C135 129 146 142 153 158"
+              stroke="#4c1d95"
+              strokeWidth="14"
+              strokeLinecap="round"
+            />
+
+            <circle
+              cx="155"
+              cy="161"
+              r="8"
+              fill="url(#witchSkin)"
+              stroke="#7c402d"
+              strokeWidth="2"
+            />
+
+            <path
+              d="M123 74 C103 75 94 91 101 111 C108 127 128 133 143 123 C132 111 126 92 123 74 Z"
+              fill="#c9cad2"
+              stroke="#57526c"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M188 74 C211 79 217 98 208 115 C201 128 183 131 169 121 C180 107 185 91 188 74 Z"
+              fill="#c9cad2"
+              stroke="#57526c"
+              strokeWidth="3"
+            />
+
+            <ellipse
+              cx="156"
+              cy="79"
+              rx="42"
+              ry="38"
+              fill="url(#witchSkin)"
+              stroke="#7c402d"
+              strokeWidth="4"
+            />
+
+            <path
+              d="M177 74 C203 72 217 79 224 89 C205 97 189 94 175 87 Z"
+              fill="#d49a72"
+              stroke="#7c402d"
+              strokeWidth="3"
+              strokeLinejoin="round"
+            />
+
+            <ellipse
+              cx="143"
+              cy="74"
+              rx="7"
+              ry="9"
+              fill="#fff9e8"
+            />
+
+            <circle
+              cx="145"
+              cy="76"
+              r="3.5"
+              fill="#21132f"
+            />
+
+            <ellipse
+              cx="168"
+              cy="72"
+              rx="7"
+              ry="9"
+              fill="#fff9e8"
+            />
+
+            <circle
+              cx="170"
+              cy="74"
+              r="3.5"
+              fill="#21132f"
+            />
+
+            <path
+              d="M144 96 C154 105 168 103 176 94"
+              stroke="#6f2c2c"
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M125 49 C134 23 161 11 188 26 C205 36 211 52 210 64 C180 58 151 58 117 65 Z"
+              fill="url(#witchHat)"
+              stroke="#b28aff"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="M152 31 C163 4 185 -8 205 3 C191 14 195 27 210 37 C190 38 171 35 152 31 Z"
+              fill="url(#witchHat)"
+              stroke="#b28aff"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="M109 58 C137 49 186 50 222 65 C197 77 144 76 108 66 Z"
+              fill="#24133f"
+              stroke="#b28aff"
+              strokeWidth="4"
+            />
+
+            <rect
+              x="166"
+              y="45"
+              width="23"
+              height="16"
+              rx="3"
+              fill="#e9a83d"
+              stroke="#7b4814"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M293 194 C306 186 318 187 326 193"
+              stroke="#fbbf24"
+              strokeWidth="4"
+              strokeLinecap="round"
+              opacity="0.85"
+            />
+
+            <circle
+              cx="329"
+              cy="183"
+              r="4"
+              fill="#fbbf24"
+            />
+
+            <circle
+              cx="344"
+              cy="193"
+              r="3"
+              fill="#c084fc"
+            />
+          </g>
+        ) : (
+          <g>
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              values="0 2;0 -5;0 2"
+              dur="3.8s"
+              repeatCount="indefinite"
+            />
+
+            <path
+              d="M18 151 C74 143 170 140 330 145"
+              stroke="url(#witchBroom)"
+              strokeWidth="11"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M14 135 C35 132 56 139 76 151 C54 166 30 171 4 163 C16 153 17 144 14 135 Z"
+              fill="#bd782e"
+              stroke="#f0b45b"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="M8 142 L65 154 M5 151 L61 160 M15 134 L73 148"
+              stroke="#704019"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M132 91 C111 105 104 132 119 157 C148 169 191 168 220 152 C216 125 200 101 180 89 Z"
+              fill="url(#witchDress)"
+              stroke="#a98aff"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="M119 150 C146 141 186 143 219 153 C196 169 150 174 118 159 Z"
+              fill="#1c1335"
+              stroke="#704bb1"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M187 107 C207 117 226 129 242 142"
+              stroke="#4c1d95"
+              strokeWidth="14"
+              strokeLinecap="round"
+            />
+
+            <circle
+              cx="246"
+              cy="145"
+              r="8"
+              fill="url(#witchSkin)"
+              stroke="#7c402d"
+              strokeWidth="2"
+            />
+
+            <path
+              d="M137 108 C151 120 166 132 179 143"
+              stroke="#4c1d95"
+              strokeWidth="14"
+              strokeLinecap="round"
+            />
+
+            <circle
+              cx="182"
+              cy="145"
+              r="8"
+              fill="url(#witchSkin)"
+              stroke="#7c402d"
+              strokeWidth="2"
+            />
+
+            <path
+              d="M191 152 C208 163 223 174 240 180"
+              stroke="#382354"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M232 176 C248 173 259 180 264 190 C247 195 233 192 224 185 Z"
+              fill="#171126"
+              stroke="#7452a4"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M137 151 C126 165 117 178 106 190"
+              stroke="#382354"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M91 186 C106 180 121 184 128 194 C111 201 96 199 85 193 Z"
+              fill="#171126"
+              stroke="#7452a4"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M127 70 C105 72 96 89 104 108 C113 125 134 128 148 117 C136 104 131 87 127 70 Z"
+              fill="#c9cad2"
+              stroke="#57526c"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M195 69 C217 74 223 93 214 109 C206 123 187 126 173 116 C186 102 191 86 195 69 Z"
+              fill="#c9cad2"
+              stroke="#57526c"
+              strokeWidth="3"
+            />
+
+            <ellipse
+              cx="161"
+              cy="75"
+              rx="43"
+              ry="38"
+              fill="url(#witchSkin)"
+              stroke="#7c402d"
+              strokeWidth="4"
+            />
+
+            <path
+              d="M181 70 C211 67 229 76 240 87 C215 98 197 94 179 85 Z"
+              fill="#d49a72"
+              stroke="#7c402d"
+              strokeWidth="3"
+              strokeLinejoin="round"
+            />
+
+            <ellipse
+              cx="147"
+              cy="69"
+              rx="7"
+              ry="9"
+              fill="#fff9e8"
+            />
+
+            <circle
+              cx="149"
+              cy="71"
+              r="3.5"
+              fill="#21132f"
+            />
+
+            <ellipse
+              cx="173"
+              cy="68"
+              rx="7"
+              ry="9"
+              fill="#fff9e8"
+            />
+
+            <circle
+              cx="175"
+              cy="70"
+              r="3.5"
+              fill="#21132f"
+            />
+
+            <path
+              d="M148 92 C159 102 173 100 181 90"
+              stroke="#6f2c2c"
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+
+            <path
+              d="M129 44 C139 18 165 6 193 20 C210 29 218 46 216 58 C185 52 155 53 121 60 Z"
+              fill="url(#witchHat)"
+              stroke="#b28aff"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="M158 25 C170 -2 192 -13 214 -2 C198 9 202 23 219 33 C198 35 177 31 158 25 Z"
+              fill="url(#witchHat)"
+              stroke="#b28aff"
+              strokeWidth="4"
+              strokeLinejoin="round"
+            />
+
+            <path
+              d="M112 53 C143 44 194 45 230 59 C204 72 149 72 110 62 Z"
+              fill="#24133f"
+              stroke="#b28aff"
+              strokeWidth="4"
+            />
+
+            <rect
+              x="175"
+              y="39"
+              width="23"
+              height="16"
+              rx="3"
+              fill="#e9a83d"
+              stroke="#7b4814"
+              strokeWidth="3"
+            />
+
+            <path
+              d="M48 124 C34 113 30 100 39 91"
+              stroke="#a855f7"
+              strokeWidth="4"
+              strokeLinecap="round"
+              opacity="0.65"
+              filter="url(#witchGlow)"
+            />
+
+            <circle
+              cx="43"
+              cy="82"
+              r="4"
+              fill="#fbbf24"
+            />
+
+            <circle
+              cx="73"
+              cy="111"
+              r="3"
+              fill="#67e8f9"
+            />
+
+            <circle
+              cx="92"
+              cy="88"
+              r="4"
+              fill="#c084fc"
+            />
+          </g>
+        )}
       </svg>
     </div>
   );
@@ -745,61 +1170,47 @@ export default function AIChat() {
     const previousPrice =
       displayedPriceRef.current;
 
-    if (
-      previousPrice === 0 ||
-      nextPrice === 0
-    ) {
-      setDisplayPrice(
-        nextPrice,
-      );
-      setDisplayPriceRange(
-        nextPriceRange,
-      );
+    if (nextPrice === 0) {
+      setDisplayPrice(0);
+      setDisplayPriceRange(nextPriceRange);
       return;
     }
 
     if (
-      nextPrice ===
-        previousPrice &&
-      nextPriceRange ===
-        displayPriceRange
+      nextPrice === previousPrice &&
+      nextPriceRange === displayPriceRange
     ) {
+      return;
+    }
+
+    const priceIncreased =
+      nextPrice > previousPrice;
+
+    if (!priceIncreased) {
+      setDisplayPrice(nextPrice);
+      setDisplayPriceRange(nextPriceRange);
       return;
     }
 
     setIsPriceSweeping(true);
 
-    if (
-      nextPrice >
-        previousPrice &&
-      laughEnabled
-    ) {
-      setLaughBurstVisible(
-        true,
-      );
+    if (laughEnabled) {
+      setLaughBurstVisible(true);
       playWitchLaugh();
 
       window.setTimeout(() => {
-        setLaughBurstVisible(
-          false,
-        );
-      }, 1200);
+        setLaughBurstVisible(false);
+      }, 2600);
     }
 
     window.setTimeout(() => {
-      setDisplayPrice(
-        nextPrice,
-      );
-      setDisplayPriceRange(
-        nextPriceRange,
-      );
-    }, 520);
+      setDisplayPrice(nextPrice);
+      setDisplayPriceRange(nextPriceRange);
+    }, 1050);
 
     window.setTimeout(() => {
-      setIsPriceSweeping(
-        false,
-      );
-    }, 1200);
+      setIsPriceSweeping(false);
+    }, 2800);
   }
 
   async function requestPricing(
@@ -1030,7 +1441,7 @@ export default function AIChat() {
       <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block">
         <div className="witch-orbit">
           <div className="witch-float">
-            <WitchIcon className="drop-shadow-[0_0_16px_rgba(34,211,238,0.55)]" />
+            <WitchIcon pose="flying" className="drop-shadow-[0_0_16px_rgba(34,211,238,0.55)]" />
           </div>
         </div>
       </div>
@@ -1126,7 +1537,7 @@ export default function AIChat() {
             {isPriceSweeping ? (
               <div className="pointer-events-none absolute left-0 right-0 top-36 z-20">
                 <div className="price-sweep flex justify-start">
-                  <WitchIcon className="scale-90 drop-shadow-[0_0_18px_rgba(34,211,238,0.65)]" />
+                  <WitchIcon pose="sweeping" className="scale-90 drop-shadow-[0_0_18px_rgba(34,211,238,0.65)]" />
                 </div>
               </div>
             ) : null}
