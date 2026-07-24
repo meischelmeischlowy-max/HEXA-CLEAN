@@ -65,7 +65,23 @@ describe(
         );
 
         expect(source).toContain(
-          "createCompatibleSession(\n          result,\n          pricing,",
+          "const completeLead =",
+        );
+
+        expect(source).toContain(
+          "mergeOnlineBeraterLead(",
+        );
+
+        expect(source).toContain(
+          "requestCentralPricing(\n          completeLead,",
+        );
+
+        expect(source).toContain(
+          "lead: completeLead,",
+        );
+
+        expect(source).toContain(
+          "pricing,\n          current,",
         );
       },
     );

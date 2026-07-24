@@ -448,10 +448,78 @@ export function calculateCentralPrice(
       input.elevator,
     );
 
+  const normalizedExtras =
+    (input.extras ?? []).map(
+      (extra) => normalize(extra),
+    );
+
+  const windowCount =
+    Number.isFinite(Number(input.windows)) &&
+    Number(input.windows) > 0
+      ? Math.round(Number(input.windows))
+      : 0;
+
+  const hasWindowCleaning =
+    normalizedExtras.some(
+      (extra) =>
+        extra.includes("fenster") ||
+        extra.includes("window"),
+    );
+
+  const extrasWithoutWindows =
+    (input.extras ?? []).filter(
+      (extra) => {
+        const normalizedExtra =
+          normalize(extra);
+
+        return !(
+          windowCount > 0 &&
+          (
+            normalizedExtra.includes("fenster") ||
+            normalizedExtra.includes("window")
+          )
+        );
+      },
+    );
+
   const extrasTotal =
     calculateExtras(
-      input.extras ?? [],
+      extrasWithoutWindows,
     );
+
+  const roomCount =
+    Number.isFinite(Number(input.rooms))
+      ? Math.max(Number(input.rooms), 0)
+      : 0;
+
+  const bathroomCount =
+    Number.isFinite(Number(input.bathrooms))
+      ? Math.max(Number(input.bathrooms), 0)
+      : 0;
+
+  const roomSupplement =
+    item.unit === "M2"
+      ? Math.max(
+          roomCount - 2,
+          0,
+        ) * 18
+      : 0;
+
+  const bathroomSupplement =
+    item.unit === "M2"
+      ? bathroomCount * 35
+      : 0;
+
+  const windowSupplement =
+    hasWindowCleaning &&
+    windowCount > 0
+      ? windowCount * 14
+      : 0;
+
+  const scopeSupplement =
+    roomSupplement +
+    bathroomSupplement +
+    windowSupplement;
 
   const travelItem =
     catalog.find(
@@ -495,6 +563,7 @@ export function calculateCentralPrice(
       frequency *
       access
     ) +
+    scopeSupplement +
     extrasTotal +
     travelTotal;
 
@@ -509,13 +578,37 @@ export function calculateCentralPrice(
       0,
     );
 
-  const uncertainty =
+  const missingPricingFields = [
+    input.areaM2,
+    input.rooms,
+    input.bathrooms,
+    input.condition,
+    input.frequency,
+    hasWindowCleaning
+      ? input.windows
+      : 1,
+  ].filter(
+    (value) =>
+      value === null ||
+      value === undefined ||
+      value === "",
+  ).length;
+
+  const baseUncertainty =
     requiresPhotoReview &&
     photoCount === 0
       ? 0.2
       : photoCount > 0
         ? 0.1
         : 0.14;
+
+  const uncertainty =
+    clamp(
+      baseUncertainty +
+        missingPricingFields * 0.025,
+      0.1,
+      0.32,
+    );
 
   const minimumFloor =
     item.minPrice +
@@ -536,12 +629,7 @@ export function calculateCentralPrice(
   const max = roundToFive(
     Math.max(
       min + 20,
-      item.maxPrice === null
-        ? maxBeforeCap
-        : Math.min(
-            maxBeforeCap,
-            item.maxPrice,
-          ),
+      maxBeforeCap,
     ),
   );
 
@@ -563,6 +651,15 @@ export function calculateCentralPrice(
     `Mindestpreis: CHF ${item.minPrice.toFixed(2)}`,
     travelTotal > 0
       ? `Anfahrt: CHF ${travelTotal.toFixed(2)}`
+      : null,
+    roomSupplement > 0
+      ? `Zimmerzuschlag: CHF ${roomSupplement.toFixed(2)}`
+      : null,
+    bathroomSupplement > 0
+      ? `Badezimmerzuschlag: CHF ${bathroomSupplement.toFixed(2)}`
+      : null,
+    windowSupplement > 0
+      ? `Fensterreinigung (${windowCount}): CHF ${windowSupplement.toFixed(2)}`
       : null,
     extrasTotal > 0
       ? `Zusatzleistungen: CHF ${extrasTotal.toFixed(2)}`

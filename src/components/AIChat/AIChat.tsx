@@ -721,9 +721,8 @@ export default function AIChat() {
   }
 
   async function requestCentralPricing(
-  result: OnlineBeraterResult,
+  lead: OnlineBeraterLead,
 ): Promise<ChatCentralPricing | null> {
-  const lead = result.lead;
 
   const service =
     lead.service ??
@@ -841,14 +840,23 @@ async function requestOnlineBerater(
 
       const result = payload.result;
 
+      const completeLead =
+        mergeOnlineBeraterLead(
+          session.lead,
+          result.lead,
+        );
+
       const pricing =
         await requestCentralPricing(
-          result,
+          completeLead,
         );
 
       setSession((current) =>
         createCompatibleSession(
-          result,
+          {
+            ...result,
+            lead: completeLead,
+          },
           pricing,
           current,
         ),
