@@ -12,7 +12,6 @@ import ChatHeader from "./ChatHeader";
 import ChatInput from "./ChatInput";
 import ChatMessages from "./ChatMessages";
 import ProgressPanelCompact from "./ProgressPanelCompact";
-import ServiceCards from "./ServiceCards";
 import {
   ChatMessage,
   ServiceType,
@@ -445,13 +444,6 @@ export default function AIChat() {
   );
 
   const [
-    selectedService,
-    setSelectedService,
-  ] = useState<
-    ServiceType | undefined
-  >();
-
-  const [
     session,
     setSession,
   ] = useState<
@@ -677,39 +669,6 @@ export default function AIChat() {
     }
   }
 
-  function handleSelectService(
-    service: ServiceType,
-  ) {
-    if (isThinking) {
-      return;
-    }
-
-    setSelectedService(
-      service,
-    );
-
-    const userMessage =
-      createMessage(
-        "user",
-        SERVICE_LABELS[
-          service
-        ],
-      );
-
-    const nextMessages = [
-      ...messages,
-      userMessage,
-    ];
-
-    setMessages(
-      nextMessages,
-    );
-
-    void requestOnlineBerater(
-      nextMessages,
-    );
-  }
-
   function handleSendMessage(
     text: string,
   ) {
@@ -769,22 +728,13 @@ export default function AIChat() {
           </div>
 
           <div className="max-h-[46vh] shrink-0 overflow-y-auto border-t border-white/10 bg-[#050b16] px-3 py-3 sm:px-4">
-            <ServiceCards
-              selectedService={
-                selectedService
-              }
-              onSelectService={
-                handleSelectService
-              }
-            />
-
             {chatError ? (
               <p className="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-100">
                 {chatError}
               </p>
             ) : null}
 
-            <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-4">
+            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
                 Persönliche Offerte
               </p>
