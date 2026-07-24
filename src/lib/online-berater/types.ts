@@ -49,6 +49,7 @@ export type OnlineBeraterLeadData = {
   areaM2: number | null;
   rooms: number | null;
   bathrooms: number | null;
+  windows: number | null;
   floor: number | null;
   elevator: boolean | null;
   parkingAccess: string | null;

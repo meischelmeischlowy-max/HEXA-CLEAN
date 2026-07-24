@@ -86,6 +86,7 @@ type ChatLeadApiResponse = {
   message?: string;
   error?: string;
   emailSent?: boolean;
+  customerEmailSent?: boolean;
   crm?: {
     customerId: string;
     sessionId: string;
@@ -492,6 +493,40 @@ function toApiMessages(
   }));
 }
 
+async function fetchChatLead(
+  body: Record<string, unknown>,
+) {
+  const controller =
+    new AbortController();
+
+  const timeout =
+    window.setTimeout(
+      () => controller.abort(),
+      25_000,
+    );
+
+  try {
+    return await fetch(
+      "/api/public/chat/lead",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body:
+          JSON.stringify(body),
+        signal:
+          controller.signal,
+      },
+    );
+  } finally {
+    window.clearTimeout(
+      timeout,
+    );
+  }
+}
+
 export default function AIChat() {
   const [messages, setMessages] =
     useState<ChatMessage[]>(START_MESSAGES);
@@ -599,15 +634,7 @@ export default function AIChat() {
 
       try {
         const response =
-          await fetch(
-            "/api/public/chat/lead",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-              body: JSON.stringify({
+          await fetchChatLead({
                 name: name || null,
                 contact,
                 session,
@@ -618,10 +645,7 @@ export default function AIChat() {
                   typeof window !==
                   "undefined"
                     ? window.location.href
-                    : null,
-              }),
-            },
-          );
+                    : null,              });
 
         const payload =
           (await response
@@ -675,7 +699,7 @@ export default function AIChat() {
         setLeadStatus("error");
 
         setLeadError(
-          "Die Anfrage konnte wegen eines Verbindungsfehlers nicht automatisch gespeichert werden.",
+          "Die Anfrage konnte nicht best?tigt werden. Bitte versuchen Sie es erneut oder kontaktieren Sie HEXA CLEAN direkt.",
         );
       }
     }
@@ -1001,15 +1025,8 @@ async function requestOnlineBerater(
     setLeadCrm(null);
 
     try {
-      const response = await fetch(
-        "/api/public/chat/lead",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
+      const response =
+        await fetchChatLead({
             name: name || null,
             contact,
             session,
@@ -1020,10 +1037,7 @@ async function requestOnlineBerater(
               typeof window !==
               "undefined"
                 ? window.location.href
-                : null,
-          }),
-        },
-      );
+                : null,          });
 
       const payload = (await response
         .json()
@@ -1053,7 +1067,7 @@ async function requestOnlineBerater(
     } catch {
       setLeadStatus("error");
       setLeadError(
-        "Die Anfrage konnte wegen eines Verbindungsfehlers nicht gespeichert werden.",
+        "Die Anfrage konnte nicht best?tigt werden. Bitte versuchen Sie es erneut oder kontaktieren Sie HEXA CLEAN direkt.",
       );
     }
   }

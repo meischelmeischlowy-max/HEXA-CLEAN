@@ -8,6 +8,7 @@ import {
 } from "@/lib/online-berater/engine";
 import type {
   OnlineBeraterMessage,
+  OnlineBeraterResult,
 } from "@/lib/online-berater/types";
 
 export const runtime = "nodejs";
@@ -80,6 +81,7 @@ type LocalFallbackLead = {
   areaM2: number | null;
   rooms: number | null;
   bathrooms: number | null;
+  windows: number | null;
   floor: number | null;
   elevator: boolean | null;
   parkingAccess: string | null;
@@ -146,6 +148,7 @@ function buildLocalFallback(
     areaM2: null,
     rooms: null,
     bathrooms: null,
+    windows: null,
     floor: null,
     elevator: null,
     parkingAccess: null,
@@ -217,6 +220,16 @@ function buildLocalFallback(
   lead.bathrooms =
     localNumber(
       bathroomsMatch?.[1],
+    );
+
+  const windowsMatch =
+    userText.match(
+      /(\d{1,3})\s*(?:fenster|okna|windows?)\b/i,
+    );
+
+  lead.windows =
+    localNumber(
+      windowsMatch?.[1],
     );
 
   const floorMatch =
@@ -449,6 +462,7 @@ function buildLocalFallback(
     lead.areaM2,
     lead.rooms,
     lead.bathrooms,
+    lead.windows,
     lead.floor,
     lead.condition,
     lead.frequency,
@@ -503,6 +517,124 @@ function buildLocalFallback(
           ? "MEDIUM"
           : "LOW",
   } as const;
+}
+
+function mergeAiAndDeterministicResult(
+  aiResult: OnlineBeraterResult,
+  localResult: ReturnType<
+    typeof buildLocalFallback
+  >,
+): OnlineBeraterResult {
+  const lead = {
+    service:
+      aiResult.lead.service ??
+      localResult.lead.service,
+    objectType:
+      aiResult.lead.objectType ??
+      localResult.lead.objectType,
+    location:
+      aiResult.lead.location ??
+      localResult.lead.location,
+    areaM2:
+      aiResult.lead.areaM2 ??
+      localResult.lead.areaM2,
+    rooms:
+      aiResult.lead.rooms ??
+      localResult.lead.rooms,
+    bathrooms:
+      aiResult.lead.bathrooms ??
+      localResult.lead.bathrooms,
+    windows:
+      aiResult.lead.windows ??
+      localResult.lead.windows,
+    floor:
+      aiResult.lead.floor ??
+      localResult.lead.floor,
+    elevator:
+      aiResult.lead.elevator ??
+      localResult.lead.elevator,
+    parkingAccess:
+      aiResult.lead.parkingAccess ??
+      localResult.lead.parkingAccess,
+    condition:
+      aiResult.lead.condition ??
+      localResult.lead.condition,
+    frequency:
+      aiResult.lead.frequency ??
+      localResult.lead.frequency,
+    extras: Array.from(
+      new Set([
+        ...localResult.lead.extras,
+        ...aiResult.lead.extras,
+      ]),
+    ),
+    preferredDate:
+      aiResult.lead.preferredDate ??
+      localResult.lead.preferredDate,
+    flexibleDate:
+      aiResult.lead.flexibleDate ??
+      localResult.lead.flexibleDate,
+    photoRequired:
+      aiResult.lead.photoRequired ??
+      localResult.lead.photoRequired,
+    customerName:
+      aiResult.lead.customerName ??
+      localResult.lead.customerName,
+    email:
+      aiResult.lead.email ??
+      localResult.lead.email,
+    phone:
+      aiResult.lead.phone ??
+      localResult.lead.phone,
+  };
+
+  const hasContact =
+    Boolean(
+      lead.email ||
+      lead.phone,
+    );
+
+  const requiredChecks = {
+    service: Boolean(lead.service),
+    objectType:
+      Boolean(
+        lead.objectType ||
+        lead.areaM2 ||
+        lead.rooms,
+      ),
+    location: Boolean(lead.location),
+    areaM2:
+      Boolean(
+        lead.areaM2 ||
+        lead.rooms,
+      ),
+    condition:
+      Boolean(lead.condition),
+    date:
+      Boolean(
+        lead.preferredDate ||
+        lead.flexibleDate,
+      ),
+    contact: hasContact,
+  };
+
+  const missingFields =
+    Object.entries(requiredChecks)
+      .filter(([, present]) => !present)
+      .map(([field]) => field);
+
+  const leadReady =
+    missingFields.length === 0;
+
+  return {
+    ...aiResult,
+    lead,
+    missingFields,
+    leadReady,
+    shouldCreateLead:
+      leadReady &&
+      hasContact,
+  };
 }
 
 export async function POST(
@@ -578,10 +710,21 @@ export async function POST(
     fallbackMessages =
       messages;
 
-    const result =
+    const aiResult =
       await runOnlineBerater({
         messages,
       });
+
+    const localResult =
+      buildLocalFallback(
+        messages,
+      );
+
+    const result =
+      mergeAiAndDeterministicResult(
+        aiResult,
+        localResult,
+      );
 
     return NextResponse.json(
       {

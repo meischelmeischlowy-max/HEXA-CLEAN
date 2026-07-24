@@ -10,6 +10,7 @@ export const emptyOnlineBeraterLead: OnlineBeraterLeadData = {
   areaM2: null,
   rooms: null,
   bathrooms: null,
+  windows: null,
   floor: null,
   elevator: null,
   parkingAccess: null,
@@ -129,6 +130,8 @@ export function validateOnlineBeraterResult(
         numberOrNull(leadSource.rooms),
       bathrooms:
         numberOrNull(leadSource.bathrooms),
+      windows:
+        numberOrNull(leadSource.windows),
       floor:
         numberOrNull(leadSource.floor),
       elevator:

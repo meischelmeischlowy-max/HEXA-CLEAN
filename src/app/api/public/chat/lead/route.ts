@@ -1095,6 +1095,127 @@ function buildOwnerEmailHtml(
   `;
 }
 
+function buildCustomerEmailHtml(
+  lead: NormalizedChatLead,
+  crm: {
+    orderNumber: string;
+    estimateNumber: string;
+  },
+) {
+  const details =
+    buildChatDetailLines(lead)
+      .map(
+        (line) =>
+          `<li>${escapeHtml(line)}</li>`,
+      )
+      .join("");
+
+  return `
+    <h2>Vielen Dank f?r Ihre Anfrage bei HEXA CLEAN</h2>
+
+    <p>Guten Tag ${escapeHtml(lead.name || "")}</p>
+
+    <p>
+      Wir haben Ihre Anfrage erfolgreich erhalten.
+      Die folgende Preisspanne ist eine unverbindliche Orientierung.
+      Die endg?ltige Offerte wird von HEXA CLEAN pers?nlich gepr?ft.
+    </p>
+
+    <ul>${details}</ul>
+
+    <p>
+      <strong>Orientierende Preisspanne:</strong>
+      ${escapeHtml(lead.priceRange)}
+    </p>
+
+    <p>
+      <strong>Anfragenummer:</strong>
+      ${escapeHtml(crm.orderNumber)}
+    </p>
+
+    <p>
+      Wir melden uns nach der Pr?fung pers?nlich bei Ihnen.
+    </p>
+
+    <p>
+      Freundliche Gr?sse<br />
+      HEXA CLEAN
+    </p>
+  `;
+}
+
+type ResendDeliveryResult = {
+  sent: boolean;
+  error: string | null;
+};
+
+async function sendResendEmailWithTimeout(
+  input: {
+    to: string[];
+    subject: string;
+    html: string;
+  },
+): Promise<ResendDeliveryResult> {
+  if (!resend) {
+    return {
+      sent: false,
+      error:
+        "RESEND_API_KEY is missing",
+    };
+  }
+
+  try {
+    const result =
+      await Promise.race([
+        resend.emails.send({
+          from: EMAIL_FROM,
+          replyTo:
+            EMAIL_REPLY_TO,
+          to: input.to,
+          subject:
+            input.subject,
+          html: input.html,
+        }),
+        new Promise<never>(
+          (_, reject) => {
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Resend timeout after 10000 ms",
+                  ),
+                ),
+              10_000,
+            );
+          },
+        ),
+      ]);
+
+    if (result.error) {
+      return {
+        sent: false,
+        error:
+          JSON.stringify(
+            result.error,
+          ),
+      };
+    }
+
+    return {
+      sent: true,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      sent: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown email error",
+    };
+  }
+}
+
 async function findOrCreateChatCustomer(
   prisma: PrismaClient | Prisma.TransactionClient,
   lead: NormalizedChatLead,
@@ -1582,35 +1703,83 @@ export async function POST(request: NextRequest) {
       estimateNumber: crmResult.estimate.estimateNumber,
     });
 
-    let emailSent = false;
-    let emailError: string | null = null;
+    const customerEmailHtml =
+      lead.email
+        ? buildCustomerEmailHtml(
+            lead,
+            {
+              orderNumber:
+                crmResult.order.orderNumber,
+              estimateNumber:
+                crmResult.estimate.estimateNumber,
+            },
+          )
+        : null;
 
-    if (resend) {
-      const { error: resendError } = await resend.emails.send({
-        from: EMAIL_FROM,
-        replyTo: EMAIL_REPLY_TO,
-        to: [OWNER_NOTIFICATION_EMAIL],
-        subject: "Neue KI-Chatbox Anfrage von HEXA CLEAN",
+    const [
+      ownerDelivery,
+      customerDelivery,
+    ] = await Promise.all([
+      sendResendEmailWithTimeout({
+        to: [
+          OWNER_NOTIFICATION_EMAIL,
+        ],
+        subject:
+          "Neue KI-Chatbox Anfrage von HEXA CLEAN",
         html: emailHtml,
-      });
+      }),
+      lead.email &&
+      customerEmailHtml
+        ? sendResendEmailWithTimeout({
+            to: [lead.email],
+            subject:
+              "Ihre Anfrage bei HEXA CLEAN",
+            html:
+              customerEmailHtml,
+          })
+        : Promise.resolve({
+            sent: false,
+            error:
+              lead.email
+                ? "Customer email HTML missing"
+                : "Customer has no email address",
+          }),
+    ]);
 
-      if (resendError) {
-        emailError = JSON.stringify(resendError);
-      } else {
-        emailSent = true;
-      }
-    } else {
-      emailError = "RESEND_API_KEY is missing";
-    }
+    const emailSent =
+      ownerDelivery.sent;
+
+    const customerEmailSent =
+      customerDelivery.sent;
+
+    const emailError =
+      ownerDelivery.error;
 
     await prisma.notification.update({
       where: {
         id: crmResult.notification.id,
       },
       data: {
-        status: emailSent ? NotificationStatus.SENT : NotificationStatus.FAILED,
-        sentAt: emailSent ? new Date() : null,
-        errorMessage: emailError,
+        status:
+          emailSent
+            ? NotificationStatus.SENT
+            : NotificationStatus.FAILED,
+        sentAt:
+          emailSent
+            ? new Date()
+            : null,
+        errorMessage:
+          [
+            ownerDelivery.error
+              ? `OWNER: ${ownerDelivery.error}`
+              : null,
+            customerDelivery.error
+              ? `CUSTOMER: ${customerDelivery.error}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" | ") ||
+          null,
       },
     });
 
@@ -1623,6 +1792,7 @@ export async function POST(request: NextRequest) {
       responseMs: Date.now() - startedAt,
       extra: {
         emailSent,
+        customerEmailSent,
         hasEmail: Boolean(lead.email),
         hasPhone: Boolean(lead.phone),
         service: lead.service,
@@ -1638,6 +1808,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "KI-Chatbox Anfrage wurde im CRM gespeichert.",
         emailSent,
+        customerEmailSent,
         crm: {
           customerId: crmResult.customer.id,
           sessionId: crmResult.session.id,

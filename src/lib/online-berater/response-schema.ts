@@ -27,6 +27,9 @@ export const onlineBeraterResponseSchema = {
         bathrooms: {
           type: ["number", "null"],
         },
+        windows: {
+          type: ["number", "null"],
+        },
         floor: {
           type: ["number", "null"],
         },
@@ -74,6 +77,7 @@ export const onlineBeraterResponseSchema = {
         "areaM2",
         "rooms",
         "bathrooms",
+        "windows",
         "floor",
         "elevator",
         "parkingAccess",
