@@ -435,6 +435,211 @@ function toApiMessages(
   );
 }
 
+function playWitchLaugh() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const AudioContextClass =
+    window.AudioContext;
+
+  if (!AudioContextClass) {
+    return;
+  }
+
+  try {
+    const context =
+      new AudioContextClass();
+
+    const notes = [
+      {
+        time: 0,
+        frequency: 420,
+        duration: 0.11,
+      },
+      {
+        time: 0.12,
+        frequency: 540,
+        duration: 0.1,
+      },
+      {
+        time: 0.27,
+        frequency: 470,
+        duration: 0.12,
+      },
+      {
+        time: 0.43,
+        frequency: 620,
+        duration: 0.11,
+      },
+      {
+        time: 0.6,
+        frequency: 510,
+        duration: 0.15,
+      },
+    ];
+
+    for (const note of notes) {
+      const oscillator =
+        context.createOscillator();
+
+      const gain =
+        context.createGain();
+
+      oscillator.type =
+        "triangle";
+      oscillator.frequency.setValueAtTime(
+        note.frequency,
+        context.currentTime +
+          note.time,
+      );
+
+      gain.gain.setValueAtTime(
+        0.0001,
+        context.currentTime +
+          note.time,
+      );
+      gain.gain.exponentialRampToValueAtTime(
+        0.04,
+        context.currentTime +
+          note.time +
+          0.02,
+      );
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        context.currentTime +
+          note.time +
+          note.duration,
+      );
+
+      oscillator.connect(gain);
+      gain.connect(
+        context.destination,
+      );
+
+      oscillator.start(
+        context.currentTime +
+          note.time,
+      );
+      oscillator.stop(
+        context.currentTime +
+          note.time +
+          note.duration,
+      );
+    }
+
+    window.setTimeout(() => {
+      void context.close();
+    }, 1400);
+  } catch {
+    // ignore
+  }
+}
+
+function WitchIcon({
+  className = "",
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      className={`relative h-16 w-24 select-none ${className}`}
+      aria-hidden="true"
+    >
+      <svg
+        viewBox="0 0 160 90"
+        className="h-full w-full overflow-visible"
+        fill="none"
+      >
+        <defs>
+          <linearGradient
+            id="witchGlow"
+            x1="0"
+            x2="1"
+            y1="0"
+            y2="1"
+          >
+            <stop
+              offset="0%"
+              stopColor="#6ee7f9"
+            />
+            <stop
+              offset="100%"
+              stopColor="#7c3aed"
+            />
+          </linearGradient>
+        </defs>
+
+        <ellipse
+          cx="48"
+          cy="28"
+          rx="10"
+          ry="10"
+          fill="#08111d"
+          stroke="url(#witchGlow)"
+          strokeWidth="2"
+        />
+        <path
+          d="M41 22 L51 6 L60 22 Z"
+          fill="#0b1320"
+          stroke="url(#witchGlow)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M33 39 C43 28 61 28 70 39 L78 47 L58 50 L36 48 Z"
+          fill="#08111d"
+          stroke="url(#witchGlow)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M70 43 L106 52"
+          stroke="#6ee7f9"
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+        <path
+          d="M106 52 L128 46 L128 58 Z"
+          fill="#d97706"
+          stroke="#fbbf24"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M83 45 L75 59"
+          stroke="#6ee7f9"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <path
+          d="M61 45 L56 57"
+          stroke="#6ee7f9"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <circle
+          cx="52"
+          cy="29"
+          r="1.7"
+          fill="#6ee7f9"
+        />
+        <path
+          d="M44 33 C47 36 52 37 56 34"
+          stroke="#6ee7f9"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <path
+          d="M23 34 C14 37 11 44 17 49 C26 46 30 40 23 34 Z"
+          fill="#7c3aed"
+          opacity="0.7"
+        />
+      </svg>
+    </div>
+  );
+}
+
 export default function AIChat() {
   const [
     messages,
@@ -462,10 +667,45 @@ export default function AIChat() {
     string | null
   >(null);
 
+  const [
+    displayPrice,
+    setDisplayPrice,
+  ] = useState(0);
+
+  const [
+    displayPriceRange,
+    setDisplayPriceRange,
+  ] = useState(
+    EMPTY_SESSION.priceRange,
+  );
+
+  const [
+    isPriceSweeping,
+    setIsPriceSweeping,
+  ] = useState(false);
+
+  const [
+    laughEnabled,
+    setLaughEnabled,
+  ] = useState(true);
+
+  const [
+    laughBurstVisible,
+    setLaughBurstVisible,
+  ] = useState(false);
+
   const chatContainerRef =
     useRef<
       HTMLDivElement | null
     >(null);
+
+  const displayedPriceRef =
+    useRef(0);
+
+  useEffect(() => {
+    displayedPriceRef.current =
+      displayPrice;
+  }, [displayPrice]);
 
   useEffect(() => {
     const element =
@@ -496,6 +736,70 @@ export default function AIChat() {
       time:
         getCurrentTime(),
     };
+  }
+
+  function presentPrice(
+    nextPrice: number,
+    nextPriceRange: string,
+  ) {
+    const previousPrice =
+      displayedPriceRef.current;
+
+    if (
+      previousPrice === 0 ||
+      nextPrice === 0
+    ) {
+      setDisplayPrice(
+        nextPrice,
+      );
+      setDisplayPriceRange(
+        nextPriceRange,
+      );
+      return;
+    }
+
+    if (
+      nextPrice ===
+        previousPrice &&
+      nextPriceRange ===
+        displayPriceRange
+    ) {
+      return;
+    }
+
+    setIsPriceSweeping(true);
+
+    if (
+      nextPrice >
+        previousPrice &&
+      laughEnabled
+    ) {
+      setLaughBurstVisible(
+        true,
+      );
+      playWitchLaugh();
+
+      window.setTimeout(() => {
+        setLaughBurstVisible(
+          false,
+        );
+      }, 1200);
+    }
+
+    window.setTimeout(() => {
+      setDisplayPrice(
+        nextPrice,
+      );
+      setDisplayPriceRange(
+        nextPriceRange,
+      );
+    }, 520);
+
+    window.setTimeout(() => {
+      setIsPriceSweeping(
+        false,
+      );
+    }, 1200);
   }
 
   async function requestPricing(
@@ -631,12 +935,28 @@ export default function AIChat() {
           completeLead,
         );
 
-      setSession(
+      const nextSession =
         createSession(
           completeLead,
           pricing,
-        ),
-      );
+        );
+
+      setSession(nextSession);
+
+      if (
+        nextSession.estimatedPrice >
+        0
+      ) {
+        presentPrice(
+          nextSession.estimatedPrice,
+          nextSession.priceRange,
+        );
+      } else {
+        setDisplayPrice(0);
+        setDisplayPriceRange(
+          nextSession.priceRange,
+        );
+      }
 
       setMessages(
         (current) => [
@@ -705,8 +1025,16 @@ export default function AIChat() {
   return (
     <section
       id="ai-chat"
-      className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#020711] text-white"
+      className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#020711] text-white"
     >
+      <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block">
+        <div className="witch-orbit">
+          <div className="witch-float">
+            <WitchIcon className="drop-shadow-[0_0_16px_rgba(34,211,238,0.55)]" />
+          </div>
+        </div>
+      </div>
+
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-h-0 flex-col border-white/10 lg:border-r">
           <ChatHeader />
@@ -727,20 +1055,39 @@ export default function AIChat() {
             />
           </div>
 
-          <div className="max-h-[46vh] shrink-0 overflow-y-auto border-t border-white/10 bg-[#050b16] px-3 py-3 sm:px-4">
+          <div className="shrink-0 border-t border-white/10 bg-[#050b16] px-3 py-3 sm:px-4">
             {chatError ? (
-              <p className="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-100">
+              <p className="mb-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-100">
                 {chatError}
               </p>
             ) : null}
 
             <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                Persönliche Offerte
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                  Persönliche Offerte
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLaughEnabled(
+                      (
+                        current,
+                      ) =>
+                        !current,
+                    )
+                  }
+                  className="rounded-full border border-cyan-300/30 bg-white/5 px-3 py-1 text-[11px] font-semibold text-cyan-100 transition hover:bg-white/10"
+                >
+                  {laughEnabled
+                    ? "🔊 Hexenlachen"
+                    : "🔇 Stumm"}
+                </button>
+              </div>
 
               <p className="mt-2 text-xs leading-5 text-slate-300">
-                Die angezeigte Preisspanne ist eine unverbindliche Orientierung. Für eine genaue Offerte übermitteln Sie den vollständigen Umfang, Ihre Kontaktdaten und bei Bedarf Fotos ?ber unsere Schnelle Offerte.
+                Die angezeigte Preisspanne ist eine unverbindliche Orientierung. Für eine genaue Offerte übermitteln Sie den vollständigen Umfang, Ihre Kontaktdaten und bei Bedarf Fotos über unsere Schnelle Offerte.
               </p>
 
               <Link
@@ -762,33 +1109,183 @@ export default function AIChat() {
           />
         </div>
 
-        <div className="hidden min-h-0 overflow-y-auto bg-[#050b16] p-4 lg:block">
-          <ProgressPanelCompact
-            progress={{
-              service:
-                session.answers.service,
-              serviceLabel:
-                session.answers.serviceLabel,
-              area:
-                session.answers.area,
-              windows:
-                session.answers.windows,
-              floor:
-                session.answers.floor,
-              elevator:
-                session.answers.elevator,
-              date:
-                session.answers.date,
-              estimatedPrice:
-                session.estimatedPrice,
-              priceRange:
-                session.priceRange,
-              progress:
-                session.progress,
-            }}
-          />
+        <div className="relative hidden min-h-0 overflow-y-auto bg-[#050b16] p-4 lg:block">
+          {laughBurstVisible ? (
+            <div className="laugh-burst pointer-events-none absolute right-4 top-3 z-30 rounded-full border border-fuchsia-400/40 bg-fuchsia-500/15 px-3 py-1 text-xs font-bold text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.35)]">
+              Hihihi!
+            </div>
+          ) : null}
+
+          <div
+            className={`relative transition duration-300 ${
+              isPriceSweeping
+                ? "price-panel-glow"
+                : ""
+            }`}
+          >
+            {isPriceSweeping ? (
+              <div className="pointer-events-none absolute left-0 right-0 top-36 z-20">
+                <div className="price-sweep flex justify-start">
+                  <WitchIcon className="scale-90 drop-shadow-[0_0_18px_rgba(34,211,238,0.65)]" />
+                </div>
+              </div>
+            ) : null}
+
+            <ProgressPanelCompact
+              progress={{
+                service:
+                  session.answers
+                    .service,
+                serviceLabel:
+                  session.answers
+                    .serviceLabel,
+                area:
+                  session.answers
+                    .area,
+                windows:
+                  session.answers
+                    .windows,
+                floor:
+                  session.answers
+                    .floor,
+                elevator:
+                  session.answers
+                    .elevator,
+                date:
+                  session.answers
+                    .date,
+                estimatedPrice:
+                  displayPrice,
+                priceRange:
+                  displayPriceRange,
+                progress:
+                  session.progress,
+              }}
+            />
+          </div>
         </div>
       </div>
+
+      <style jsx>{`
+        .witch-orbit {
+          position: absolute;
+          inset: 10px;
+        }
+
+        .witch-float {
+          animation: witchOrbit 16s linear infinite,
+            witchBob 2.6s ease-in-out infinite;
+          position: absolute;
+          top: 0;
+          left: 0;
+        }
+
+        .price-sweep {
+          animation: priceSweep 1.15s ease-in-out both;
+        }
+
+        .price-panel-glow {
+          animation: priceGlow 1.15s ease-in-out;
+        }
+
+        .laugh-burst {
+          animation: laughPop 1.15s ease-out both;
+        }
+
+        @keyframes witchOrbit {
+          0% {
+            left: 12px;
+            top: 12px;
+            transform: rotate(-3deg);
+          }
+          24% {
+            left: calc(100% - 96px);
+            top: 12px;
+            transform: rotate(6deg);
+          }
+          49% {
+            left: calc(100% - 96px);
+            top: calc(100% - 76px);
+            transform: rotate(2deg);
+          }
+          74% {
+            left: 12px;
+            top: calc(100% - 76px);
+            transform: rotate(-7deg);
+          }
+          100% {
+            left: 12px;
+            top: 12px;
+            transform: rotate(-3deg);
+          }
+        }
+
+        @keyframes witchBob {
+          0%,
+          100% {
+            translate: 0 0;
+          }
+          50% {
+            translate: 0 -8px;
+          }
+        }
+
+        @keyframes priceSweep {
+          0% {
+            transform: translateX(-120px) translateY(0) rotate(-6deg);
+            opacity: 0;
+          }
+          15% {
+            opacity: 1;
+          }
+          50% {
+            transform: translateX(110px) translateY(-5px) rotate(3deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(235px) translateY(1px) rotate(10deg);
+            opacity: 0;
+          }
+        }
+
+        @keyframes priceGlow {
+          0%,
+          100% {
+            filter: drop-shadow(0 0 0 rgba(34, 211, 238, 0));
+          }
+          45% {
+            filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.35));
+          }
+        }
+
+        @keyframes laughPop {
+          0% {
+            opacity: 0;
+            transform: translateY(8px) scale(0.9);
+          }
+          20% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          85% {
+            opacity: 1;
+            transform: translateY(-4px) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.96);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .witch-float,
+          .price-sweep,
+          .price-panel-glow,
+          .laugh-burst {
+            animation: none !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }
