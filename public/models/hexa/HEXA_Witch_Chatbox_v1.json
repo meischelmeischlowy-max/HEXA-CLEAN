@@ -1,0 +1,31 @@
+{
+  "model": "/models/hexa/HEXA_Witch_Chatbox_v1.glb",
+  "version": 1,
+  "purpose": "HEXA CLEAN chatbox mascot",
+  "defaultAnimation": "HEXA_IDLE",
+  "animations": {
+    "idle": "HEXA_IDLE",
+    "walk": "HEXA_WALK",
+    "hello": "HEXA_HELLO",
+    "talk": "HEXA_TALK",
+    "think": "HEXA_THINK",
+    "point": "HEXA_POINT",
+    "success": "HEXA_SUCCESS"
+  },
+  "placement": {
+    "area": "chatbox composer",
+    "anchor": "bottom-right",
+    "replaces": "current 2D witch illustration"
+  },
+  "verified": {
+    "armature": "HEXA_Witch_Rig",
+    "bones": 101,
+    "mesh": "tmp4jrtdja5_ply",
+    "vertices": 184608,
+    "polygons": 367328,
+    "materials": [
+      "HEXA_BLACK",
+      "HEXA_SKIN"
+    ]
+  }
+}

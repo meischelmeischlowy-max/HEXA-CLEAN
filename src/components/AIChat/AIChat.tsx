@@ -1,5 +1,6 @@
 "use client";
 
+import HexaWitch3D from "./HexaWitch3D";
 import Link from "next/link";
 
 import {
@@ -159,7 +160,7 @@ function mapServiceType(
 
   if (
     normalized.includes("hauswart") ||
-    normalized.includes("gebäude")
+    normalized.includes("gebĂ¤ude")
   ) {
     return "hauswartung";
   }
@@ -174,7 +175,7 @@ function mapServiceType(
   if (
     normalized.includes("reinigung") ||
     normalized.includes("wohnung") ||
-    normalized.includes("büro")
+    normalized.includes("bĂĽro")
   ) {
     return "reinigung";
   }
@@ -1391,7 +1392,7 @@ export default function AIChat() {
           ...current,
           createMessage(
             "assistant",
-            "Entschuldigung, die Preisberatung ist momentan nicht erreichbar. Für eine persönliche Offerte nutzen Sie bitte unsere Schnelle Offerte.",
+            "Entschuldigung, die Preisberatung ist momentan nicht erreichbar. FĂĽr eine persĂ¶nliche Offerte nutzen Sie bitte unsere Schnelle Offerte.",
           ),
         ],
       );
@@ -1438,12 +1439,11 @@ export default function AIChat() {
       id="ai-chat"
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#020711] text-white"
     >
-      <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block">
-        <div className="witch-orbit">
-          <div className="witch-float">
-            <WitchIcon pose="flying" className="drop-shadow-[0_0_16px_rgba(34,211,238,0.55)]" />
-          </div>
-        </div>
+      <div className="pointer-events-none absolute inset-0 z-20 hidden overflow-hidden lg:block">
+        <HexaWitch3D
+          animation="idle"
+          className="absolute bottom-0 right-[300px] h-[190px] w-[150px] xl:right-[320px] xl:h-[210px] xl:w-[165px]"
+        />
       </div>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -1476,7 +1476,7 @@ export default function AIChat() {
             <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/5 p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
-                  Persönliche Offerte
+                  PersĂ¶nliche Offerte
                 </p>
 
                 <button
@@ -1492,20 +1492,20 @@ export default function AIChat() {
                   className="rounded-full border border-cyan-300/30 bg-white/5 px-3 py-1 text-[11px] font-semibold text-cyan-100 transition hover:bg-white/10"
                 >
                   {laughEnabled
-                    ? "🔊 Hexenlachen"
-                    : "🔇 Stumm"}
+                    ? "đź”Š Hexenlachen"
+                    : "đź”‡ Stumm"}
                 </button>
               </div>
 
               <p className="mt-2 text-xs leading-5 text-slate-300">
-                Die angezeigte Preisspanne ist eine unverbindliche Orientierung. Für eine genaue Offerte übermitteln Sie den vollständigen Umfang, Ihre Kontaktdaten und bei Bedarf Fotos über unsere Schnelle Offerte.
+                Die angezeigte Preisspanne ist eine unverbindliche Orientierung. FĂĽr eine genaue Offerte ĂĽbermitteln Sie den vollstĂ¤ndigen Umfang, Ihre Kontaktdaten und bei Bedarf Fotos ĂĽber unsere Schnelle Offerte.
               </p>
 
               <Link
                 href="/#quick-offer"
                 className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-cyan-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
               >
-                Schnelle Offerte öffnen
+                Schnelle Offerte Ă¶ffnen
               </Link>
             </div>
           </div>
@@ -1700,3 +1700,4 @@ export default function AIChat() {
     </section>
   );
 }
+
