@@ -1010,708 +1010,259 @@ async function sendEmail({
 }
 
 export async function POST(request: NextRequest) {
-  const startedAt = Date.now();
-  const requestBytes = getRequestBytes(request);
-  const appUrl = getAppUrl(request);
-
-  const rateLimit = checkPublicRateLimit(request, {
-    scope: "quick_offer_contact",
-    limit: QUICK_OFFER_RATE_LIMIT,
-    windowMs: QUICK_OFFER_RATE_WINDOW_MS,
-  });
-
-  if (!rateLimit.allowed) {
-    logPublicSecurityEvent(request, {
-      scope: "quick_offer_contact",
-      reason: "rate_limit_exceeded",
-      severity: "warning",
-      extra: {
-        limit: rateLimit.limit,
-        retryAfterSeconds: rateLimit.retryAfterSeconds,
-      },
-    });
-
-    logPublicAccessEvent(request, {
-      scope: "quick_offer_contact",
-      statusCode: 429,
-      success: false,
-      rateLimit,
-      requestBytes,
-      responseMs: Date.now() - startedAt,
-      extra: {
-        reason: "rate_limit_exceeded",
-      },
-    });
-
-    return createPublicRateLimitResponse(rateLimit);
-  }
-
   try {
-    const contentType = request.headers.get("content-type") ?? "";
+    const contentType =
+      request.headers.get("content-type") ?? "";
 
-    if (!contentType.toLowerCase().includes("multipart/form-data")) {
-      logPublicSecurityEvent(request, {
-        scope: "quick_offer_contact",
-        reason: "invalid_content_type",
-        severity: "info",
-      });
-
+    if (!contentType.includes("multipart/form-data")) {
       return NextResponse.json(
         {
           success: false,
-          error: "Die Anfrage muss als Formular gesendet werden.",
+          error: "Ungültiges Formularformat.",
         },
-        {
-          status: 415,
-          headers: {
-            ...rateLimit.headers,
-            "Cache-Control": "no-store",
-          },
-        },
+        { status: 400 },
       );
     }
 
     const formData = await request.formData();
-    const payloadValue = formData.get("payload");
-    const parsedPayload =
-      typeof payloadValue === "string"
-        ? JSON.parse(payloadValue)
-        : null;
-    const body = parsedPayload as QuickOfferBody | null;
-    const photos = await normalizeQuickOfferPhotos(
-      formData.getAll("photos"),
-    );
 
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
-      logPublicSecurityEvent(request, {
-        scope: "quick_offer_contact",
-        reason: "invalid_request_body",
-        severity: "info",
-      });
+    const payloadValue =
+      formData.get("payload");
 
-      logPublicAccessEvent(request, {
-        scope: "quick_offer_contact",
-        statusCode: 400,
-        success: false,
-        rateLimit,
-        requestBytes,
-        responseMs: Date.now() - startedAt,
-        extra: {
-          reason: "invalid_request_body",
-        },
-      });
-
+    if (typeof payloadValue !== "string") {
       return NextResponse.json(
         {
           success: false,
-          error: "Die Anfrage konnte nicht verarbeitet werden.",
+          error: "Die Formulardaten fehlen.",
         },
-        {
-          status: 400,
-          headers: {
-            ...rateLimit.headers,
-            "Cache-Control": "no-store",
-          },
-        },
+        { status: 400 },
       );
     }
 
-    const { offer, error } = await normalizeQuickOfferBody(body, photos.length);
+    let parsedPayload: unknown;
 
-    if (!offer) {
-      logPublicSecurityEvent(request, {
-        scope: "quick_offer_contact",
-        reason: "validation_failed",
-        severity: "info",
-        extra: {
-          validationError: error ?? "Invalid QuickOffer request.",
-        },
-      });
-
-      logPublicAccessEvent(request, {
-        scope: "quick_offer_contact",
-        statusCode: 400,
-        success: false,
-        rateLimit,
-        requestBytes,
-        responseMs: Date.now() - startedAt,
-        extra: {
-          reason: "validation_failed",
-          validationError: error ?? "Invalid QuickOffer request.",
-        },
-      });
-
+    try {
+      parsedPayload =
+        JSON.parse(payloadValue);
+    } catch {
       return NextResponse.json(
         {
           success: false,
-          error: error ?? "Die Anfrage konnte nicht verarbeitet werden.",
+          error: "Die Formulardaten sind ungültig.",
         },
-        {
-          status: 400,
-          headers: {
-            ...rateLimit.headers,
-            "Cache-Control": "no-store",
-          },
-        },
+        { status: 400 },
       );
     }
 
-    const prisma = getPrisma();
-    const plainMessage = buildPlainMessage(offer);
-    const unitPrice =
-      offer.unit === ServiceCatalogUnit.M2
-        ? offer.calculatedMinPrice / Math.max(offer.size, 1)
-        : offer.calculatedMinPrice;
+    const body =
+      parsedPayload as QuickOfferBody;
 
-    const crmResult = await prisma.$transaction(async (tx) => {
-      const customer = await findOrCreateQuickOfferCustomer(tx, offer);
+    const photos =
+      await normalizeQuickOfferPhotos(
+        formData.getAll("photos"),
+      );
 
-      const session = await tx.session.create({
-        data: {
-          status: SessionStatus.COMPLETED,
-          customerId: customer.id,
-          source: "quick_offer",
-          metadata: {
-            source: "public_website",
-            component: "QuickOffer",
-            service: offer.service,
-            size: offer.size,
-            rooms: offer.rooms,
-            bathrooms: offer.bathrooms,
-            condition: offer.condition,
-            frequency: offer.frequency,
-            selectedExtras: offer.selectedExtras,
-            street: offer.street,
-            zipCode: offer.zipCode,
-            city: offer.city,
-            country: offer.country,
-            notes: offer.notes,
-            photoCount: offer.photoCount,
-            time: offer.time,
-            calculatedMinPrice: offer.calculatedMinPrice,
-            calculatedMaxPrice: offer.calculatedMaxPrice,
-            clientPrice: offer.clientPrice,
-            actionRequired: true,
-          },
+    const normalized =
+      await normalizeQuickOfferBody(
+        body,
+        photos.length,
+      );
+
+    if (!normalized.offer) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            normalized.error ??
+            "Die Angaben sind unvollständig.",
         },
-      });
+        { status: 400 },
+      );
+    }
 
-      const message = await tx.conversationMessage.create({
-        data: {
-          sessionId: session.id,
-          customerId: customer.id,
-          role: MessageRole.USER,
-          content: plainMessage,
-          metadata: {
-            source: "quick_offer",
-            contact: offer.contact,
-            email: offer.email,
-            phone: offer.phone,
-            street: offer.street,
-            zipCode: offer.zipCode,
-            city: offer.city,
-            rooms: offer.rooms,
-            bathrooms: offer.bathrooms,
-            condition: offer.condition,
-            frequency: offer.frequency,
-            selectedExtras:
-              offer.selectedExtras,
-            photoCount:
-              offer.photoCount,
-            actionRequired: true,
-          },
+    const offer = normalized.offer;
+
+    if (!resend) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Der E-Mail-Versand ist momentan nicht konfiguriert.",
         },
-      });
+        { status: 503 },
+      );
+    }
 
-      const order = await tx.order.create({
-        data: {
-          orderNumber: createOrderNumber(),
-          customerId: customer.id,
-          sessionId: session.id,
-          serviceType: offer.serviceType,
-          title: `QuickOffer: ${offer.service}`,
-          description: plainMessage,
-          status: OrderStatus.NEW,
-          estimatedPrice: money(offer.calculatedMinPrice),
-          currency: "CHF",
-          notesCustomer:
-            "Danke für Ihre Anfrage. Die finale Offerte erfolgt nach Prüfung der Angaben.",
-          notesInternal:
-            "Automatisch aus dem oeffentlichen QuickOffer Formular erstellt. Aktion erforderlich: Angaben prüfen, Fotos und visuellen Zustand prüfen, finale Offerte erst nach Kontrolle senden.",
-        },
-      });
+    const detailsHtml =
+      buildOfferDetailLines(offer)
+        .map(
+          (line) =>
+            `<li>${escapeHtml(line)}</li>`,
+        )
+        .join("");
 
-      const estimate = await tx.estimate.create({
-        data: {
-          estimateNumber: createEstimateNumber(),
-          tenantKey: TENANT_KEY,
-          customerId: customer.id,
-          orderId: order.id,
-          sessionId: session.id,
-          status: EstimateStatus.AI_REVIEW,
-          source: "QUICK_OFFER",
-          title: `QuickOffer Anfrage: ${offer.service}`,
-          description: plainMessage,
-          serviceStreet:
-            offer.street,
-          serviceZipCode:
-            offer.zipCode,
-          serviceCity:
-            offer.city,
-          serviceCountry:
-            offer.country,
-          subtotal: money(offer.calculatedMinPrice),
-          riskMultiplier: "1.00",
-          riskAmount: "0.00",
-          travelFee: "0.00",
-          materialFee: "0.00",
-          discountAmount: "0.00",
-          total: money(offer.calculatedMinPrice),
-          currency: "CHF",
-          aiMinTotal: money(offer.calculatedMinPrice),
-          aiMaxTotal: money(offer.calculatedMaxPrice),
-          aiNotes:
-            "Automatisch aus QuickOffer berechnete Orientierungsspanne. Vor Versand an den Kunden manuell prüfen.",
-          notesCustomer:
-            "Dies ist eine orientierende Anfrage. Die verbindliche Offerte erfolgt nach Prüfung durch HEXA CLEAN.",
-          notesInternal:
-            "Public QuickOffer lead. Aktion erforderlich: Daten, Fotos, visuellen Zustand, Adresse, Anfahrt, Material, Risiko und Preis prüfen.",
-          items: {
-            create: [
-              {
-                name:
-                  offer.service,
-                description: [
-                  `${offer.rooms} Zimmer`,
-                  `${offer.bathrooms} Badezimmer`,
-                  `Verschmutzung: ${conditionLabel(
-                    offer.condition,
-                  )}`,
-                  `Rhythmus: ${frequencyLabel(
-                    offer.frequency,
-                  )}`,
-                  `Termin: ${offer.time}`,
-                ].join(" | "),
-                category:
-                  offer.category,
-                unit:
-                  offer.unit,
-                quantity:
-                  offer.unit ===
-                  ServiceCatalogUnit.M2
-                    ? money(offer.size)
-                    : "1.00",
-                unitPrice:
-                  money(unitPrice),
-                subtotal:
-                  money(
-                    offer.calculatedMinPrice,
-                  ),
-                riskMultiplier:
-                  "1.00",
-                riskAmount:
-                  "0.00",
-                discountAmount:
-                  "0.00",
-                total:
-                  money(
-                    offer.calculatedMinPrice,
-                  ),
-                sortOrder:
-                  10,
-                metadata: {
-                  source:
-                    "quick_offer",
-                  lineType:
-                    "BASE_SERVICE",
-                  rooms:
-                    offer.rooms,
-                  bathrooms:
-                    offer.bathrooms,
-                  condition:
-                    offer.condition,
-                  frequency:
-                    offer.frequency,
-                  calculatedMaxPrice:
-                    offer.calculatedMaxPrice,
-                  actionRequired:
-                    true,
-                },
-              },
-              ...offer.selectedExtras.map(
-                (extra, index) => ({
-                  name:
-                    `Zusatzleistung: ${extra}`,
-                  description:
-                    "Vom Kunden im QuickOffer Formular ausgewählt. Vor der verbindlichen Offerte Preis und Umfang prüfen.",
-                  category:
-                    offer.category,
-                  unit:
-                    ServiceCatalogUnit.FLAT,
-                  quantity:
-                    "1.00",
-                  unitPrice:
-                    "0.00",
-                  subtotal:
-                    "0.00",
-                  riskMultiplier:
-                    "1.00",
-                  riskAmount:
-                    "0.00",
-                  discountAmount:
-                    "0.00",
-                  total:
-                    "0.00",
-                  sortOrder:
-                    20 + index,
-                  metadata: {
-                    source:
-                      "quick_offer",
-                    lineType:
-                      "SELECTED_EXTRA",
-                    selectedByCustomer:
-                      true,
-                    includedInOrientation:
-                      true,
-                    actionRequired:
-                      true,
-                  },
-                }),
-              ),
-            ],
-          },
-        },
-      });
+    const ownerHtml = `
+      <h2>Neue Anfrage über Schnelle Offerte</h2>
 
-      const attachments =
-        photos.length > 0
-          ? await Promise.all(
-              photos.map((photo) =>
-                tx.attachment.create({
-                  data: {
-                    customerId: customer.id,
-                    orderId: order.id,
-                    estimateId: estimate.id,
-                    sessionId: session.id,
-                    type: AttachmentType.PHOTO,
-                    fileName: photo.fileName,
-                    mimeType: photo.mimeType,
-                    url: photo.dataUrl,
-                    sizeBytes: photo.sizeBytes,
-                    uploadedBy: "customer_quick_offer",
-                    metadata: {
-                      source: "quick_offer",
-                      purpose: "pricing_evidence",
-                      stage: "before_quote",
-                    },
-                  },
-                  select: {
-                    id: true,
-                    fileName: true,
-                  },
-                }),
-              ),
-            )
-          : [];
+      <h3>Kundendaten</h3>
+      <p><strong>Name:</strong> ${escapeHtml(offer.name)}</p>
+      <p><strong>E-Mail:</strong> ${escapeHtml(offer.email)}</p>
+      <p><strong>Telefon:</strong> ${escapeHtml(offer.phone ?? "-")}</p>
+      <p><strong>Adresse:</strong> ${escapeHtml(
+        `${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
+      )}</p>
 
-      const ownerNotification = await tx.notification.create({
-        data: {
-          customerId: customer.id,
-          orderId: order.id,
-          estimateId: estimate.id,
-          sessionId: session.id,
-          channel: NotificationChannel.EMAIL,
-          status: NotificationStatus.PENDING,
-          recipient: OWNER_NOTIFICATION_EMAIL,
-          subject: "Neue QuickOffer Anfrage - Aktion erforderlich",
-          message: plainMessage,
-          metadata: {
-            source: "quick_offer",
-            type: "owner_action_required",
-            actionRequired: true,
-            customerId: customer.id,
-            orderId: order.id,
-            estimateId: estimate.id,
-            sessionId: session.id,
-            messageId: message.id,
-            customerContact: offer.contact,
-            customerEmail: offer.email,
-            customerPhone: offer.phone,
-            photoCount: attachments.length,
-            photosAvailableBeforePricing: attachments.length > 0,
-          },
-        },
-      });
+      <h3>Anfrage</h3>
+      <ul>${detailsHtml}</ul>
 
-      const customerNotification = offer.email
-        ? await tx.notification.create({
-            data: {
-              customerId: customer.id,
-              orderId: order.id,
-              estimateId: estimate.id,
-              sessionId: session.id,
-              channel: NotificationChannel.EMAIL,
-              status: NotificationStatus.PENDING,
-              recipient: offer.email,
-              subject: "Ihre Anfrage bei HEXA CLEAN ist eingegangen",
-              message: buildCustomerEmailPlainText(offer),
-              metadata: {
-                source: "quick_offer",
-                type: "customer_auto_confirmation",
-                estimateId: estimate.id,
-                sessionId: session.id,
-                actionRequired: false,
-              },
-            },
-          })
-        : null;
+      <p>
+        <strong>Unverbindliche Preisspanne:</strong>
+        CHF ${escapeHtml(
+          String(offer.calculatedMinPrice),
+        )}–${escapeHtml(
+          String(offer.calculatedMaxPrice),
+        )}
+      </p>
 
-      await tx.auditLog.createMany({
-        data: [
-          {
-            customerId: customer.id,
-            sessionId: session.id,
-            action: AuditAction.CREATE,
-            entityType: "Session",
-            entityId: session.id,
-            actorType: "public_quick_offer",
-            message: "QuickOffer session created from public website.",
-            metadata: {
-              source: "quick_offer",
-            },
-          },
-          {
-            customerId: customer.id,
-            orderId: order.id,
-            sessionId: session.id,
-            estimateId: estimate.id,
-            action: AuditAction.CREATE,
-            entityType: "Order",
-            entityId: order.id,
-            actorType: "public_quick_offer",
-            message: `Order ${order.orderNumber} created from QuickOffer.`,
-            metadata: {
-              source: "quick_offer",
-            },
-          },
-          {
-            customerId: customer.id,
-            orderId: order.id,
-            sessionId: session.id,
-            estimateId: estimate.id,
-            action: AuditAction.CREATE,
-            entityType: "Estimate",
-            entityId: estimate.id,
-            actorType: "public_quick_offer",
-            message: `Estimate ${estimate.estimateNumber} created from QuickOffer. Aktion erforderlich.`,
-            metadata: {
-              source: "quick_offer",
-              status: EstimateStatus.AI_REVIEW,
-              actionRequired: true,
-            },
-          },
-          ...attachments.map((attachment) => ({
-            customerId: customer.id,
-            orderId: order.id,
-            sessionId: session.id,
-            estimateId: estimate.id,
-            action: AuditAction.CREATE,
-            entityType: "Attachment",
-            entityId: attachment.id,
-            actorType: "public_quick_offer",
-            message: `Foto ${attachment.fileName} wurde vor der Preisfreigabe hochgeladen.`,
-            metadata: {
-              source: "quick_offer",
-              purpose: "pricing_evidence",
-              stage: "before_quote",
-            },
-          })),
-          {
-            customerId: customer.id,
-            orderId: order.id,
-            sessionId: session.id,
-            estimateId: estimate.id,
-            action: AuditAction.SYSTEM,
-            entityType: "Notification",
-            entityId: ownerNotification.id,
-            actorType: "communication_automation",
-            message:
-              "Owner notification queued for QuickOffer lead. Aktion erforderlich.",
-            metadata: {
-              source: "quick_offer",
-              notificationId: ownerNotification.id,
-              recipient: OWNER_NOTIFICATION_EMAIL,
-            },
-          },
-        ],
-      });
+      <p>
+        Diese Anfrage wurde nur per E-Mail übermittelt.
+        Es wurden keine automatischen Kunden-, Auftrags-
+        oder Kalkulationsdaten im Dashboard erstellt.
+      </p>
+    `;
 
-      return {
-        customer,
-        session,
-        order,
-        estimate,
-        ownerNotification,
-        customerNotification,
+    const customerHtml = `
+      <h2>Ihre Anfrage ist bei HEXA CLEAN eingegangen</h2>
+
+      <p>Guten Tag ${escapeHtml(offer.name)}</p>
+
+      <p>
+        Vielen Dank für Ihre Anfrage.
+        Wir prüfen Ihre Angaben und melden uns persönlich bei Ihnen.
+      </p>
+
+      <h3>Ihre Angaben</h3>
+      <ul>${detailsHtml}</ul>
+
+      <p>
+        <strong>Unverbindliche Preisspanne:</strong>
+        CHF ${escapeHtml(
+          String(offer.calculatedMinPrice),
+        )}–${escapeHtml(
+          String(offer.calculatedMaxPrice),
+        )}
+      </p>
+
+      <p>
+        Die angezeigte Preisspanne ist unverbindlich.
+        Eine verbindliche Offerte erhalten Sie erst nach
+        persönlicher Prüfung des Umfangs und der Fotos.
+      </p>
+
+      <p>Freundliche Grüsse<br />HEXA CLEAN</p>
+    `;
+
+    const attachments =
+      photos.map((photo) => ({
+        filename: photo.fileName,
+        content:
+          photo.dataUrl.split(",")[1] ?? "",
+      }));
+
+    const ownerResult =
+      await resend.emails.send({
+        from: EMAIL_FROM,
+        to: OWNER_NOTIFICATION_EMAIL,
+        replyTo: offer.email,
+        subject:
+          `Neue Schnelle-Offerte-Anfrage: ${offer.service}`,
+        html: ownerHtml,
+        text: buildPlainMessage(offer),
         attachments,
-      } satisfies CrmResult;
-    });
+      });
 
-    const photoSummary =
-      crmResult.attachments.length > 0
-        ? `\nFotos für die Preisprüfung: ${crmResult.attachments.length}`
-        : "\nFotos für die Preisprüfung: Keine";
+    if (ownerResult.error) {
+      console.error(
+        "Owner QuickOffer email error:",
+        ownerResult.error,
+      );
 
-    const ownerEmailHtml = buildOwnerEmailHtml(
-      offer,
-      {
-        customerId: crmResult.customer.id,
-        sessionId: crmResult.session.id,
-        orderId: crmResult.order.id,
-        orderNumber: crmResult.order.orderNumber,
-        estimateId: crmResult.estimate.id,
-        estimateNumber: crmResult.estimate.estimateNumber,
-      },
-      appUrl,
-    );
-
-    const ownerEmail = await sendEmail({
-      to: OWNER_NOTIFICATION_EMAIL,
-      subject: "Neue QuickOffer Anfrage - Aktion erforderlich",
-      html: ownerEmailHtml,
-      text: `${plainMessage}${photoSummary}`,
-    });
-
-    await prisma.notification.update({
-      where: {
-        id: crmResult.ownerNotification.id,
-      },
-      data: {
-        status: ownerEmail.sent
-          ? NotificationStatus.SENT
-          : NotificationStatus.FAILED,
-        sentAt: ownerEmail.sent ? new Date() : null,
-        errorMessage: ownerEmail.error,
-      },
-    });
+      return NextResponse.json(
+        {
+          success: false,
+          ownerEmailSent: false,
+          customerEmailSent: false,
+          error:
+            "Die Anfrage konnte nicht per E-Mail gesendet werden.",
+        },
+        { status: 502 },
+      );
+    }
 
     let customerEmailSent = false;
-    let customerEmailError: string | null = null;
+    let customerEmailError:
+      string | null = null;
 
-    if (offer.email && crmResult.customerNotification) {
-      const customerEmail = await sendEmail({
-        to: offer.email,
-        subject: "Ihre Anfrage bei HEXA CLEAN ist eingegangen",
-        html: buildCustomerEmailHtml(offer),
-        text: buildCustomerEmailPlainText(offer),
-      });
+    try {
+      const customerResult =
+        await resend.emails.send({
+          from: EMAIL_FROM,
+          to: offer.email,
+          replyTo: EMAIL_REPLY_TO,
+          subject:
+            "Ihre Anfrage bei HEXA CLEAN ist eingegangen",
+          html: customerHtml,
+          text:
+            buildCustomerEmailPlainText(
+              offer,
+            ),
+        });
 
-      customerEmailSent = customerEmail.sent;
-      customerEmailError = customerEmail.error;
+      customerEmailSent =
+        !customerResult.error;
 
-      await prisma.notification.update({
-        where: {
-          id: crmResult.customerNotification.id,
-        },
-        data: {
-          status: customerEmail.sent
-            ? NotificationStatus.SENT
-            : NotificationStatus.FAILED,
-          sentAt: customerEmail.sent ? new Date() : null,
-          errorMessage: customerEmail.error,
-        },
-      });
+      if (customerResult.error) {
+        customerEmailError =
+          String(
+            customerResult.error.message ??
+            "Bestätigung konnte nicht gesendet werden.",
+          );
+      }
+    } catch (error) {
+      customerEmailError =
+        error instanceof Error
+          ? error.message
+          : "Bestätigung konnte nicht gesendet werden.";
     }
 
-    logPublicAccessEvent(request, {
-      scope: "quick_offer_contact",
-      statusCode: 201,
+    return NextResponse.json({
       success: true,
-      rateLimit,
-      requestBytes,
-      responseMs: Date.now() - startedAt,
-      extra: {
-        ownerEmailSent: ownerEmail.sent,
-        customerEmailSent,
-        hasEmail: Boolean(offer.email),
-        hasPhone: Boolean(offer.phone),
-        service: offer.service,
-        estimateNumber: crmResult.estimate.estimateNumber,
-        orderNumber: crmResult.order.orderNumber,
-        photoCount: crmResult.attachments.length,
-      },
+      message:
+        "Ihre Anfrage wurde per E-Mail an HEXA CLEAN gesendet.",
+      emailSent: true,
+      ownerEmailSent: true,
+      customerEmailSent,
+      customerEmailSkipped: false,
+      customerEmailError,
+      crm: null,
     });
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: "QuickOffer Anfrage wurde im CRM gespeichert.",
-        emailSent: ownerEmail.sent || customerEmailSent,
-        ownerEmailSent: ownerEmail.sent,
-        customerEmailSent,
-        customerEmailSkipped: !offer.email,
-        customerEmailError,
-        crm: {
-          customerId: crmResult.customer.id,
-          sessionId: crmResult.session.id,
-          orderId: crmResult.order.id,
-          orderNumber: crmResult.order.orderNumber,
-          estimateId: crmResult.estimate.id,
-          estimateNumber: crmResult.estimate.estimateNumber,
-          ownerNotificationId: crmResult.ownerNotification.id,
-          customerNotificationId: crmResult.customerNotification?.id ?? null,
-          attachmentCount: crmResult.attachments.length,
-          attachmentIds: crmResult.attachments.map(
-            (attachment) => attachment.id,
-          ),
-        },
-      },
-      {
-        status: 201,
-        headers: {
-          ...rateLimit.headers,
-          "Cache-Control": "no-store",
-        },
-      },
-    );
   } catch (error) {
-    console.error("QuickOffer contact error:", error);
-
-    logPublicSecurityEvent(request, {
-      scope: "quick_offer_contact",
-      reason: "server_error",
-      severity: "critical",
-      extra: {
-        errorName: error instanceof Error ? error.name : "UnknownError",
-      },
-    });
-
-    logPublicAccessEvent(request, {
-      scope: "quick_offer_contact",
-      statusCode: 500,
-      success: false,
-      rateLimit,
-      requestBytes,
-      responseMs: Date.now() - startedAt,
-      extra: {
-        reason: "server_error",
-        errorName: error instanceof Error ? error.name : "UnknownError",
-      },
-    });
+    console.error(
+      "QuickOffer email-only error:",
+      error,
+    );
 
     return NextResponse.json(
       {
         success: false,
+        ownerEmailSent: false,
+        customerEmailSent: false,
         error:
-          "Die Anfrage konnte aktuell nicht gespeichert werden. Bitte versuchen Sie es spaeter erneut.",
+          error instanceof Error
+            ? error.message
+            : "Die Anfrage konnte nicht gesendet werden.",
       },
-      {
-        status: 500,
-        headers: {
-          ...rateLimit.headers,
-          "Cache-Control": "no-store",
-        },
-      },
+      { status: 500 },
     );
   }
 }

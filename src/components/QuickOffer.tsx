@@ -88,7 +88,7 @@ function getErrorMessage(
   return (
     data?.error ??
     data?.message ??
-    "Die Anfrage konnte nicht im CRM gespeichert werden."
+    "Die Anfrage konnte nicht per E-Mail gesendet werden."
   );
 }
 
@@ -380,7 +380,7 @@ Bemerkungen: ${notes || "-"}`;
     );
   }
 
-  async function sendQuickOfferToCrm() {
+  async function sendQuickOfferByEmail() {
     if (!name.trim()) {
       setSentStatus("error");
       setStatusMessage(
@@ -500,18 +500,18 @@ Bemerkungen: ${notes || "-"}`;
       ) {
         setSentStatus("success");
         setStatusMessage(
-          "Anfrage und Fotos wurden gespeichert. Sie erhalten eine Bestätigung. HEXA CLEAN prüft die Angaben und Bilder vor der verbindlichen Offerte.",
+          "Ihre Anfrage wurde per E-Mail an HEXA CLEAN gesendet. Sie erhalten eine Bestätigung. Wir prüfen die Angaben und melden uns persönlich bei Ihnen.",
         );
       } else {
         setSentStatus("partial");
         setStatusMessage(
-          "Anfrage und Fotos wurden im CRM gespeichert. Die Benachrichtigungen werden im System geprüft.",
+          "Ihre Anfrage wurde an HEXA CLEAN gesendet. Die Kundenbestätigung konnte möglicherweise nicht zugestellt werden.",
         );
       }
     } catch {
       setSentStatus("error");
       setStatusMessage(
-        "Serverfehler. Die Anfrage konnte nicht gespeichert werden.",
+        "Serverfehler. Die Anfrage konnte nicht per E-Mail gesendet werden.",
       );
     } finally {
       setSending(false);
@@ -977,7 +977,7 @@ Bemerkungen: ${notes || "-"}`;
               <button
                 type="button"
                 onClick={
-                  sendQuickOfferToCrm
+                  sendQuickOfferByEmail
                 }
                 disabled={sending}
                 className="mt-1 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-[#02101b] transition hover:bg-white disabled:opacity-60"
