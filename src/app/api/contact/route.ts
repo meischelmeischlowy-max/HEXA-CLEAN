@@ -295,11 +295,11 @@ function normalizeService(value: unknown) {
           ServiceCatalogUnit.M2,
       };
 
-    case "Buero":
+    case "Büro":
     case "Buro":
-    case "BĂĽro":
+    case "Büro":
       return {
-        service: "Buero",
+        service: "Büro",
         serviceType:
           ServiceType.REINIGUNG,
         category:
@@ -481,7 +481,7 @@ function conditionLabel(value: string) {
 function frequencyLabel(value: string) {
   switch (value) {
     case "WOECHENTLICH":
-      return "WĂ¶chentlich";
+      return "Wöchentlich";
     case "ZWEIWOECHENTLICH":
       return "Alle zwei Wochen";
     case "MONATLICH":
@@ -496,7 +496,7 @@ function buildOfferDetailLines(
 ) {
   return [
     `Leistung: ${offer.service}`,
-    `FlĂ¤che: ${offer.size} mÂ˛`,
+    `Fläche: ${offer.size} m²`,
     `Zimmer: ${offer.rooms}`,
     `Badezimmer: ${offer.bathrooms}`,
     `Verschmutzung: ${conditionLabel(
@@ -505,7 +505,7 @@ function buildOfferDetailLines(
     `Rhythmus: ${frequencyLabel(
       offer.frequency,
     )}`,
-    `GewĂĽnschter Zeitraum: ${offer.time}`,
+    `Gewünschter Zeitraum: ${offer.time}`,
     `Zusatzleistungen: ${
       offer.selectedExtras.length > 0
         ? offer.selectedExtras.join(", ")
@@ -531,7 +531,7 @@ function buildPlainMessage(
     "",
     `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     "",
-    "Status: Aktion erforderlich. Interne PrĂĽfung vor finaler Offerte.",
+    "Status: Aktion erforderlich. Interne Prüfung vor finaler Offerte.",
   ].join("\n");
 }
 
@@ -564,7 +564,7 @@ function buildOwnerEmailHtml(
   return `
     <h2>Neue QuickOffer Anfrage - Aktion erforderlich</h2>
 
-    <p><strong>Status:</strong> Interne PrĂĽfung erforderlich</p>
+    <p><strong>Status:</strong> Interne Prüfung erforderlich</p>
 
     <h3>Kunde und Einsatzort</h3>
     <p><strong>Name:</strong> ${escapeHtml(offer.name)}</p>
@@ -574,7 +574,7 @@ function buildOwnerEmailHtml(
       `${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
     )}</p>
 
-    <h3>VollstĂ¤ndiger Auftragsumfang</h3>
+    <h3>Vollständiger Auftragsumfang</h3>
     <ul>${details}</ul>
 
     <p><strong>Orientierende Preisspanne:</strong>
@@ -589,13 +589,13 @@ function buildOwnerEmailHtml(
 
     <p>
       <a href="${escapeHtml(estimateUrl)}">
-        Kalkulation im CRM Ă¶ffnen
+        Kalkulation im CRM öffnen
       </a>
     </p>
 
     <p>
       <a href="${escapeHtml(customerUrl)}">
-        Kundenprofil Ă¶ffnen
+        Kundenprofil öffnen
       </a>
     </p>
 
@@ -651,12 +651,12 @@ function buildCustomerEmailHtml(
     </p>
 
     <p>
-      HEXA CLEAN prĂĽft den Arbeitsumfang, die Fotos,
+      HEXA CLEAN prüft den Arbeitsumfang, die Fotos,
       die Anfahrt, das Material und die Positionen.
       Erst danach wird die verbindliche Offerte erstellt.
     </p>
 
-    <p>Freundliche GrĂĽsse<br />HEXA CLEAN</p>
+    <p>Freundliche Grüsse<br />HEXA CLEAN</p>
   `;
 }
 
@@ -676,9 +676,9 @@ function buildCustomerEmailPlainText(
     `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     "",
     "Wichtig: Das ist noch keine verbindliche finale Offerte.",
-    "HEXA CLEAN prĂĽft den Arbeitsumfang, die Fotos, die Anfahrt, das Material und die Positionen.",
+    "HEXA CLEAN prüft den Arbeitsumfang, die Fotos, die Anfahrt, das Material und die Positionen.",
     "",
-    "Freundliche GrĂĽsse",
+    "Freundliche Grüsse",
     "HEXA CLEAN",
   ].join("\n");
 }
@@ -808,7 +808,7 @@ async function normalizeQuickOfferBody(
     return {
       offer: null,
       error:
-        "Bitte geben Sie eine gĂĽltige E-Mail-Adresse ein.",
+        "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
     };
   }
 
@@ -820,7 +820,7 @@ async function normalizeQuickOfferBody(
     return {
       offer: null,
       error:
-        "Bitte geben Sie die vollstĂ¤ndige Einsatzadresse ein.",
+        "Bitte geben Sie die vollständige Einsatzadresse ein.",
     };
   }
 
@@ -1007,7 +1007,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "UngĂĽltiges Formularformat.",
+          error: "Ungültiges Formularformat.",
         },
         { status: 400 },
       );
@@ -1037,7 +1037,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: "Die Formulardaten sind ungĂĽltig.",
+          error: "Die Formulardaten sind ungültig.",
         },
         { status: 400 },
       );
@@ -1063,7 +1063,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error:
             normalized.error ??
-            "Die Angaben sind unvollstĂ¤ndig.",
+            "Die Angaben sind unvollständig.",
         },
         { status: 400 },
       );
@@ -1091,7 +1091,7 @@ export async function POST(request: NextRequest) {
         .join("");
 
     const ownerHtml = `
-      <h2>Neue Anfrage ĂĽber Schnelle Offerte</h2>
+      <h2>Neue Anfrage über Schnelle Offerte</h2>
 
       <h3>Kundendaten</h3>
       <p><strong>Name:</strong> ${escapeHtml(offer.name)}</p>
@@ -1108,13 +1108,13 @@ export async function POST(request: NextRequest) {
         <strong>Unverbindliche Preisspanne:</strong>
         CHF ${escapeHtml(
           String(offer.calculatedMinPrice),
-        )}â€“${escapeHtml(
+        )}–${escapeHtml(
           String(offer.calculatedMaxPrice),
         )}
       </p>
 
       <p>
-        Diese Anfrage wurde nur per E-Mail ĂĽbermittelt.
+        Diese Anfrage wurde nur per E-Mail übermittelt.
         Es wurden keine automatischen Kunden-, Auftrags-
         oder Kalkulationsdaten im Dashboard erstellt.
       </p>
@@ -1126,8 +1126,8 @@ export async function POST(request: NextRequest) {
       <p>Guten Tag ${escapeHtml(offer.name)}</p>
 
       <p>
-        Vielen Dank fĂĽr Ihre Anfrage.
-        Wir prĂĽfen Ihre Angaben und melden uns persĂ¶nlich bei Ihnen.
+        Vielen Dank für Ihre Anfrage.
+        Wir prüfen Ihre Angaben und melden uns persönlich bei Ihnen.
       </p>
 
       <h3>Ihre Angaben</h3>
@@ -1137,7 +1137,7 @@ export async function POST(request: NextRequest) {
         <strong>Unverbindliche Preisspanne:</strong>
         CHF ${escapeHtml(
           String(offer.calculatedMinPrice),
-        )}â€“${escapeHtml(
+        )}–${escapeHtml(
           String(offer.calculatedMaxPrice),
         )}
       </p>
@@ -1145,10 +1145,10 @@ export async function POST(request: NextRequest) {
       <p>
         Die angezeigte Preisspanne ist unverbindlich.
         Eine verbindliche Offerte erhalten Sie erst nach
-        persĂ¶nlicher PrĂĽfung des Umfangs und der Fotos.
+        persönlicher Prüfung des Umfangs und der Fotos.
       </p>
 
-      <p>Freundliche GrĂĽsse<br />HEXA CLEAN</p>
+      <p>Freundliche Grüsse<br />HEXA CLEAN</p>
     `;
 
     const attachments =
@@ -1214,14 +1214,14 @@ export async function POST(request: NextRequest) {
         customerEmailError =
           String(
             customerResult.error.message ??
-            "BestĂ¤tigung konnte nicht gesendet werden.",
+            "Bestätigung konnte nicht gesendet werden.",
           );
       }
     } catch (error) {
       customerEmailError =
         error instanceof Error
           ? error.message
-          : "BestĂ¤tigung konnte nicht gesendet werden.";
+          : "Bestätigung konnte nicht gesendet werden.";
     }
 
     return NextResponse.json({
