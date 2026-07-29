@@ -852,17 +852,7 @@ async function normalizeQuickOfferBody(
         selectedExtras,
       photoCount:
         safePhotoCount,
-    });
-
-  if (
-    calculatedPrice.requiresPhotoReview &&
-    safePhotoCount === 0
-  ) {
-    return {
-      offer: null,
-      error:
-        "Für diese Dienstleistung ist mindestens ein Foto für die visuelle Prüfung erforderlich.",
-    };
+    });;
   }
 
   return {

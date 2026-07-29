@@ -20,7 +20,6 @@ import {
   Zap,
 } from "lucide-react";
 
-import QuickOfferPhotoUpload from "./QuickOfferPhotoUpload";
 const services = [
   "Unterhaltsreinigung",
   "Grundreinigung",
@@ -149,8 +148,7 @@ export default function QuickOffer() {
   const [notes, setNotes] =
     useState("");
 
-  const [photos, setPhotos] =
-    useState<File[]>([]);
+  const photos: File[] = [];
 
   const [sending, setSending] =
     useState(false);
@@ -405,17 +403,6 @@ Bemerkungen: ${notes || "-"}`;
       setSentStatus("error");
       setStatusMessage(
         "Bitte geben Sie die vollständige Einsatzadresse ein.",
-      );
-      return;
-    }
-
-    if (
-      (calculation?.requiresPhotoReview ?? false) &&
-      photos.length === 0
-    ) {
-      setSentStatus("error");
-      setStatusMessage(
-        "Für diese Dienstleistung ist mindestens ein Foto für die visuelle Prüfung erforderlich.",
       );
       return;
     }
@@ -959,21 +946,6 @@ Bemerkungen: ${notes || "-"}`;
                 className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-sm outline-none focus:border-cyan-300/60"
               />
 
-              <QuickOfferPhotoUpload
-                files={photos}
-                disabled={sending}
-                onChange={setPhotos}
-              />
-
-              {(calculation?.requiresPhotoReview ?? false) &&
-              photos.length === 0 ? (
-                <p className="rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">
-                  Für diese Leistung ist
-                  mindestens ein Foto zur
-                  visuellen Prüfung erforderlich.
-                </p>
-              ) : null}
-
               <button
                 type="button"
                 onClick={
@@ -984,7 +956,7 @@ Bemerkungen: ${notes || "-"}`;
               >
                 {sending
                   ? "Wird gespeichert..."
-                  : "Anfrage mit Fotos senden"}
+                  : "Anfrage senden"}
               </button>
 
               {sentStatus !== "idle" ? (
