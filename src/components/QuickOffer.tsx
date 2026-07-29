@@ -25,16 +25,24 @@ const services = [
   "Grundreinigung",
   "Umzugsreinigung",
   "Hausreinigung",
-  "BĂĽro",
+  "Buero",
   "Fenster",
   "Garten",
   "Kleine Reparaturen",
 ];
 
+const serviceLabels: Record<string, string> = {
+  Buero: "B\u00fcro",
+};
+
+const extraLabels: Record<string, string> = {
+  Kuehlschrank: "K\u00fchlschrank",
+};
+
 const extras = [
   "Fenster",
   "Backofen",
-  "KĂĽhlschrank",
+  "Kuehlschrank",
   "Balkon",
   "Keller",
   "Garage",
@@ -148,6 +156,7 @@ export default function QuickOffer() {
   const [notes, setNotes] =
     useState("");
 
+  const photos: File[] = [];
 
   const [sending, setSending] =
     useState(false);
@@ -218,7 +227,8 @@ export default function QuickOffer() {
                     frequency,
                     extras:
                       selectedExtras,
-                    photoCount: 0,
+                    photoCount:
+                      photos.length,
                   }),
                 },
               );
@@ -284,7 +294,7 @@ export default function QuickOffer() {
     condition,
     frequency,
     selectedExtras,
-
+    photos.length,
   ]);
 
 useEffect(() => {
@@ -316,7 +326,7 @@ useEffect(() => {
     condition,
     frequency,
     selectedExtras,
-
+    photos.length,
     time,
   ]);
 
@@ -337,12 +347,12 @@ useEffect(() => {
   function buildMessage() {
     return `Hallo HEXA CLEAN.
 
-Ich interessiere mich fĂĽr eine Offerte.
+Ich interessiere mich für eine Offerte.
 
 Leistung: ${service}
-FlĂ¤che: ${size} mÂ˛
+Fläche: ${size} m²
 Zimmer: ${rooms}
-BĂ¤der: ${bathrooms}
+Bäder: ${bathrooms}
 Zustand: ${condition}
 Rhythmus: ${frequency}
 Zusatzleistungen: ${
@@ -350,7 +360,7 @@ Zusatzleistungen: ${
         ? selectedExtras.join(", ")
         : "Keine"
     }
-
+Fotos: ${photos.length}
 Termin: ${time}
 Orientierende Preisspanne: ${price}
 
@@ -400,7 +410,7 @@ Bemerkungen: ${notes || "-"}`;
     ) {
       setSentStatus("error");
       setStatusMessage(
-        "Bitte geben Sie die vollstĂ¤ndige Einsatzadresse ein.",
+        "Bitte geben Sie die vollständige Einsatzadresse ein.",
       );
       return;
     }
@@ -445,6 +455,9 @@ Bemerkungen: ${notes || "-"}`;
         }),
       );
 
+      for (const photo of photos) {
+        formData.append("photos", photo, photo.name);
+      }
 
       const response = await fetch(
         "/api/contact",
@@ -482,12 +495,12 @@ Bemerkungen: ${notes || "-"}`;
       ) {
         setSentStatus("success");
         setStatusMessage(
-          "Ihre Anfrage wurde per E-Mail an HEXA CLEAN gesendet. Sie erhalten eine BestĂ¤tigung. Wir prĂĽfen die Angaben und melden uns persĂ¶nlich bei Ihnen.",
+          "Ihre Anfrage wurde per E-Mail an HEXA CLEAN gesendet. Sie erhalten eine Bestätigung. Wir prüfen die Angaben und melden uns persönlich bei Ihnen.",
         );
       } else {
         setSentStatus("partial");
         setStatusMessage(
-          "Ihre Anfrage wurde an HEXA CLEAN gesendet. Die KundenbestĂ¤tigung konnte mĂ¶glicherweise nicht zugestellt werden.",
+          "Ihre Anfrage wurde an HEXA CLEAN gesendet. Die Kundenbestätigung konnte möglicherweise nicht zugestellt werden.",
         );
       }
     } catch {
@@ -520,18 +533,18 @@ Bemerkungen: ${notes || "-"}`;
           <h2 className="text-3xl font-black tracking-[-0.05em] md:text-5xl">
             Realistische Preisspanne
             <span className="block text-cyan-300">
-              vor der persĂ¶nlichen PrĂĽfung.
+              vor der persönlichen Prüfung.
             </span>
           </h2>
 
           <p className="mt-4 text-sm leading-6 text-slate-300">
-            Die Berechnung berĂĽcksichtigt
-            Dienstleistung, FlĂ¤che,
-            Zimmer, BĂ¤der, Zustand,
+            Die Berechnung berücksichtigt
+            Dienstleistung, Fläche,
+            Zimmer, Bäder, Zustand,
             Rhythmus und Zusatzleistungen.
             Die verbindliche Offerte entsteht
-            erst nach persĂ¶nlicher PrĂĽfung
-            der Angaben.
+            erst nach visueller Prüfung der
+            Fotos und Angaben.
           </p>
         </div>
 
@@ -559,7 +572,7 @@ Bemerkungen: ${notes || "-"}`;
                       : "border-white/10 bg-black/25 text-slate-300"
                   }`}
                 >
-                  {item}
+                  {serviceLabels[item] ?? item}
                 </button>
               ))}
             </div>
@@ -567,10 +580,10 @@ Bemerkungen: ${notes || "-"}`;
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
                 <span className="text-slate-400">
-                  FlĂ¤che
+                  Fläche
                 </span>
                 <strong className="float-right text-cyan-200">
-                  {size} mÂ˛
+                  {size} m²
                 </strong>
                 <input
                   type="range"
@@ -693,7 +706,7 @@ Bemerkungen: ${notes || "-"}`;
                     Einmalig
                   </option>
                   <option value="WOECHENTLICH">
-                    WĂ¶chentlich
+                    Wöchentlich
                   </option>
                   <option value="ZWEIWOECHENTLICH">
                     Alle zwei Wochen
@@ -729,7 +742,7 @@ Bemerkungen: ${notes || "-"}`;
                         : "border-white/10 bg-black/25 text-slate-300"
                     }`}
                   >
-                    {extra}
+                    {extraLabels[extra] ?? extra}
                     {active ? (
                       <Check size={15} />
                     ) : null}
@@ -743,7 +756,7 @@ Bemerkungen: ${notes || "-"}`;
                 size={18}
                 className="text-cyan-300"
               />
-              GewĂĽnschter Zeitraum
+              Gewünschter Zeitraum
             </h3>
 
             <div className="grid gap-2 sm:grid-cols-3">
@@ -808,10 +821,10 @@ Bemerkungen: ${notes || "-"}`;
                     </h3>
 
                     <p className="mt-2 text-xs text-slate-400">
-                      SchĂ¤tzsicherheit:{" "}
+                      Schätzsicherheit:{" "}
                       {(calculation?.confidence ?? "LOW") === "MEDIUM"
-                        ? "gute Orientierung"
-                        : "vorlĂ¤ufig"}
+                        ? "mit Fotos verbessert"
+                        : "vorläufig"}
                     </p>
                   </motion.div>
                 )}
@@ -826,7 +839,7 @@ Bemerkungen: ${notes || "-"}`;
                     className="flex gap-2"
                   >
                     <span className="text-cyan-300">
-                      â€˘
+                      •
                     </span>
                     {line}
                   </li>
@@ -950,7 +963,7 @@ Bemerkungen: ${notes || "-"}`;
                 className="mt-1 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-[#02101b] transition hover:bg-white disabled:opacity-60"
               >
                 {sending
-                  ? "Wird gesendet..."
+                  ? "Wird gespeichert..."
                   : "Anfrage senden"}
               </button>
 
@@ -984,7 +997,7 @@ Bemerkungen: ${notes || "-"}`;
                   onClick={sendWhatsApp}
                   className="rounded-xl border border-white/10 bg-black/30 px-5 py-3 text-sm font-bold text-slate-200"
                 >
-                  Optional zusĂ¤tzlich per
+                  Optional zusätzlich per
                   WhatsApp senden
                 </button>
               ) : null}
@@ -995,7 +1008,7 @@ Bemerkungen: ${notes || "-"}`;
                     size={13}
                     className="text-cyan-300"
                   />
-                  RĂĽckruf oder E-Mail nach PrĂĽfung
+                  Rückruf oder E-Mail nach Prüfung
                 </p>
 
                 <p className="flex items-center gap-2">
@@ -1003,8 +1016,8 @@ Bemerkungen: ${notes || "-"}`;
                     size={13}
                     className="text-cyan-300"
                   />
-                  Ihre Angaben werden direkt
-                  an HEXA CLEAN gesendet
+                  Fotos werden sicher im CRM
+                  gespeichert
                 </p>
               </div>
             </div>
