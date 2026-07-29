@@ -25,7 +25,7 @@ const services = [
   "Grundreinigung",
   "Umzugsreinigung",
   "Hausreinigung",
-  "Büro",
+  "BĂĽro",
   "Fenster",
   "Garten",
   "Kleine Reparaturen",
@@ -34,7 +34,7 @@ const services = [
 const extras = [
   "Fenster",
   "Backofen",
-  "Kühlschrank",
+  "KĂĽhlschrank",
   "Balkon",
   "Keller",
   "Garage",
@@ -337,12 +337,12 @@ useEffect(() => {
   function buildMessage() {
     return `Hallo HEXA CLEAN.
 
-Ich interessiere mich für eine Offerte.
+Ich interessiere mich fĂĽr eine Offerte.
 
 Leistung: ${service}
-Fläche: ${size} m²
+FlĂ¤che: ${size} mÂ˛
 Zimmer: ${rooms}
-Bäder: ${bathrooms}
+BĂ¤der: ${bathrooms}
 Zustand: ${condition}
 Rhythmus: ${frequency}
 Zusatzleistungen: ${
@@ -400,7 +400,7 @@ Bemerkungen: ${notes || "-"}`;
     ) {
       setSentStatus("error");
       setStatusMessage(
-        "Bitte geben Sie die vollständige Einsatzadresse ein.",
+        "Bitte geben Sie die vollstĂ¤ndige Einsatzadresse ein.",
       );
       return;
     }
@@ -482,12 +482,12 @@ Bemerkungen: ${notes || "-"}`;
       ) {
         setSentStatus("success");
         setStatusMessage(
-          "Ihre Anfrage wurde per E-Mail an HEXA CLEAN gesendet. Sie erhalten eine Bestätigung. Wir prüfen die Angaben und melden uns persönlich bei Ihnen.",
+          "Ihre Anfrage wurde per E-Mail an HEXA CLEAN gesendet. Sie erhalten eine BestĂ¤tigung. Wir prĂĽfen die Angaben und melden uns persĂ¶nlich bei Ihnen.",
         );
       } else {
         setSentStatus("partial");
         setStatusMessage(
-          "Ihre Anfrage wurde an HEXA CLEAN gesendet. Die Kundenbestätigung konnte möglicherweise nicht zugestellt werden.",
+          "Ihre Anfrage wurde an HEXA CLEAN gesendet. Die KundenbestĂ¤tigung konnte mĂ¶glicherweise nicht zugestellt werden.",
         );
       }
     } catch {
@@ -520,17 +520,17 @@ Bemerkungen: ${notes || "-"}`;
           <h2 className="text-3xl font-black tracking-[-0.05em] md:text-5xl">
             Realistische Preisspanne
             <span className="block text-cyan-300">
-              vor der persönlichen Prüfung.
+              vor der persĂ¶nlichen PrĂĽfung.
             </span>
           </h2>
 
           <p className="mt-4 text-sm leading-6 text-slate-300">
-            Die Berechnung berücksichtigt
-            Dienstleistung, Fläche,
-            Zimmer, Bäder, Zustand,
+            Die Berechnung berĂĽcksichtigt
+            Dienstleistung, FlĂ¤che,
+            Zimmer, BĂ¤der, Zustand,
             Rhythmus und Zusatzleistungen.
             Die verbindliche Offerte entsteht
-            erst nach persönlicher Prüfung
+            erst nach persĂ¶nlicher PrĂĽfung
             der Angaben.
           </p>
         </div>
@@ -567,10 +567,10 @@ Bemerkungen: ${notes || "-"}`;
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm">
                 <span className="text-slate-400">
-                  Fläche
+                  FlĂ¤che
                 </span>
                 <strong className="float-right text-cyan-200">
-                  {size} m²
+                  {size} mÂ˛
                 </strong>
                 <input
                   type="range"
@@ -693,7 +693,7 @@ Bemerkungen: ${notes || "-"}`;
                     Einmalig
                   </option>
                   <option value="WOECHENTLICH">
-                    Wöchentlich
+                    WĂ¶chentlich
                   </option>
                   <option value="ZWEIWOECHENTLICH">
                     Alle zwei Wochen
@@ -743,7 +743,7 @@ Bemerkungen: ${notes || "-"}`;
                 size={18}
                 className="text-cyan-300"
               />
-              Gewünschter Zeitraum
+              GewĂĽnschter Zeitraum
             </h3>
 
             <div className="grid gap-2 sm:grid-cols-3">
@@ -808,10 +808,10 @@ Bemerkungen: ${notes || "-"}`;
                     </h3>
 
                     <p className="mt-2 text-xs text-slate-400">
-                      Schätzsicherheit:{" "}
+                      SchĂ¤tzsicherheit:{" "}
                       {(calculation?.confidence ?? "LOW") === "MEDIUM"
                         ? "gute Orientierung"
-                        : "vorläufig"}
+                        : "vorlĂ¤ufig"}
                     </p>
                   </motion.div>
                 )}
@@ -826,12 +826,12 @@ Bemerkungen: ${notes || "-"}`;
                     className="flex gap-2"
                   >
                     <span className="text-cyan-300">
-                      •
+                      â€˘
                     </span>
                     {line}
                   </li>
                 ),
-              ))}
+              )}
             </ul>
 
             <div className="mt-5 grid gap-2">
@@ -984,7 +984,7 @@ Bemerkungen: ${notes || "-"}`;
                   onClick={sendWhatsApp}
                   className="rounded-xl border border-white/10 bg-black/30 px-5 py-3 text-sm font-bold text-slate-200"
                 >
-                  Optional zusätzlich per
+                  Optional zusĂ¤tzlich per
                   WhatsApp senden
                 </button>
               ) : null}
@@ -995,7 +995,7 @@ Bemerkungen: ${notes || "-"}`;
                     size={13}
                     className="text-cyan-300"
                   />
-                  Rückruf oder E-Mail nach Prüfung
+                  RĂĽckruf oder E-Mail nach PrĂĽfung
                 </p>
 
                 <p className="flex items-center gap-2">
