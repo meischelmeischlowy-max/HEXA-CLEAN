@@ -5,7 +5,6 @@ import Services from "@/components/Services/Services";
 import BeforeAfter from "@/components/BeforeAfter";
 import QuickOffer from "@/components/QuickOffer";
 import ServiceArea from "@/components/ServiceArea";
-import AIChatLauncher from "@/components/AIChat/AIChatLauncher";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -23,7 +22,6 @@ export default function Home() {
 
       <QuickOffer />
 
-      <AIChatLauncher />
 
       <ServiceArea />
 
