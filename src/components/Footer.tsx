@@ -11,7 +11,7 @@ import {
 export default function Footer() {
   return (
     <footer className="relative overflow-hidden border-t border-white/10 bg-[#020711] px-6 py-16 text-white">
-      <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-4">
+      <div className="mx-auto grid max-w-7xl gap-12 md:grid-cols-2 lg:grid-cols-5">
         <div>
           <h2 className="text-3xl font-black tracking-wide">
             HEXA<span className="text-cyan-300">CLEAN</span>
@@ -77,6 +77,56 @@ export default function Footer() {
             <p>09:00 – 18:00</p>
             <p>Samstag nach Vereinbarung</p>
             <p>Sonntag geschlossen</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-5 text-lg font-semibold">
+            Reinigung regional
+          </h3>
+
+          <div className="flex flex-col gap-3 text-sm">
+            <a
+              href="/reinigungsfirma-biel"
+              className="text-slate-400 transition hover:text-cyan-300"
+            >
+              Reinigungsfirma Biel
+            </a>
+
+            <a
+              href="/reinigungsfirma-pieterlen"
+              className="text-slate-400 transition hover:text-cyan-300"
+            >
+              Reinigungsfirma Pieterlen
+            </a>
+
+            <a
+              href="/unterhaltsreinigung-biel"
+              className="text-slate-400 transition hover:text-cyan-300"
+            >
+              Unterhaltsreinigung Biel
+            </a>
+
+            <a
+              href="/bueroreinigung-biel"
+              className="text-slate-400 transition hover:text-cyan-300"
+            >
+              Büroreinigung Biel
+            </a>
+
+            <a
+              href="/umzugsreinigung-biel"
+              className="text-slate-400 transition hover:text-cyan-300"
+            >
+              Umzugsreinigung Biel
+            </a>
+
+            <a
+              href="/fensterreinigung-biel"
+              className="text-slate-400 transition hover:text-cyan-300"
+            >
+              Fensterreinigung Biel
+            </a>
           </div>
         </div>
 
