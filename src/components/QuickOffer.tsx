@@ -50,7 +50,7 @@ const extras = [
 ];
 
 const whatsappNumber =
-  "41762581948";
+  "41779529582";
 
 type SentStatus =
   | "idle"

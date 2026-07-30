@@ -47,7 +47,7 @@ export default function Footer() {
             </a>
 
             <a
-              href="https://wa.me/41762581948"
+              href="https://wa.me/41779529582"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 text-slate-400 transition hover:text-cyan-300"
@@ -74,7 +74,7 @@ export default function Footer() {
               Montag – Freitag
             </div>
 
-            <p>08:00 – 18:00</p>
+            <p>09:00 – 18:00</p>
             <p>Samstag nach Vereinbarung</p>
             <p>Sonntag geschlossen</p>
           </div>

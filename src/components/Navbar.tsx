@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -129,7 +129,7 @@ export default function Navbar() {
 
           <div className="hidden items-center gap-3 md:flex">
             <a
-              href="tel:+41000000000"
+              href="tel:+41779529582"
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/40 hover:text-cyan-300"
             >
               <Phone size={15} />
@@ -198,7 +198,7 @@ export default function Navbar() {
 
             <div className="mt-12 grid gap-4">
               <a
-                href="tel:+41000000000"
+                href="tel:+41779529582"
                 className="rounded-xl border border-white/10 px-5 py-4 text-center font-bold"
               >
                 Telefon

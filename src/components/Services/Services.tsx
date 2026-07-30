@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -327,7 +327,7 @@ function ServiceModal({
             </a>
 
             <a
-              href="https://wa.me/41762581948"
+              href="https://wa.me/41779529582"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/15 px-5 py-3 text-sm font-bold text-white transition hover:border-cyan-300/50 hover:text-cyan-300"
