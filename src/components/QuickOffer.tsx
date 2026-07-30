@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
@@ -624,124 +624,194 @@ Bemerkungen: ${notes || "-"}`;
                 />
               </label>
 
-              <label className="grid gap-2 text-sm">
-                <span className="text-slate-400">
-                  Zimmer
-                </span>
-                <select
-                  value={rooms}
-                  onChange={(event) => {
-                    setRooms(
-                      Number(
-                        event.target.value,
-                      ),
-                    );
-                    setRoomsSelected(true);
-                  }}
-                  className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
-                >
-                  {[
-                    1,
-                    1.5,
-                    2.5,
-                    3.5,
-                    4.5,
-                    5.5,
-                    6.5,
-                  ].map((value) => (
-                    <option
-                      key={value}
-                      value={value}
-                    >
-                      {value} Zimmer
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+                <div className="grid gap-3">
+                  <label className="flex h-12 cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-[#07111d] px-4 text-sm text-white">
+                    <input
+                      type="checkbox"
+                      checked={roomsSelected}
+                      onChange={(event) =>
+                        setRoomsSelected(
+                          event.target.checked,
+                        )
+                      }
+                      className="h-4 w-4 accent-cyan-300"
+                    />
+                    Zimmer angeben
+                  </label>
 
-              <label className="grid gap-2 text-sm">
-                <span className="text-slate-400">
-                  Badezimmer
-                </span>
-                <select
-                  value={bathrooms}
-                  onChange={(event) => {
-                    setBathrooms(
-                      Number(
-                        event.target.value,
-                      ),
-                    );
-                    setBathroomsSelected(true);
-                  }}
-                  className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
-                >
-                  {[1, 2, 3, 4].map(
-                    (value) => (
-                      <option
-                        key={value}
-                        value={value}
+                  {roomsSelected ? (
+                    <label className="grid gap-2 text-sm">
+                      <span className="text-slate-400">
+                        Anzahl Zimmer
+                      </span>
+                      <select
+                        value={rooms}
+                        onChange={(event) =>
+                          setRooms(
+                            Number(
+                              event.target.value,
+                            ),
+                          )
+                        }
+                        className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
                       >
-                        {value}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </label>
+                        {[
+                          1,
+                          1.5,
+                          2.5,
+                          3.5,
+                          4.5,
+                          5.5,
+                          6.5,
+                        ].map((value) => (
+                          <option
+                            key={value}
+                            value={value}
+                          >
+                            {value} Zimmer
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
 
-              <label className="grid gap-2 text-sm">
-                <span className="text-slate-400">
-                  Verschmutzung
-                </span>
-                <select
-                  value={condition}
-                  onChange={(event) => {
-                    setCondition(
-                      event.target.value,
-                    );
-                    setConditionSelected(true);
-                  }}
-                  className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
-                >
-                  <option value="LEICHT">
-                    Leicht
-                  </option>
-                  <option value="NORMAL">
-                    Normal
-                  </option>
-                  <option value="STARK">
-                    Stark
-                  </option>
-                </select>
-              </label>
+                <div className="grid gap-3">
+                  <label className="flex h-12 cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-[#07111d] px-4 text-sm text-white">
+                    <input
+                      type="checkbox"
+                      checked={bathroomsSelected}
+                      onChange={(event) =>
+                        setBathroomsSelected(
+                          event.target.checked,
+                        )
+                      }
+                      className="h-4 w-4 accent-cyan-300"
+                    />
+                    Badezimmer angeben
+                  </label>
 
-              <label className="grid gap-2 text-sm sm:col-span-2">
-                <span className="text-slate-400">
-                  Rhythmus
-                </span>
-                <select
-                  value={frequency}
-                  onChange={(event) => {
-                    setFrequency(
-                      event.target.value,
-                    );
-                    setFrequencySelected(true);
-                  }}
-                  className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
-                >
-                  <option value="EINMALIG">
-                    Einmalig
-                  </option>
-                  <option value="WOECHENTLICH">
-                    Wöchentlich
-                  </option>
-                  <option value="ZWEIWOECHENTLICH">
-                    Alle zwei Wochen
-                  </option>
-                  <option value="MONATLICH">
-                    Monatlich
-                  </option>
-                </select>
-              </label>
+                  {bathroomsSelected ? (
+                    <label className="grid gap-2 text-sm">
+                      <span className="text-slate-400">
+                        Anzahl Badezimmer
+                      </span>
+                      <select
+                        value={bathrooms}
+                        onChange={(event) =>
+                          setBathrooms(
+                            Number(
+                              event.target.value,
+                            ),
+                          )
+                        }
+                        className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
+                      >
+                        {[1, 2, 3, 4].map(
+                          (value) => (
+                            <option
+                              key={value}
+                              value={value}
+                            >
+                              {value}
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3">
+                  <label className="flex h-12 cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-[#07111d] px-4 text-sm text-white">
+                    <input
+                      type="checkbox"
+                      checked={conditionSelected}
+                      onChange={(event) =>
+                        setConditionSelected(
+                          event.target.checked,
+                        )
+                      }
+                      className="h-4 w-4 accent-cyan-300"
+                    />
+                    Verschmutzung angeben
+                  </label>
+
+                  {conditionSelected ? (
+                    <label className="grid gap-2 text-sm">
+                      <span className="text-slate-400">
+                        Verschmutzung
+                      </span>
+                      <select
+                        value={condition}
+                        onChange={(event) =>
+                          setCondition(
+                            event.target.value,
+                          )
+                        }
+                        className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
+                      >
+                        <option value="LEICHT">
+                          Leicht
+                        </option>
+                        <option value="NORMAL">
+                          Normal
+                        </option>
+                        <option value="STARK">
+                          Stark
+                        </option>
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3">
+                  <label className="flex h-12 cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-[#07111d] px-4 text-sm text-white">
+                    <input
+                      type="checkbox"
+                      checked={frequencySelected}
+                      onChange={(event) =>
+                        setFrequencySelected(
+                          event.target.checked,
+                        )
+                      }
+                      className="h-4 w-4 accent-cyan-300"
+                    />
+                    Rhythmus angeben
+                  </label>
+
+                  {frequencySelected ? (
+                    <label className="grid gap-2 text-sm">
+                      <span className="text-slate-400">
+                        Rhythmus
+                      </span>
+                      <select
+                        value={frequency}
+                        onChange={(event) =>
+                          setFrequency(
+                            event.target.value,
+                          )
+                        }
+                        className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
+                      >
+                        <option value="EINMALIG">
+                          Einmalig
+                        </option>
+                        <option value="WOECHENTLICH">
+                          Wöchentlich
+                        </option>
+                        <option value="ZWEIWOECHENTLICH">
+                          Alle zwei Wochen
+                        </option>
+                        <option value="MONATLICH">
+                          Monatlich
+                        </option>
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             <h3 className="mb-3 mt-6 font-black">

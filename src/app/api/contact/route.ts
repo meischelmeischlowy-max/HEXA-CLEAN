@@ -1,4 +1,4 @@
-import {
+﻿import {
   AttachmentType,
   AuditAction,
   CustomerType,
@@ -567,7 +567,7 @@ function buildPlainMessage(
     "",
     `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     "",
-    "Status: Aktion erforderlich. Interne PrĂ„â€šĂ„Ëťfung vor finaler Offerte.",
+    "Status: Aktion erforderlich. Interne Pr\u00fcfung vor finaler Offerte.",
   ].join("\n");
 }
 
@@ -687,12 +687,12 @@ function buildCustomerEmailHtml(
     </p>
 
     <p>
-      HEXA CLEAN prĂ„â€šĂ„Ëťft den Arbeitsumfang, die Fotos,
+      HEXA CLEAN pr\u00fcft den Arbeitsumfang, die Fotos,
       die Anfahrt, das Material und die Positionen.
       Erst danach wird die verbindliche Offerte erstellt.
     </p>
 
-    <p>Freundliche GrĂ„â€šĂ„Ëťsse<br />HEXA CLEAN</p>
+    <p>Freundliche Gr\u00fcsse<br />HEXA CLEAN</p>
   `;
 }
 
@@ -712,9 +712,9 @@ function buildCustomerEmailPlainText(
     `Orientierende Preisspanne: CHF ${offer.calculatedMinPrice}-${offer.calculatedMaxPrice}`,
     "",
     "Wichtig: Das ist noch keine verbindliche finale Offerte.",
-    "HEXA CLEAN prĂ„â€šĂ„Ëťft den Arbeitsumfang, die Fotos, die Anfahrt, das Material und die Positionen.",
+    "HEXA CLEAN pr\u00fcft den Arbeitsumfang, die Fotos, die Anfahrt, das Material und die Positionen.",
     "",
-    "Freundliche GrĂ„â€šĂ„Ëťsse",
+    "Freundliche Gr\u00fcsse",
     "HEXA CLEAN",
   ].join("\n");
 }
@@ -1143,7 +1143,7 @@ export async function POST(request: NextRequest) {
         .join("");
 
     const ownerHtml = `
-      <h2>Neue Anfrage Ă„â€šĂ„Ëťber Schnelle Offerte</h2>
+      <h2>Neue Anfrage \u00fcber Schnelle Offerte</h2>
 
       <h3>Kundendaten</h3>
       <p><strong>Name:</strong> ${escapeHtml(offer.name)}</p>
@@ -1200,7 +1200,7 @@ export async function POST(request: NextRequest) {
         pers\u00f6nlicher Pr\u00fcfung des Umfangs.
       </p>
 
-      <p>Freundliche GrĂ„â€šĂ„Ëťsse<br />HEXA CLEAN</p>
+      <p>Freundliche Gr\u00fcsse<br />HEXA CLEAN</p>
     `;
 
     const attachments =
