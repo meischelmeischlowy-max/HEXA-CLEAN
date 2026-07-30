@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import "./globals.css";
+import LocalBusinessSchema from "@/components/LocalBusinessSchema";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://hexaclean.ch"),
@@ -53,7 +54,10 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className="h-full antialiased"
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <LocalBusinessSchema />
+        {children}
+      </body>
     </html>
   );
 }
