@@ -132,6 +132,24 @@ export default function QuickOffer() {
   const [time, setTime] =
     useState("Diese Woche");
 
+  const [roomsSelected, setRoomsSelected] =
+    useState(false);
+
+  const [
+    bathroomsSelected,
+    setBathroomsSelected,
+  ] = useState(false);
+
+  const [
+    conditionSelected,
+    setConditionSelected,
+  ] = useState(false);
+
+  const [
+    frequencySelected,
+    setFrequencySelected,
+  ] = useState(false);
+
   const [analyzing, setAnalyzing] =
     useState(false);
 
@@ -438,9 +456,13 @@ Bemerkungen: ${notes || "-"}`;
           service,
           size,
           rooms,
+          roomsSelected,
           bathrooms,
+          bathroomsSelected,
           condition,
+          conditionSelected,
           frequency,
+          frequencySelected,
           selectedExtras,
           time,
           price,
@@ -608,13 +630,14 @@ Bemerkungen: ${notes || "-"}`;
                 </span>
                 <select
                   value={rooms}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setRooms(
                       Number(
                         event.target.value,
                       ),
-                    )
-                  }
+                    );
+                    setRoomsSelected(true);
+                  }}
                   className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
                 >
                   {[
@@ -642,13 +665,14 @@ Bemerkungen: ${notes || "-"}`;
                 </span>
                 <select
                   value={bathrooms}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setBathrooms(
                       Number(
                         event.target.value,
                       ),
-                    )
-                  }
+                    );
+                    setBathroomsSelected(true);
+                  }}
                   className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
                 >
                   {[1, 2, 3, 4].map(
@@ -670,11 +694,12 @@ Bemerkungen: ${notes || "-"}`;
                 </span>
                 <select
                   value={condition}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setCondition(
                       event.target.value,
-                    )
-                  }
+                    );
+                    setConditionSelected(true);
+                  }}
                   className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
                 >
                   <option value="LEICHT">
@@ -695,11 +720,12 @@ Bemerkungen: ${notes || "-"}`;
                 </span>
                 <select
                   value={frequency}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFrequency(
                       event.target.value,
-                    )
-                  }
+                    );
+                    setFrequencySelected(true);
+                  }}
                   className="h-12 rounded-xl border border-white/10 bg-[#07111d] px-3 text-white"
                 >
                   <option value="EINMALIG">

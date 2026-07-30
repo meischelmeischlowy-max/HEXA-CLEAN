@@ -61,9 +61,13 @@ type QuickOfferBody = {
   service?: unknown;
   size?: unknown;
   rooms?: unknown;
+  roomsSelected?: unknown;
   bathrooms?: unknown;
+  bathroomsSelected?: unknown;
   condition?: unknown;
+  conditionSelected?: unknown;
   frequency?: unknown;
+  frequencySelected?: unknown;
   selectedExtras?: unknown;
   time?: unknown;
   price?: unknown;
@@ -89,9 +93,13 @@ type NormalizedQuickOffer = {
   unit: ServiceCatalogUnit;
   size: number;
   rooms: number;
+  roomsSelected: boolean;
   bathrooms: number;
+  bathroomsSelected: boolean;
   condition: string;
+  conditionSelected: boolean;
   frequency: string;
+  frequencySelected: boolean;
   selectedExtras: string[];
   time: string;
   photoCount: number;
@@ -494,26 +502,54 @@ function frequencyLabel(value: string) {
 function buildOfferDetailLines(
   offer: NormalizedQuickOffer,
 ) {
-  return [
+  const lines: string[] = [
     `Leistung: ${offer.service}`,
     `Fl\u00e4che: ${offer.size} m\u00b2`,
-    `Zimmer: ${offer.rooms}`,
-    `Badezimmer: ${offer.bathrooms}`,
-    `Verschmutzung: ${conditionLabel(
-      offer.condition,
-    )}`,
-    `Rhythmus: ${frequencyLabel(
-      offer.frequency,
-    )}`,
-    `Gew\u00fcnschter Zeitraum: ${offer.time}`,
-    `Zusatzleistungen: ${
-      offer.selectedExtras.length > 0
-        ? offer.selectedExtras.join(", ")
-        : "Keine"
-    }`,
-    `Fotos: ${offer.photoCount}`,
-    `Bemerkungen: ${offer.notes ?? "-"}`,
   ];
+
+  if (offer.roomsSelected) {
+    lines.push(`Zimmer: ${offer.rooms}`);
+  }
+
+  if (offer.bathroomsSelected) {
+    lines.push(
+      `Badezimmer: ${offer.bathrooms}`,
+    );
+  }
+
+  if (offer.conditionSelected) {
+    lines.push(
+      `Verschmutzung: ${conditionLabel(
+        offer.condition,
+      )}`,
+    );
+  }
+
+  if (offer.frequencySelected) {
+    lines.push(
+      `Rhythmus: ${frequencyLabel(
+        offer.frequency,
+      )}`,
+    );
+  }
+
+  lines.push(
+    `Gew\u00fcnschter Zeitraum: ${offer.time}`,
+  );
+
+  if (offer.selectedExtras.length > 0) {
+    lines.push(
+      `Zusatzleistungen: ${offer.selectedExtras.join(", ")}`,
+    );
+  }
+
+  if (offer.notes) {
+    lines.push(
+      `Bemerkungen: ${offer.notes}`,
+    );
+  }
+
+  return lines;
 }
 
 function buildPlainMessage(
@@ -524,7 +560,7 @@ function buildPlainMessage(
     "",
     `Name: ${offer.name}`,
     `E-Mail: ${offer.email}`,
-    `Telefon: ${offer.phone ?? "-"}`,
+    ...(offer.phone ? [`Telefon: ${offer.phone}`] : []),
     `Adresse: ${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
     "",
     ...buildOfferDetailLines(offer),
@@ -569,7 +605,7 @@ function buildOwnerEmailHtml(
     <h3>Kunde und Einsatzort</h3>
     <p><strong>Name:</strong> ${escapeHtml(offer.name)}</p>
     <p><strong>E-Mail:</strong> ${escapeHtml(offer.email)}</p>
-    <p><strong>Telefon:</strong> ${escapeHtml(offer.phone || "-")}</p>
+    ${offer.phone ? `<p><strong>Telefon:</strong> ${escapeHtml(offer.phone)}</p>` : ""}
     <p><strong>Adresse:</strong> ${escapeHtml(
       `${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
     )}</p>
@@ -627,7 +663,7 @@ function buildCustomerEmailHtml(
 
     <h3>Kontakt und Einsatzort</h3>
     <p><strong>E-Mail:</strong> ${escapeHtml(offer.email)}</p>
-    <p><strong>Telefon:</strong> ${escapeHtml(offer.phone || "-")}</p>
+    ${offer.phone ? `<p><strong>Telefon:</strong> ${escapeHtml(offer.phone)}</p>` : ""}
     <p><strong>Adresse:</strong> ${escapeHtml(
       `${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
     )}</p>
@@ -668,7 +704,7 @@ function buildCustomerEmailPlainText(
     "",
     `Name: ${offer.name}`,
     `E-Mail: ${offer.email}`,
-    `Telefon: ${offer.phone ?? "-"}`,
+    ...(offer.phone ? [`Telefon: ${offer.phone}`] : []),
     `Adresse: ${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
     "",
     ...buildOfferDetailLines(offer),
@@ -779,6 +815,18 @@ async function normalizeQuickOfferBody(
       40,
     ) ?? "EINMALIG";
 
+  const roomsSelected =
+    body.roomsSelected === true;
+
+  const bathroomsSelected =
+    body.bathroomsSelected === true;
+
+  const conditionSelected =
+    body.conditionSelected === true;
+
+  const frequencySelected =
+    body.frequencySelected === true;
+
   const selectedExtras =
     normalizeExtras(
       body.selectedExtras,
@@ -875,9 +923,13 @@ async function normalizeQuickOfferBody(
         serviceData.unit,
       size,
       rooms,
+      roomsSelected,
       bathrooms,
+      bathroomsSelected,
       condition,
+      conditionSelected,
       frequency,
+      frequencySelected,
       selectedExtras,
       time,
       photoCount:
@@ -1096,7 +1148,7 @@ export async function POST(request: NextRequest) {
       <h3>Kundendaten</h3>
       <p><strong>Name:</strong> ${escapeHtml(offer.name)}</p>
       <p><strong>E-Mail:</strong> ${escapeHtml(offer.email)}</p>
-      <p><strong>Telefon:</strong> ${escapeHtml(offer.phone ?? "-")}</p>
+      ${offer.phone ? `<p><strong>Telefon:</strong> ${escapeHtml(offer.phone)}</p>` : ""}
       <p><strong>Adresse:</strong> ${escapeHtml(
         `${offer.street}, ${offer.zipCode} ${offer.city}, ${offer.country}`,
       )}</p>
