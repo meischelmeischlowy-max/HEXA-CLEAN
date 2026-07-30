@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { MapPin, Navigation } from "lucide-react";
 
 const places = [
   "Pieterlen",
   "Biel/Bienne",
+  "Brügg",
   "Nidau",
   "Lyss",
   "Grenchen",

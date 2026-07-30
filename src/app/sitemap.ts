@@ -48,6 +48,29 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/reinigungsfirma-nidau`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/reinigungsfirma-bruegg`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/reinigungsfirma-lyss`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/reinigungsfirma-grenchen`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },    {
       url: `${baseUrl}/impressum`,
       lastModified,
       changeFrequency: "yearly",

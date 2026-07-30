@@ -44,7 +44,30 @@ const links = [
     text: "Professionelle Reinigung von Fenstern und Glasflächen.",
     icon: Sparkles,
   },
-];
+  {
+    href: "/reinigungsfirma-nidau",
+    title: "Reinigungsfirma Nidau",
+    text: "Professionelle Reinigung für Privatkunden und Unternehmen in Nidau.",
+    icon: MapPin,
+  },
+  {
+    href: "/reinigungsfirma-bruegg",
+    title: "Reinigungsfirma Brügg",
+    text: "Zuverlässige Reinigung in Brügg und der Region Biel.",
+    icon: MapPin,
+  },
+  {
+    href: "/reinigungsfirma-lyss",
+    title: "Reinigungsfirma Lyss",
+    text: "Reinigung für Wohnungen, Büros und Liegenschaften in Lyss.",
+    icon: MapPin,
+  },
+  {
+    href: "/reinigungsfirma-grenchen",
+    title: "Reinigungsfirma Grenchen",
+    text: "Reinigung für private und geschäftliche Objekte in Grenchen.",
+    icon: MapPin,
+  },];
 
 export default function LocalSeoLinks() {
   return (
