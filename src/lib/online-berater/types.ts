@@ -1,4 +1,4 @@
-export type OnlineBeraterRole =
+﻿export type OnlineBeraterRole =
   | "user"
   | "assistant";
 
@@ -29,7 +29,7 @@ export type OnlineBeraterBusinessContext = {
   company: {
     name: "HEXA CLEAN";
     email: "info@hexaclean.ch";
-    phone: "+41 76 258 19 48";
+    phone: "+41 77 952 95 82";
     location: "Pieterlen, Biel/Bienne, Schweiz";
     openingHours: {
       weekdays: "Montag bis Freitag, 08:00 bis 18:00";

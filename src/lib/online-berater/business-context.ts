@@ -1,4 +1,4 @@
-import {
+﻿import {
   AvailabilitySlotStatus,
   PrismaClient,
 } from "@prisma/client";
@@ -98,7 +98,7 @@ export async function getOnlineBeraterBusinessContext(): Promise<OnlineBeraterBu
     company: {
       name: "HEXA CLEAN",
       email: "info@hexaclean.ch",
-      phone: "+41 76 258 19 48",
+      phone: "+41 77 952 95 82",
       location:
         "Pieterlen, Biel/Bienne, Schweiz",
       openingHours: {

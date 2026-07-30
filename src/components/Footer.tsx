@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Clock,
@@ -31,11 +31,11 @@ export default function Footer() {
 
           <div className="space-y-4 text-sm">
             <a
-              href="tel:+41762581948"
+              href="tel:+41779529582"
               className="flex items-center gap-3 text-slate-400 transition hover:text-cyan-300"
             >
               <Phone className="h-5 w-5 text-cyan-300" />
-              +41 76 258 19 48
+              +41 77 952 95 82
             </a>
 
             <a

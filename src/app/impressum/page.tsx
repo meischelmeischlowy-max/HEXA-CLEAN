@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
@@ -37,10 +37,10 @@ export default function ImpressumPage() {
               <br />
               Telefon:{" "}
               <a
-                href="tel:+41762581948"
+                href="tel:+41779529582"
                 className="text-cyan-300 hover:text-cyan-200"
               >
-                +41 76 258 19 48
+                +41 77 952 95 82
               </a>
               <br />
               E-Mail:{" "}

@@ -1,4 +1,4 @@
-export default function DatenschutzPage() {
+﻿export default function DatenschutzPage() {
   return (
     <main className="min-h-screen bg-[#020711] px-6 py-24 text-white">
       <div className="mx-auto max-w-5xl">
@@ -71,7 +71,7 @@ export default function DatenschutzPage() {
             </h2>
 
             <p>Michal Majewski</p>
-            <p>Telefon: +41 76 258 19 48</p>
+            <p>Telefon: +41 77 952 95 82</p>
             <p>E-Mail: info@hexaclean.ch</p>
           </section>
 
